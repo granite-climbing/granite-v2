@@ -1,0 +1,15 @@
+name = "granite-workers"
+main = "workers/instagram-webhook/src/index.ts"
+compatibility_date = "2026-05-16"
+
+[vars]
+ENVIRONMENT = "production"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "granite-prod"
+database_id = "replace-with-cloudflare-d1-id"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "granite-prod-images"
