@@ -7,17 +7,19 @@ import { TabLink } from "@/components/public/tab-link";
 import { findSectorBySlug } from "@/lib/db/repository";
 
 type SectorPageProps = {
-  params: { cragSlug: string; sectorSlug: string };
-  searchParams?: { tab?: string };
+  params: Promise<{ cragSlug: string; sectorSlug: string }>;
+  searchParams?: Promise<{ tab?: string }>;
 };
 
-export default function SectorPage({ params, searchParams }: SectorPageProps) {
-  const sector = findSectorBySlug(params.cragSlug, params.sectorSlug);
+export default async function SectorPage({ params, searchParams }: SectorPageProps) {
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
+  const sector = findSectorBySlug(resolvedParams.cragSlug, resolvedParams.sectorSlug);
   if (!sector) {
     notFound();
   }
 
-  const activeTab = sector.tabs.find((tab) => tab.toLowerCase() === searchParams?.tab?.toLowerCase()) ?? "Info";
+  const activeTab = sector.tabs.find((tab) => tab.toLowerCase() === resolvedSearchParams?.tab?.toLowerCase()) ?? "Info";
 
   return (
     <main className="min-h-screen bg-white pb-6">

@@ -3,7 +3,7 @@ import {
   parseBoulderForm,
   parseCragForm,
   parseRouteForm
-} from "./admin-content";
+} from "./admin-content-schema";
 
 describe("admin content form parsing", () => {
   it("parses a crag form payload with optional coordinates", () => {

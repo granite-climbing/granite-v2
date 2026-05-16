@@ -5,11 +5,12 @@ import { BottomNav } from "@/components/layout/bottom-nav";
 import { findRouteById } from "@/lib/db/repository";
 
 type RoutePageProps = {
-  params: { routeId: string };
+  params: Promise<{ routeId: string }>;
 };
 
-export default function RoutePage({ params }: RoutePageProps) {
-  const route = findRouteById(params.routeId);
+export default async function RoutePage({ params }: RoutePageProps) {
+  const resolvedParams = await params;
+  const route = findRouteById(resolvedParams.routeId);
   if (!route) {
     notFound();
   }

@@ -4,12 +4,13 @@ import { AppHeader } from "@/components/layout/app-header";
 import { findBoulderById, findCragBySlug } from "@/lib/db/repository";
 
 type BoulderPageProps = {
-  params: { cragSlug: string; boulderId: string };
+  params: Promise<{ cragSlug: string; boulderId: string }>;
 };
 
-export default function BoulderPage({ params }: BoulderPageProps) {
-  const crag = findCragBySlug(params.cragSlug);
-  const boulder = findBoulderById(params.boulderId);
+export default async function BoulderPage({ params }: BoulderPageProps) {
+  const resolvedParams = await params;
+  const crag = findCragBySlug(resolvedParams.cragSlug);
+  const boulder = findBoulderById(resolvedParams.boulderId);
   if (!crag || !boulder) {
     notFound();
   }

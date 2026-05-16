@@ -7,17 +7,19 @@ import { TabLink } from "@/components/public/tab-link";
 import { findCragBySlug } from "@/lib/db/repository";
 
 type CragPageProps = {
-  params: { cragSlug: string };
-  searchParams?: { tab?: string };
+  params: Promise<{ cragSlug: string }>;
+  searchParams?: Promise<{ tab?: string }>;
 };
 
-export default function CragPage({ params, searchParams }: CragPageProps) {
-  const crag = findCragBySlug(params.cragSlug);
+export default async function CragPage({ params, searchParams }: CragPageProps) {
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
+  const crag = findCragBySlug(resolvedParams.cragSlug);
   if (!crag) {
     notFound();
   }
 
-  const activeTab = crag.tabs.find((tab) => tab.toLowerCase() === searchParams?.tab?.toLowerCase()) ?? "Info";
+  const activeTab = crag.tabs.find((tab) => tab.toLowerCase() === resolvedSearchParams?.tab?.toLowerCase()) ?? "Info";
 
   return (
     <main className="min-h-screen bg-white pb-6">
