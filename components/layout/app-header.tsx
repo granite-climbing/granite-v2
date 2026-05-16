@@ -2,16 +2,21 @@ import Link from "next/link";
 
 export function AppHeader() {
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-[#E8E8E8] bg-white/95 px-5 backdrop-blur">
-      <Link href="/" className="text-lg font-black tracking-[-0.04em]" aria-label="Granite home">
-        GRANITE
+    <header className="sticky top-0 z-20 flex h-[64px] items-center justify-between bg-white px-4">
+      <Link href="/" className="flex items-center gap-2" aria-label="Granite home">
+        <span className="grid size-7 place-items-center rounded-full bg-[#1A1A1A] text-[10px] font-black text-white">
+          G
+        </span>
+        <span className="text-[18px] font-black leading-none tracking-[-0.08em]">granite</span>
       </Link>
       <button
         type="button"
-        className="grid size-10 place-items-center rounded-full border border-[#E8E8E8]"
+        className="flex size-10 flex-col items-center justify-center gap-[5px]"
         aria-label="메뉴 열기"
       >
-        <span className="text-xl leading-none">☰</span>
+        <span className="h-[2px] w-6 rounded-full bg-[#1A1A1A]" />
+        <span className="h-[2px] w-6 rounded-full bg-[#1A1A1A]" />
+        <span className="h-[2px] w-6 rounded-full bg-[#1A1A1A]" />
       </button>
     </header>
   );
