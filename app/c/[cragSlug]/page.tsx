@@ -48,14 +48,14 @@ function CragHero({ crag }: { crag: CragDetail }) {
 
 function CragTabs({ crag, activeTab }: { crag: CragDetail; activeTab: TabName }) {
   return (
-    <nav className="no-scrollbar flex h-14 items-end gap-5 overflow-x-auto px-4" aria-label="Crag 상세 탭">
+    <nav className="flex h-14 justify-center gap-4 pt-3" aria-label="Crag 상세 탭">
       {crag.tabs.map((tab) => {
         const active = tab === activeTab;
         return (
           <Link
             key={tab}
             href={`/c/${crag.slug}?tab=${tab.toLowerCase()}`}
-            className={`relative flex h-11 shrink-0 items-center text-[14px] leading-5 ${
+            className={`relative flex h-8 shrink-0 items-center text-[14px] leading-5 ${
               active ? "font-medium text-[#090909]" : "font-normal text-[#7A7A7A]"
             }`}
             aria-current={active ? "page" : undefined}
