@@ -10,20 +10,22 @@ export function CragCard({ crag }: CragCardProps) {
   return (
     <Link
       href={`/c/${crag.slug}`}
-      className="block w-[270px] shrink-0 overflow-hidden rounded-[8px] bg-white"
+      className="block h-[298px] w-[270px] shrink-0 overflow-hidden rounded-[8px] bg-white shadow-[0_0_6px_2px_rgba(0,0,0,0.1)]"
     >
-      <div className="relative grid h-[168px] place-items-center overflow-hidden bg-[linear-gradient(135deg,#d7d1c7_0%,#9d8c7d_52%,#554a42_100%)] px-5 text-white">
-        <div className="absolute inset-0 bg-black/15" />
-        <span className="relative text-[28px] font-black tracking-[-0.06em]">{crag.name}</span>
-      </div>
-      <div className="space-y-3 px-1 py-3">
+      <div
+        className="h-[186px] bg-cover bg-center"
+        style={{ backgroundImage: `url("${crag.coverImageUrl}")` }}
+      />
+      <div className="px-4 pt-4">
         <div>
-          <h3 className="text-[20px] font-black leading-tight tracking-[-0.04em]">{crag.name}</h3>
-          <p className="text-xs font-semibold text-[#6F7477]">
+          <h3 className="text-[16px] font-bold leading-6 text-[#090909]">{crag.name}</h3>
+          <p className="mt-1 text-[12px] font-medium leading-4 text-[#7A7A7A]">
             {crag.stats.sectors} sectors · {crag.stats.boulders} boulders · {crag.stats.routes} routes
           </p>
         </div>
-        <StatBar />
+        <div className="mt-3">
+          <StatBar gradeCounts={[5, 12, 20, 24, 15, 12, 5]} variant="compact" />
+        </div>
       </div>
     </Link>
   );

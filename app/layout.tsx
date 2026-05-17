@@ -28,7 +28,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="ko">
       <body>
-        <div className="mx-auto min-h-screen w-full max-w-[393px] bg-white shadow-card">
+        <div className="mx-auto min-h-screen w-full max-w-[360px] bg-white shadow-card">
           {children}
         </div>
       </body>

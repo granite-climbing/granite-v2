@@ -1,0 +1,165 @@
+{
+  "areas": [
+    { "id": "area-capital", "name": "수도권", "slug": "capital", "sortOrder": 1 },
+    { "id": "area-gangwon", "name": "강원", "slug": "gangwon", "sortOrder": 2 },
+    { "id": "area-chungcheong", "name": "충청", "slug": "chungcheong", "sortOrder": 3 },
+    { "id": "area-jeolla", "name": "전라", "slug": "jeolla", "sortOrder": 4 },
+    { "id": "area-gyeongsang", "name": "경상", "slug": "gyeongsang", "sortOrder": 5 }
+  ],
+  "crags": [
+    {
+      "id": "crag-moraksan",
+      "areaId": "area-capital",
+      "name": "모락산",
+      "slug": "moraksan",
+      "lat": 37.3722,
+      "lng": 126.9781,
+      "summary": "의왕 도심과 가까운 화강암 볼더링 Crag. 짧은 접근과 다양한 슬랩/페이스 라인이 장점이다.",
+      "accessDesc": "계원예대 방면 등산로에서 15분 접근. 비 온 뒤에는 바위가 늦게 마른다.",
+      "parkingDesc": "공영주차장 또는 계원예대 인근 유료 주차장을 이용한다.",
+      "season": "가을·겨울·초봄",
+      "coverImageUrl": "/images/figma/crag-card.jpg",
+      "isPublished": true
+    },
+    {
+      "id": "crag-anyang",
+      "areaId": "area-capital",
+      "name": "안양예술공원",
+      "slug": "anyang",
+      "lat": 37.3943,
+      "lng": 126.9568,
+      "summary": "생활권에서 접근하기 쉬운 소규모 자연 볼더링 구역.",
+      "accessDesc": "관악산 둘레길에서 분기해 접근한다.",
+      "parkingDesc": "공영주차장 이용 권장.",
+      "season": "가을·겨울",
+      "coverImageUrl": "/images/figma/crag-card.jpg",
+      "isPublished": true
+    }
+  ],
+  "sectors": [
+    {
+      "id": "sector-gamja",
+      "cragId": "crag-moraksan",
+      "name": "감자",
+      "slug": "gamja",
+      "lat": 37.3719,
+      "lng": 126.9784,
+      "summary": "모락산 대표 볼더가 모인 Sector.",
+      "accessDesc": "주 등산로에서 왼쪽 능선으로 진입한다.",
+      "parkingDesc": "계원예대 인근 주차 후 도보 접근.",
+      "season": "가을·겨울",
+      "coverImageUrl": "/images/figma/crag-card.jpg",
+      "isPublished": true
+    },
+    {
+      "id": "sector-gyewon",
+      "cragId": "crag-moraksan",
+      "name": "계원예대",
+      "slug": "gyewon",
+      "lat": 37.373,
+      "lng": 126.9776,
+      "summary": "짧은 접근의 워밍업 라인이 많은 Sector.",
+      "accessDesc": "학교 뒤편 산책로에서 접근한다.",
+      "parkingDesc": "유료 주차장 이용.",
+      "season": "가을·초봄",
+      "coverImageUrl": "/images/figma/crag-card.jpg",
+      "isPublished": true
+    },
+    {
+      "id": "sector-anyang-main",
+      "cragId": "crag-anyang",
+      "name": "메인",
+      "slug": "main",
+      "lat": 37.394,
+      "lng": 126.9564,
+      "summary": "안양 Crag의 기본 Sector.",
+      "accessDesc": "둘레길 초입에서 10분.",
+      "parkingDesc": "공영주차장 이용.",
+      "season": "겨울",
+      "coverImageUrl": "/images/figma/crag-card.jpg",
+      "isPublished": true
+    }
+  ],
+  "boulders": [
+    {
+      "id": "boulder-big",
+      "sectorId": "sector-gamja",
+      "name": "큰바위",
+      "slug": "big-rock",
+      "lat": 37.37192,
+      "lng": 126.97842,
+      "coordPrecision": "exact",
+      "rockType": "granite",
+      "hashtags": "[\"모락산\",\"슬랩\"]",
+      "coverImageUrl": "/images/figma/crag-card.jpg",
+      "isPublished": true
+    },
+    {
+      "id": "boulder-potato",
+      "sectorId": "sector-gamja",
+      "name": "감자바위",
+      "slug": "potato",
+      "lat": 37.37183,
+      "lng": 126.9787,
+      "coordPrecision": "exact",
+      "rockType": "granite",
+      "hashtags": "[\"감자\",\"페이스\"]",
+      "coverImageUrl": "/images/figma/crag-card.jpg",
+      "isPublished": true
+    },
+    {
+      "id": "boulder-campus",
+      "sectorId": "sector-gyewon",
+      "name": "캠퍼스",
+      "slug": "campus",
+      "lat": 37.37303,
+      "lng": 126.97761,
+      "coordPrecision": "exact",
+      "rockType": "granite",
+      "hashtags": "[\"계원예대\",\"워밍업\"]",
+      "coverImageUrl": "/images/figma/crag-card.jpg",
+      "isPublished": true
+    },
+    {
+      "id": "boulder-creek",
+      "sectorId": "sector-anyang-main",
+      "name": "계곡바위",
+      "slug": "creek",
+      "lat": 37.39409,
+      "lng": 126.95639,
+      "coordPrecision": "approximate",
+      "rockType": "granite",
+      "hashtags": "[\"안양\",\"크림프\"]",
+      "coverImageUrl": "/images/figma/crag-card.jpg",
+      "isPublished": true
+    }
+  ],
+  "topos": [
+    { "id": "topo-big-main", "boulderId": "boulder-big", "name": "Main Face", "baseImageUrl": "/images/figma/crag-card.jpg", "sortOrder": 1 },
+    { "id": "topo-potato-main", "boulderId": "boulder-potato", "name": "South Face", "baseImageUrl": "/images/figma/crag-card.jpg", "sortOrder": 1 },
+    { "id": "topo-campus-main", "boulderId": "boulder-campus", "name": "Warmup Face", "baseImageUrl": "/images/figma/crag-card.jpg", "sortOrder": 1 },
+    { "id": "topo-creek-main", "boulderId": "boulder-creek", "name": "Creek Face", "baseImageUrl": "/images/figma/crag-card.jpg", "sortOrder": 1 }
+  ],
+  "routes": [
+    { "id": "route-sky-hook", "topoId": "topo-big-main", "boulderId": "boulder-big", "name": "Sky Hook", "slug": "sky-hook", "grade": "V5", "gradeNum": 5, "fa": "Granite Crew", "description": "높은 오른손 훅에서 균형을 잡는 모락산 대표 라인.", "lineImageUrl": "/images/figma/crag-card.jpg", "isPublished": true },
+    { "id": "route-river-stone", "topoId": "topo-big-main", "boulderId": "boulder-big", "name": "River Stone", "slug": "river-stone", "grade": "V3", "gradeNum": 3, "fa": "Unknown", "description": "슬랩 발을 믿고 올라서는 밸런스 라인.", "lineImageUrl": "/images/figma/crag-card.jpg", "isPublished": true },
+    { "id": "route-potato-chip", "topoId": "topo-potato-main", "boulderId": "boulder-potato", "name": "Potato Chip", "slug": "potato-chip", "grade": "V2", "gradeNum": 2, "fa": "Unknown", "description": "얇은 크림프를 따라가는 짧은 문제.", "lineImageUrl": "/images/figma/crag-card.jpg", "isPublished": true },
+    { "id": "route-gamja-arete", "topoId": "topo-potato-main", "boulderId": "boulder-potato", "name": "감자 아레트", "slug": "gamja-arete", "grade": "V4", "gradeNum": 4, "fa": "Granite Crew", "description": "아레트 압박과 힐훅이 핵심.", "lineImageUrl": "/images/figma/crag-card.jpg", "isPublished": true },
+    { "id": "route-campus-one", "topoId": "topo-campus-main", "boulderId": "boulder-campus", "name": "Campus One", "slug": "campus-one", "grade": "V1", "gradeNum": 1, "fa": "Unknown", "description": "워밍업에 좋은 쉬운 라인.", "lineImageUrl": "/images/figma/crag-card.jpg", "isPublished": true },
+    { "id": "route-creek-crimp", "topoId": "topo-creek-main", "boulderId": "boulder-creek", "name": "Creek Crimp", "slug": "creek-crimp", "grade": "V6", "gradeNum": 6, "fa": "Unknown", "description": "작은 홀드를 이어가는 강한 라인.", "lineImageUrl": "/images/figma/crag-card.jpg", "isPublished": true },
+    { "id": "route-creek-slab", "topoId": "topo-creek-main", "boulderId": "boulder-creek", "name": "Creek Slab", "slug": "creek-slab", "grade": "V0", "gradeNum": 0, "fa": "Unknown", "description": "초심자도 시도 가능한 슬랩.", "lineImageUrl": "/images/figma/crag-card.jpg", "isPublished": true }
+  ],
+  "announcements": [
+    {
+      "id": "announcement-moraksan",
+      "title": "모락산 감자 Sector 업데이트",
+      "body": "큰바위 Topo와 Route 2개를 새로 정리했습니다.",
+      "coverImageUrl": "/images/figma/crag-card.jpg",
+      "cragId": "crag-moraksan",
+      "linkUrl": "/c/moraksan",
+      "isPublished": true,
+      "publishedAt": "2026-05-13",
+      "sortOrder": 1
+    }
+  ]
+}
