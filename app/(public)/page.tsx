@@ -1,7 +1,7 @@
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { AdSlot } from "@/components/public/ad-slot";
-import { CragCard } from "@/components/public/crag-card";
+import { CragCarousel } from "@/components/public/crag-carousel";
 import { StatBar } from "@/components/public/stat-bar";
 import { getHomeModel } from "@/lib/db/repository";
 
@@ -80,16 +80,7 @@ export default function HomePage() {
           <h2 className="text-[20px] font-bold leading-7 text-[#090909]">Crags</h2>
           <span className="flex items-center text-[14px] font-medium leading-5 text-[#7A7A7A]">All ›</span>
         </div>
-        <div className="no-scrollbar flex gap-4 overflow-x-auto px-4 pb-3">
-          {selectedArea?.crags.map((crag) => <CragCard key={crag.id} crag={crag} />)}
-        </div>
-        <div className="mt-[17px] flex justify-center gap-2">
-          <span className="size-[6px] rounded-full bg-[#1A1A1A]" />
-          <span className="size-[6px] rounded-full bg-[#D9D9D9]" />
-          <span className="size-[6px] rounded-full bg-[#D9D9D9]" />
-          <span className="size-[6px] rounded-full bg-[#D9D9D9]" />
-          <span className="size-[6px] rounded-full bg-[#D9D9D9]" />
-        </div>
+        <CragCarousel crags={selectedArea?.crags ?? []} />
       </section>
 
       <div className="mt-10">
