@@ -1,5 +1,4 @@
 import { AppHeader } from "@/components/layout/app-header";
-import { Footer } from "@/components/layout/footer";
 import { AdSlot } from "@/components/public/ad-slot";
 import { CragCarousel } from "@/components/public/crag-carousel";
 import { StatBar } from "@/components/public/stat-bar";
@@ -132,9 +131,6 @@ export default function HomePage() {
 
       <div className="mt-[66px]">
         <AdSlot />
-      </div>
-      <div className="mt-10">
-        <Footer />
       </div>
     </main>
   );

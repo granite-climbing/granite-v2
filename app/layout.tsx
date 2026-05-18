@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Footer } from "@/components/layout/footer";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -30,6 +31,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <div className="mx-auto min-h-screen w-full max-w-[360px] bg-white shadow-card">
           {children}
+          <div className="mt-10">
+            <Footer />
+          </div>
         </div>
       </body>
     </html>
