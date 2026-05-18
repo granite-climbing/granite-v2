@@ -2,7 +2,7 @@
 
 > 작성일: 2026-05-13  
 > 상태: Draft  
-> 기준 설계: `docs/superpowers/specs/2026-05-13-granite-design.md`
+> 기준 설계: `docs/specs/2026-05-13-granite-design.md`
 
 ## 1. 배경
 

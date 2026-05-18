@@ -2,7 +2,7 @@
 
 > 작성일: 2026-05-13  
 > 상태: Draft  
-> 기준 설계: `docs/superpowers/specs/2026-05-13-granite-design.md`
+> 기준 설계: `docs/specs/2026-05-13-granite-design.md`
 
 본 문서는 `docs/PRD.md`의 요구사항과 `docs/decisions/`의 의사결정을 만족하는 Granite v2의 구체 설계다.
 

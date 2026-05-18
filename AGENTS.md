@@ -9,7 +9,7 @@
 - **목적**: 한국 내 자연 볼더링(외벽 볼더) 스팟 정보를 탐색하고, 베타(완등) 기록을 연결한다.
 - **사용자**: 자연 볼더링에 관심 있는 클라이머
 - **현재 상태**: 초기 셋업 단계 (코드 없음, Figma 디자인 존재)
-- **단일 설계 소스**: `docs/superpowers/specs/2026-05-13-granite-design.md`
+- **단일 설계 소스**: `docs/specs/2026-05-13-granite-design.md`
 
 ## 기술 스택
 
@@ -174,4 +174,4 @@ pnpm wrangler deploy
 - 아키텍처 설계: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - 단계별 로드맵: [docs/ROADMAP.md](docs/ROADMAP.md)
 - 설계 결정 기록: [docs/decisions/README.md](docs/decisions/README.md)
-- Granite v2 설계 원본: [docs/superpowers/specs/2026-05-13-granite-design.md](docs/superpowers/specs/2026-05-13-granite-design.md)
+- Granite v2 설계 원본: [docs/specs/2026-05-13-granite-design.md](docs/specs/2026-05-13-granite-design.md)
