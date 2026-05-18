@@ -105,6 +105,15 @@ export type BoulderDetail = Boulder & {
   topos: Array<Topo & { routes: Route[] }>;
 };
 
+export type TopoDetail = Topo & {
+  topoIndex: number;
+  topoCount: number;
+  boulder: Boulder;
+  sector: Sector;
+  crag: Crag;
+  routes: Route[];
+};
+
 export type CragDetail = Crag & {
   tabs: TabName[];
   stats: Stats;

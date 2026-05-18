@@ -16,7 +16,8 @@ import type {
   RouteListItem,
   Sector,
   SectorDetail,
-  Stats
+  Stats,
+  TopoDetail
 } from "./schema";
 
 const CRAG_TABS = ["Info", "Sector", "Boulder", "Route", "Map", "Travel"] as const;
@@ -140,6 +141,34 @@ export function findBoulderById(id: string): BoulderDetail | null {
 
 export function findRouteById(id: string): RouteListItem | null {
   return getAllRouteItems().find((route) => route.id === id) ?? null;
+}
+
+export function findTopoById(id: string): TopoDetail | null {
+  const topo = topos.find((candidate) => candidate.id === id);
+  if (!topo) {
+    return null;
+  }
+
+  const boulder = boulders.find((candidate) => candidate.id === topo.boulderId && candidate.isPublished);
+  const sector = boulder ? sectors.find((candidate) => candidate.id === boulder.sectorId && candidate.isPublished) : undefined;
+  const crag = sector ? crags.find((candidate) => candidate.id === sector.cragId && candidate.isPublished) : undefined;
+  if (!boulder || !sector || !crag) {
+    return null;
+  }
+
+  const boulderTopos = topos
+    .filter((candidate) => candidate.boulderId === boulder.id)
+    .sort((left, right) => left.sortOrder - right.sortOrder);
+
+  return {
+    ...topo,
+    topoIndex: boulderTopos.findIndex((candidate) => candidate.id === topo.id) + 1,
+    topoCount: boulderTopos.length,
+    boulder,
+    sector,
+    crag,
+    routes: routes.filter((route) => route.topoId === topo.id && route.isPublished)
+  };
 }
 
 export function getAllRouteItems(): RouteListItem[] {

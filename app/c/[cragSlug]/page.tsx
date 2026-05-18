@@ -78,7 +78,6 @@ function CragTabPanel({ crag, activeTab }: { crag: CragDetail; activeTab: TabNam
         {crag.sectors.map((sector) => (
           <ImageListCard
             key={sector.id}
-            href={`/c/${crag.slug}/s/${sector.slug}`}
             imageUrl={sector.coverImageUrl}
             title={sector.name}
             meta={`${sector.season} · ${sector.summary}`}
@@ -94,7 +93,6 @@ function CragTabPanel({ crag, activeTab }: { crag: CragDetail; activeTab: TabNam
         {crag.boulders.map((boulder) => (
           <ImageListCard
             key={boulder.id}
-            href={`/c/${crag.slug}/b/${boulder.id}`}
             imageUrl={boulder.coverImageUrl}
             title={boulder.name}
             meta={`${boulder.routeCount} problems · ${boulder.gradeRange}`}
@@ -141,25 +139,23 @@ function InfoPanel({ crag }: { crag: CragDetail }) {
 }
 
 function ImageListCard({
-  href,
   imageUrl,
   title,
   meta
 }: {
-  href: string;
   imageUrl: string;
   title: string;
   meta: string;
 }) {
   return (
-    <Link href={href} className="block">
+    <article>
       <div
         className="h-[216px] rounded-[8px] bg-[#BABABA] bg-cover bg-center"
         style={{ backgroundImage: `url("${imageUrl}")` }}
       />
       <h2 className="mt-3 text-[20px] font-bold leading-7 text-[#090909]">{title}</h2>
       <p className="mt-1 text-[14px] font-medium leading-5 text-[#7A7A7A]">{meta}</p>
-    </Link>
+    </article>
   );
 }
 
@@ -186,7 +182,7 @@ function RoutePanel({ routes }: { routes: RouteListItem[] }) {
           {routes.map((route) => (
             <Link
               key={route.id}
-              href={`/r/${route.id}`}
+              href={`/topos/${route.topoId}?route=${route.id}`}
               className="grid h-10 grid-cols-[159px_73px_80px] items-center border-t border-[#E8E8E8] px-2 text-[14px] font-normal leading-5 text-[#2A2A2A]"
             >
               <span className="truncate pr-2">{route.name}</span>

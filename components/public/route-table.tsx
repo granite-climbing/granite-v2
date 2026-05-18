@@ -11,7 +11,7 @@ export function RouteTable({ routes }: RouteTableProps) {
       {routes.map((route, index) => (
         <Link
           key={route.id}
-          href={`/r/${route.id}`}
+          href={`/topos/${route.topoId}?route=${route.id}`}
           className="grid grid-cols-[44px_1fr_auto] items-center gap-3 border-b border-[#F1F1EF] px-4 py-3 last:border-b-0"
         >
           <span className="grid size-8 place-items-center rounded-full bg-[#1A1A1A] text-xs font-black text-white">
