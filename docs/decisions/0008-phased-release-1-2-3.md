@@ -1,7 +1,7 @@
 ---
 id: 0008
 title: 3단계 출시 (탐색 / 베타 / 로그인)
-status: Accepted
+status: Superseded by 0017
 date: 2026-05-13
 ---
 

@@ -1,6 +1,7 @@
 # Granite v2 — Design Spec
 
 > 작성일: 2026-05-13
+> 갱신일: 2026-05-22
 > 상태: Draft (브레인스토밍 산출)
 > 도메인: `granite.kr`
 > 본 문서는 구현 계획(plan)으로 가기 전 합의된 설계의 단일 소스다. 후속 plan/PR은 본 문서를 참조한다.
@@ -18,14 +19,16 @@
 | 도메인 | `granite.kr` |
 | 타겟 | 모바일 전용 (데스크톱은 max-width 480 컨테이너로 렌더) |
 | 콘텐츠 입력 | 관리자 큐레이션만 (사용자 기여 X) |
-| Phase 1 | 탐색/관리자 CRUD |
-| Phase 2 | 베타/Instagram 웹훅 + 비로그인 수동 베타 + 관리자 검수 |
-| Phase 3 | 로그인/즐겨찾기/내 기록/클레임 |
-| 사용자 가치 | Phase 1 탐색, Phase 2 베타 데이터 수집, Phase 3 개인화 |
-| 베타 수집 | Phase 2 자동(Instagram 웹훅) + 비로그인 수동(Instagram/YouTube URL), Phase 3 로그인 기반 관리 |
+| Phase 1 | Public UI Baseline |
+| Phase 2 | DB Migration & Data Layer |
+| Phase 3 | Admin Operations |
+| Phase 4 | Beta / Instagram |
+| Phase 5 | Login / Favorites / Claims |
+| 사용자 가치 | Phase 1 탐색 UI, Phase 2 실제 데이터 조회, Phase 3 운영 입력, Phase 4 베타 데이터 수집, Phase 5 개인화 |
+| 베타 수집 | Phase 4 자동(Instagram 웹훅) + 비로그인 수동(Instagram/YouTube URL), Phase 5 로그인 기반 관리 |
 | 워딩 | 완등 = "베타" (Beta) |
-| 통계 | Phase 2까지는 데이터 수집만, 분석 화면은 후속 후보 |
-| 사용자 인증 | Phase 3에서 Kakao / Naver / Google / Apple OAuth |
+| 통계 | Phase 4까지는 데이터 수집만, 분석 화면은 후속 후보 |
+| 사용자 인증 | Phase 5에서 Kakao / Naver / Google / Apple OAuth |
 | 관리자 인증 | 이메일+비밀번호 → ADMIN JWT (별도 키) |
 
 ### 1.2 기술 스택
@@ -48,11 +51,13 @@
 
 | 단계 | 범위 | 제외 |
 |------|------|------|
-| Phase 1 — 탐색/관리자 CRUD | 홈, Crag/Sector/Route 상세, Map 탭, 콘텐츠 CRUD, 이미지, 공지 | 일반 사용자 계정, 즐겨찾기, 베타 자동 수집 |
-| Phase 2 — 베타/Instagram 웹훅 | 캡션 생성, IG 웹훅, 비로그인 수동 베타, WebhookInbox, unclaimed Beta, 관리자 매칭/모더레이션 | OAuth, 내 기록/프로젝트 |
-| Phase 3 — 로그인/즐겨찾기/클레임 | OAuth, 세션, 마이페이지, 즐겨찾기, 내 기록, unclaimed Beta 클레임 | 커뮤니티/제보/결제 |
+| Phase 1 — Public UI Baseline | 홈, Crag 상세, Topo/Route 흐름, 정책 페이지, 모바일 shell, mock/seed 탐색 UI | 실제 DB/API/Admin/R2/Instagram/OAuth 운영 완성 |
+| Phase 2 — DB Migration & Data Layer | D1 schema/migrations, seed/import, D1 HTTP API repository, DB-backed public read path, `/healthz` | 관리자 CRUD, 이미지 업로드, 베타, OAuth |
+| Phase 3 — Admin Operations | 관리자 인증, 콘텐츠 CRUD, 이미지 업로드/R2/CDN, 공지, revalidation, audit log | Instagram webhook, 사용자 OAuth |
+| Phase 4 — Beta / Instagram | 캡션 생성, IG 웹훅, 비로그인 수동 베타, WebhookInbox, unclaimed Beta, 관리자 매칭/모더레이션 | OAuth, 내 기록/프로젝트 |
+| Phase 5 — Login / Favorites / Claims | OAuth, 세션, 마이페이지, 즐겨찾기, 내 기록, unclaimed Beta 클레임 | 커뮤니티/제보/결제 |
 
-핵심 이유: 베타 수집은 `instagram_id`와 외부 영상 URL 기반 unclaimed 데이터로 먼저 운영할 수 있지만, 내 기록·프로젝트·클레임은 로그인/세션에 의존한다. 따라서 Phase 2는 수집/검수 파이프라인으로 제한하고, 사용자 개인화는 Phase 3에서 붙인다.
+핵심 이유: 현재 Phase 1 구현은 Figma 기반 public UI 1차 완성에 집중되어 있다. DB migration, 관리자 운영, Instagram 연동, 로그인/개인화는 리스크와 검증 게이트가 다르므로 각각 Phase 2~5로 분리한다.
 
 ## 2. 콘텐츠 계층
 
@@ -191,6 +196,8 @@ admins        (운영진 계정)
 
 ## 5. 인증 & 계정
 
+사용자 인증은 Phase 5 범위다. 관리자 인증은 Phase 3 범위다.
+
 ### 5.1 사용자 인증
 
 **Provider**: Kakao, Naver, Google, Apple
@@ -252,11 +259,11 @@ admins        (운영진 계정)
 
 ### 6.1 수동 베타 (기록 추가)
 
-> Phase 2 범위. 로그인 없이 Instagram/YouTube 링크 기반 unclaimed Beta를 생성하고, Phase 3에서 로그인 사용자에게 귀속/관리 기능을 제공한다.
+> Phase 4 범위. 로그인 없이 Instagram/YouTube 링크 기반 unclaimed Beta를 생성하고, Phase 5에서 로그인 사용자에게 귀속/관리 기능을 제공한다.
 
-- **진입점 A (Phase 2)**: Route 바텀시트 → [beta] 버튼 → "베타 영상 올리기" → 모달
-- **진입점 B (Phase 3)**: 기록 탭 → "기록 추가 +" → 모달 (루트명 검색 + 날짜 + 영상 URL)
-- Phase 2 입력: Instagram/YouTube URL, 표시명, Instagram 핸들, 완등 날짜
+- **진입점 A (Phase 4)**: Route 바텀시트 → [beta] 버튼 → "베타 영상 올리기" → 모달
+- **진입점 B (Phase 5)**: 기록 탭 → "기록 추가 +" → 모달 (루트명 검색 + 날짜 + 영상 URL)
+- Phase 4 입력: Instagram/YouTube URL, 표시명, Instagram 핸들, 완등 날짜
 - `Beta(source=manual, platform=instagram|youtube, user_id=NULL, instagram_id=입력 핸들, status='pending')` 생성
 - 관리자 승인 전에는 공개 노출하지 않거나 제한 노출한다.
 
@@ -315,10 +322,10 @@ Beta.thumbnail_url 업데이트
 CDN URL로 서빙
 ```
 
-- Phase 2에서는 베타 생성 후 **동기 시도**한다. 실패해도 Beta는 유지한다.
+- Phase 4에서는 베타 생성 후 **동기 시도**한다. 실패해도 Beta는 유지한다.
   - 재시도와 보장성이 필요한 작업은 Cloudflare Worker scheduled job/queue + `pending_thumbnails` 컬럼이 더 안전하다.
 - 실패해도 베타 자체는 살아남고 `thumbnail_url = NULL` → UI는 기본 이미지.
-- Phase 2 후속: Cloudflare Worker scheduled job 또는 Cloudflare Queues.
+- Phase 4 후속: Cloudflare Worker scheduled job 또는 Cloudflare Queues.
 
 ### 6.5 관리자 웹훅 인박스
 
@@ -327,11 +334,11 @@ CDN URL로 서빙
 
 ### 6.6 클레임
 
-> Phase 3 범위. Phase 2의 unclaimed Beta는 운영 데이터로만 축적한다.
+> Phase 5 범위. Phase 4의 unclaimed Beta는 운영 데이터로만 축적한다.
 
 - **자동 시점**: 가입 완료 직후, 마이페이지 `instagram_id` 변경/등록 직후
 - 동작: `UPDATE betas SET user_id = ? WHERE instagram_id = ? AND user_id IS NULL`
-- IG 핸들 검증: 형식 검증만으로 즉시 귀속하면 사칭 리스크가 있다. Phase 3에서는 관리자 검토 또는 IG OAuth/게시물 소유 증명으로 확장 가능한 상태값(`claim_status`)을 둔다.
+- IG 핸들 검증: 형식 검증만으로 즉시 귀속하면 사칭 리스크가 있다. Phase 5에서는 관리자 검토 또는 IG OAuth/게시물 소유 증명으로 확장 가능한 상태값(`claim_status`)을 둔다.
 
 ### 6.7 베타 모더레이션
 
@@ -454,7 +461,7 @@ Boulder 카드 탭 → 하단에서 바텀시트 슬라이드업:
 [통계 행] — 총 완등 N | 최고 그레이드 VX
 [완등 기록 섹션] — V등급 분포 막대차트 + "기록 추가 +" 버튼
 [최근 기록] — "Route명 · VX · Crag명" 리스트 + "All →"
-[세부 분석 →] (Phase 2)
+[세부 분석 →] (Phase 5)
 [광고 배너]
 ```
 
@@ -502,7 +509,7 @@ Instagram 계정 (핸들 입력)
 ### 7.9 검색
 
 - 통합 검색: "문제, 볼더, 섹터, 암장, 난이도 검색"
-- D1 `LIKE %query%`로 충분 (전체 데이터 < 수천). FTS5는 Phase 2.
+- D1 `LIKE %query%`로 충분 (전체 데이터 < 수천). FTS5는 Phase 4 이후 후보.
 - 결과는 카테고리별 그룹핑 (Route / Boulder / Sector / Crag).
 
 ### 7.10 지도 (Crag Map 탭)
@@ -527,13 +534,17 @@ Instagram 계정 (핸들 입력)
 ### 7.13 오프라인
 
 - 초기: 브라우저 캐시 의존만.
-- Phase 2: PWA로 사전 다운로드/오프라인 대응.
+- Phase 4 이후: PWA로 사전 다운로드/오프라인 대응.
 
 ---
 
 ## 8. 관리자 페이지
 
 ### 8.1 Phase 1 포함 범위
+
+Phase 1은 관리자 운영을 포함하지 않는다. `/admin` 화면이 존재하더라도 scaffold 또는 후속 구현 대상이다.
+
+### 8.2 Phase 3 포함 범위
 
 - 콘텐츠 CRUD
   - Area 추가/이름 변경
@@ -542,12 +553,12 @@ Instagram 계정 (핸들 입력)
   - `is_published` 토글
 - **공지(Announcement) CRUD** (홈 New Updates 콘텐츠 관리)
 
-### 8.2 Phase 2 포함 범위
+### 8.3 Phase 4 포함 범위
 
 - **베타 모더레이션** (숨김/삭제)
 - **웹훅 인박스** (unmatched 수동 매칭, rejected)
 
-### 8.3 Phase 3 포함 범위
+### 8.4 Phase 5 포함 범위
 
 - 회원 목록/검색
 - Region 시드 관리(GUI)
@@ -573,10 +584,12 @@ Instagram 계정 (핸들 입력)
 
 | 단계 | 수집/저장 항목 | 목적 |
 |------|----------------|------|
-| Phase 1 | 관리자 이메일, 비밀번호 해시, 관리자 audit log | 관리자 인증/운영 추적 |
-| Phase 2 | Instagram username/id, 게시물 id, caption, Instagram/YouTube media URL, thumbnail URL, raw webhook payload, 수동 등록 표시명/핸들 | 베타 수집, 중복 방지, 관리자 검수 |
-| Phase 3 | OAuth provider uid, 이메일, 표시 이름, 아바타, Instagram 핸들 | 로그인, 계정 식별, Beta 클레임 |
-| Phase 3 선택 | 키, 암스팬, 몸무게, YouTube ID | 프로필/기록 분석 기반 |
+| Phase 1 | 없음 또는 운영자가 제공한 정적/mock 콘텐츠 | public UI 검증 |
+| Phase 2 | 공개 콘텐츠 DB 레코드, 좌표, 이미지 URL 문자열 | public read path |
+| Phase 3 | 관리자 이메일, 비밀번호 해시, 관리자 audit log | 관리자 인증/운영 추적 |
+| Phase 4 | Instagram username/id, 게시물 id, caption, Instagram/YouTube media URL, thumbnail URL, raw webhook payload, 수동 등록 표시명/핸들 | 베타 수집, 중복 방지, 관리자 검수 |
+| Phase 5 | OAuth provider uid, 이메일, 표시 이름, 아바타, Instagram 핸들 | 로그인, 계정 식별, Beta 클레임 |
+| Phase 5 선택 | 키, 암스팬, 몸무게, YouTube ID | 프로필/기록 분석 기반 |
 
 ### 9.3 공개 범위
 
@@ -644,7 +657,7 @@ Instagram 계정 (핸들 입력)
 - Vercel Analytics + Vercel Logs (30일).
 - 슬로우 쿼리: DB 래퍼에서 `console.log` (>200ms).
 - 웹훅 audit: `webhook_inbox` 테이블 자체가 audit log.
-- Sentry/UptimeRobot은 Phase 2에서 검토.
+- Sentry/UptimeRobot은 Phase 4에서 검토.
 
 ### 10.7 헬스체크 / 외부 콜백
 
@@ -669,16 +682,20 @@ Instagram 계정 (핸들 입력)
 
 **Phase 1**
 - [ ] `granite.kr` 등록 + Cloudflare DNS
-- [ ] `cdn.granite.kr` Cloudflare CDN/Image Resizing/R2 origin 설정
 - [ ] 카카오맵 키 + 도메인 제한
-- [ ] D1/R2 production 리소스 생성
-- [ ] 관리자 계정 1개 마이그레이션으로 생성
 
 **Phase 2**
+- [ ] D1/R2 production 리소스 생성
+
+**Phase 3**
+- [ ] `cdn.granite.kr` Cloudflare CDN/Image Resizing/R2 origin 설정
+- [ ] 관리자 계정 1개 마이그레이션으로 생성
+
+**Phase 4**
 - [ ] Instagram 비즈니스 계정 + Meta 앱 + 웹훅 구독 + 검수
 - [ ] `META_APP_SECRET` 기반 HMAC 검증 테스트
 
-**Phase 3**
+**Phase 5**
 - [ ] OAuth 4종 앱 등록 + 리다이렉트 URL
 - [ ] 정책 문서 링크가 회원가입/마이페이지/탈퇴 플로우에 노출되는지 확인
 

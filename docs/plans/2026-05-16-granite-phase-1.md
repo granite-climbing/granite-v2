@@ -1,117 +1,67 @@
-# Granite Phase 1 Implementation Plan
+# Granite Phase 1 Public UI Baseline Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> 원작성일: 2026-05-16
+> 갱신일: 2026-05-22
+> 상태: Phase 1 종료 기준으로 재정의
+> 기준 ADR: [ADR 0017 — 5단계 출시](../decisions/0017-phased-release-1-5.md)
 
-**Goal:** Build the Phase 1 Granite web app: public exploration, administrator CRUD, D1 schema, R2 URL-based image handling, policy pages, and deployment scaffolding.
+## Goal
 
-**Architecture:** Next.js App Router renders mobile-first public pages and admin pages. Mutations use Server Actions and repository functions instead of CRUD route handlers. Cloudflare D1/R2 are abstracted behind small modules so local development can use deterministic seed data until real resources are configured.
+Build and close Phase 1 as the Figma-based public UI baseline for Granite: home exploration, Crag detail, Topo/Route browsing, route sharing, policy pages, and the mobile application shell.
 
-**Tech Stack:** Next.js, React, TypeScript strict, Tailwind CSS, Vitest, Cloudflare D1/R2 integration points, Vercel runtime for the app.
+Phase 1 intentionally does not require production-ready DB migrations, D1 HTTP API reads, admin CRUD, R2 uploads, Instagram webhook, or OAuth.
+
+## Architecture
+
+Next.js App Router renders a mobile-first public experience using deterministic mock/seed data. The code may include forward-looking scaffolds for data repositories, admin routes, migrations, and R2 helpers, but those scaffolds are not Phase 1 completion gates. Production data and operations begin in Phase 2 and Phase 3.
+
+## Tech Stack
+
+Next.js, React, TypeScript strict, Tailwind CSS, Vitest, mock/seed repository data, Figma-exported image/logo assets.
 
 ---
 
-## File Map
+## Phase 1 File Map
 
-- `package.json`, `tsconfig.json`, `next.config.mjs`, `tailwind.config.ts`, `postcss.config.mjs`, `vitest.config.ts`: project toolchain.
-- `app/**`: App Router pages, layouts, route handlers, server actions.
-- `components/**`: mobile shell, cards, tabs, forms, admin tables, map placeholders.
-- `lib/db/**`: schema types, D1 HTTP client boundary, read repositories, mutation repositories, local seed repository.
-- `lib/actions/**`: Server Action entry points for admin mutations.
-- `lib/auth/**`: admin session/token helpers.
-- `lib/r2/**`: upload key generation and public CDN URL helpers.
-- `lib/policies/**`: mirrored policy page content.
-- `migrations/0001_init.sql`: Phase 1 + forward-compatible schema.
+- `app/(public)/page.tsx`: home exploration screen.
+- `app/c/[cragSlug]/page.tsx`: Crag detail tabs and public exploration.
+- `app/topos/[topoId]/page.tsx`: Topo detail and route list flow.
+- `app/r/[routeId]/page.tsx`: route sharing/detail screen.
+- `app/terms/page.tsx`, `app/privacy/page.tsx`, `app/data-deletion/page.tsx`: policy pages.
+- `app/layout.tsx`, `app/(public)/layout.tsx`: application shell.
+- `components/layout/**`: header, bottom nav, footer.
+- `components/public/**`: cards, stat bars, tabs, route table, ads.
+- `lib/db/mock/granite.seed.json`, `lib/db/repository.ts`, `lib/db/seed.ts`: mock/seed read model used by Phase 1.
+- `public/images/figma/**`: Figma-derived public assets.
 
-## Tasks
+## Completed Scope
 
-### Task 1: Project Scaffold
+- [x] Project scaffold for Next.js, TypeScript, Tailwind, Vitest.
+- [x] Figma-aligned home UI with Area tabs, Crag carousel, stats, ads, and updates.
+- [x] Figma-aligned Crag detail tabs.
+- [x] Topo/Route browsing path.
+- [x] Route detail/share screen.
+- [x] Root layout, header, footer, bottom nav.
+- [x] Figma logo asset instead of text logo.
+- [x] iPhone status bar decoration removed from actual app.
+- [x] Policy pages added.
+- [x] Mock/seed data variants added for public UI validation.
 
-**Files:**
-- Create: `package.json`
-- Create: `tsconfig.json`
-- Create: `next.config.mjs`
-- Create: `tailwind.config.ts`
-- Create: `postcss.config.mjs`
-- Create: `vitest.config.ts`
-- Create: `app/layout.tsx`
-- Create: `app/globals.css`
+## Deferred From Original Phase 1
 
-- [ ] Add scripts: `dev`, `build`, `test`, `lint`, `typecheck`, `vercel:deploy`, `wrangler:deploy`.
-- [ ] Configure strict TypeScript, path alias `@/*`, Tailwind content paths, and Vitest jsdom environment.
-- [ ] Add root mobile max-width shell and base metadata for `granite.kr`.
-- [ ] Run `pnpm install`, `pnpm test`, `pnpm typecheck`, then commit `chore: scaffold next app`.
+These items moved out of Phase 1 by [ADR 0017](../decisions/0017-phased-release-1-5.md):
 
-### Task 2: Domain Model and Database
+- Phase 2: D1 schema/migration hardening, seed/import strategy, real D1 HTTP API read path, public cache tags, DB health check.
+- Phase 3: administrator authentication, content CRUD, announcement CRUD, R2 image upload, CDN URL persistence, admin audit log.
+- Phase 4: Instagram webhook, WebhookInbox, manual Beta registration, Beta moderation.
+- Phase 5: OAuth login, favorites/projects, records, unclaimed Beta claims.
 
-**Files:**
-- Create: `migrations/0001_init.sql`
-- Create: `lib/db/schema.ts`
-- Create: `lib/db/seed.ts`
-- Create: `lib/db/repository.ts`
-- Create: `lib/db/repository.test.ts`
+## Phase 1 Closeout Checklist
 
-- [ ] Define Phase 1 tables: `areas`, `crags`, `sectors`, `boulders`, `topos`, `routes`, `announcements`, `admins`, `admin_audit_logs`.
-- [ ] Include forward-compatible `betas`, `webhook_inbox`, `users`, `user_oauth_identities`, `favorites` because docs already reserve them.
-- [ ] Store image references as `TEXT` URL columns; do not create a polymorphic image table.
-- [ ] Store `boulders.hashtags` as JSON text and expose parser helpers with tests.
-- [ ] Commit `feat: add phase 1 data model`.
-
-### Task 3: Public Exploration UI
-
-**Files:**
-- Create: `app/(public)/page.tsx`
-- Create: `app/c/[cragSlug]/page.tsx`
-- Create: `app/c/[cragSlug]/s/[sectorSlug]/page.tsx`
-- Create: `app/c/[cragSlug]/b/[boulderId]/page.tsx`
-- Create: `app/r/[routeId]/page.tsx`
-- Create: `components/public/*`
-- Create: `components/layout/*`
-
-- [ ] Implement Figma Ver.2 mobile shell: header, hero, search, ad placeholders, bottom nav, max-width 480 desktop treatment.
-- [ ] Implement home Area tabs, stats card, Crag horizontal cards, New Updates.
-- [ ] Implement Crag tabs `Info/Sector/Boulder/Route/Map/Travel`.
-- [ ] Implement Sector tabs `Info/Boulder/Route/Map/Travel`.
-- [ ] Implement Boulder bottomsheet-style page and Route share page.
-- [ ] Commit `feat: build public exploration pages`.
-
-### Task 4: Admin Authentication and CRUD
-
-**Files:**
-- Create: `app/admin/login/page.tsx`
-- Create: `app/admin/layout.tsx`
-- Create: `app/admin/content/**`
-- Create: `app/admin/announcements/page.tsx`
-- Create: `lib/auth/admin.ts`
-- Create: `lib/actions/admin-content.ts`
-
-- [ ] Implement token/password-based admin guard suitable for Phase 1.
-- [ ] Implement Server Actions for Area, Crag, Sector, Boulder, Topo, Route, Announcement create/update/delete/publish.
-- [ ] Keep DB writes behind repository functions and call `revalidatePath`/`revalidateTag`.
-- [ ] Commit `feat: add admin crud`.
-
-### Task 5: Images, Policies, and Operations
-
-**Files:**
-- Create: `lib/r2/images.ts`
-- Create: `app/terms/page.tsx`
-- Create: `app/privacy/page.tsx`
-- Create: `app/data-deletion/page.tsx`
-- Create: `app/healthz/route.ts`
-- Create: `.env.example`
-- Create: `wrangler.toml`
-
-- [ ] Add R2 key generation with `{entityType}/{entityId}/{purpose}-{uuid}.{ext}` convention and CDN URL builder.
-- [ ] Add policy pages mirrored from existing public URL content as static in-app pages.
-- [ ] Add health check route and environment documentation.
-- [ ] Commit `feat: add operations and policy pages`.
-
-### Task 6: Verification
-
-**Files:**
-- Modify: any files needed for fixes only.
-
+- [ ] Rebase `phase1-implementation` on top of updated `main`.
 - [ ] Run `pnpm test`.
 - [ ] Run `pnpm typecheck`.
 - [ ] Run `pnpm build`.
-- [ ] Fix only regressions in Phase 1 scope.
-- [ ] Commit final fixes as `fix: stabilize phase 1 build`.
+- [ ] Fix only regressions in the Phase 1 public UI baseline.
+- [ ] Mark Phase 1 complete in release notes or branch handoff.
+- [ ] Start Phase 2 from the rebased Phase 1 baseline.

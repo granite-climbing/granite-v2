@@ -41,7 +41,7 @@ date: YYYY-MM-DD
 | [0005](0005-r2-and-image-cdn-pipeline.md) | R2 원본 + Cloudflare Image Resizing | Accepted |
 | [0006](0006-image-urls-on-entities.md) | 이미지 URL을 엔티티 컬럼에 직접 저장 | Accepted |
 | [0007](0007-content-hierarchy-six-levels.md) | 6단계 콘텐츠 계층 (Area→Route) | Accepted |
-| [0008](0008-phased-release-1-2-3.md) | 3단계 출시 (탐색 / 베타 / 로그인) | Accepted |
+| [0008](0008-phased-release-1-2-3.md) | 3단계 출시 (탐색 / 베타 / 로그인) | Superseded by 0017 |
 | [0009](0009-cache-and-revalidation.md) | unstable_cache + tag 기반 무효화 | Accepted |
 | [0010](0010-instagram-webhook-on-worker.md) | Instagram 웹훅을 Cloudflare Worker로 분리 | Accepted |
 | [0011](0011-beta-source-vs-platform.md) | Beta의 source와 platform 축 분리 | Accepted |
@@ -50,3 +50,4 @@ date: YYYY-MM-DD
 | [0014](0014-rollforward-only-migrations.md) | 마이그레이션 롤포워드 only | Accepted |
 | [0015](0015-policy-docs-mirrored-in-app.md) | 공개 정책 문서를 앱 내 정적 페이지로 이관 | Accepted |
 | [0016](0016-defer-r2-backup.md) | R2 백업은 MVP 단계에서 진행하지 않음 | Accepted |
+| [0017](0017-phased-release-1-5.md) | 5단계 출시 (UI / DB / Admin / Instagram / Personalization) | Accepted |

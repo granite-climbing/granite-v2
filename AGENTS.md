@@ -8,7 +8,7 @@
 - **도메인**: `granite.kr`
 - **목적**: 한국 내 자연 볼더링(외벽 볼더) 스팟 정보를 탐색하고, 베타(완등) 기록을 연결한다.
 - **사용자**: 자연 볼더링에 관심 있는 클라이머
-- **현재 상태**: 초기 셋업 단계 (코드 없음, Figma 디자인 존재)
+- **현재 상태**: Phase 1 public UI baseline 진행 완료 기준 정리 중 (`phase1-implementation` 브랜치)
 - **단일 설계 소스**: `docs/specs/2026-05-13-granite-design.md`
 
 ## 기술 스택
@@ -27,15 +27,23 @@
 
 ## 제품 단계
 
-1. **Phase 1 — 탐색/관리자 CRUD**
+1. **Phase 1 — Public UI Baseline**
    - Area → Crag → Sector → Boulder → Topo → Route 콘텐츠 계층
-   - 홈, Crag 상세(Info/Sector/Boulder/Route/Map/Travel), Sector 상세(Info/Boulder/Route/Map/Travel), Route 상세
-   - 관리자 콘텐츠 CRUD, 이미지 업로드, 공지 관리
-2. **Phase 2 — 베타/Instagram 웹훅**
+   - 홈, Crag 상세(Info/Sector/Boulder/Route/Map/Travel), Topo 상세, Route 상세
+   - Figma 기준 모바일 UI, 정책 페이지, mock/seed 데이터 기반 탐색
+   - Admin/DB/R2/Instagram/OAuth는 완료 조건에 포함하지 않는다.
+2. **Phase 2 — DB Migration & Data Layer**
+   - D1 schema/migrations, seed/import 전략, D1 HTTP API client
+   - public UI를 mock/seed 데이터에서 DB-backed read path로 전환
+   - 공개 콘텐츠 캐싱과 `/healthz` DB ping
+3. **Phase 3 — Admin Operations**
+   - 관리자 인증, 콘텐츠 CRUD, 이미지 업로드, 공지 관리
+   - R2/CDN URL 저장, revalidation, admin audit log
+4. **Phase 4 — Beta / Instagram**
    - Instagram 멘션 웹훅 수신, WebhookInbox, Route 매칭, unclaimed Beta 생성
    - 비로그인 수동 베타 등록(Instagram/YouTube 링크)과 관리자 검수
    - 관리자 웹훅 인박스, 베타 모더레이션
-3. **Phase 3 — 로그인/즐겨찾기/클레임**
+5. **Phase 5 — Login / Favorites / Claims**
    - Kakao/Naver/Google/Apple OAuth, 세션, 마이페이지
    - Route 프로젝트(즐겨찾기), 내 기록 관리, unclaimed Beta 클레임
 
@@ -47,8 +55,8 @@ granite-v2/
 │   ├── (public)/
 │   ├── c/[cragSlug]/
 │   ├── r/[routeId]/
-│   ├── me/
-│   ├── admin/
+│   ├── me/                # Phase 5
+│   ├── admin/             # Phase 3+
 │   ├── api/
 │   │   └── auth/callback/[provider]/
 │   └── layout.tsx
@@ -110,8 +118,8 @@ granite-v2/
 
 ### 인증
 
-- 관리자 인증은 사용자 인증과 분리한다. `/admin/login`은 이메일+비밀번호를 검증하고 `granite_admin` HttpOnly 쿠키를 발급한다.
-- 사용자 OAuth는 Phase 3에서 Kakao/Naver/Google/Apple을 도입한다.
+- 관리자 인증은 사용자 인증과 분리한다. `/admin/login`은 이메일+비밀번호를 검증하고 `granite_admin` HttpOnly 쿠키를 발급한다. 운영 가능한 관리자 인증은 Phase 3 범위다.
+- 사용자 OAuth는 Phase 5에서 Kakao/Naver/Google/Apple을 도입한다.
 - 세션 쿠키는 HttpOnly + Secure + SameSite=Lax를 기본으로 한다.
 - 관리자 Route Handler/Server Action 진입점에서는 `requireAdmin()`을 이중 방어로 호출한다.
 
@@ -127,7 +135,7 @@ granite-v2/
   - 이용약관: `https://granite.kr/terms/`
   - 개인정보처리방침: `https://granite.kr/privacy/`
   - 데이터 삭제 안내: `https://granite.kr/data-deletion/`
-- 수집 개인정보는 목적별 최소화한다. Phase 3 전까지 일반 사용자 계정 정보는 수집하지 않는다.
+- 수집 개인정보는 목적별 최소화한다. Phase 5 전까지 일반 사용자 계정 정보는 수집하지 않는다.
 - Instagram 핸들 기반 unclaimed Beta는 소유권이 확인되기 전까지 사용자에게 자동 귀속하지 않는다.
 - 회원탈퇴/데이터 삭제 요청 시 계정 식별정보는 삭제하고, 공개 콘텐츠 무결성에 필요한 기록은 익명화 정책을 따른다.
 

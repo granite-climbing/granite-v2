@@ -1,7 +1,8 @@
 # Granite v2 — Product Requirements Document (PRD)
 
-> 작성일: 2026-05-13  
-> 상태: Draft  
+> 작성일: 2026-05-13
+> 갱신일: 2026-05-22
+> 상태: Draft
 > 기준 설계: `docs/specs/2026-05-13-granite-design.md`
 
 ## 1. 배경
@@ -12,7 +13,7 @@
 
 1. 국내 자연 볼더링 콘텐츠를 Area → Crag → Sector → Boulder → Topo → Route 계층으로 정리한다.
 2. 모바일 사용자가 스팟, 바위, 루트, 접근 정보를 빠르게 확인할 수 있게 한다.
-3. 관리자가 콘텐츠와 이미지를 안정적으로 CRUD할 수 있게 한다.
+3. 실제 DB-backed 콘텐츠 조회와 운영자 CRUD를 단계적으로 안정화한다.
 4. Instagram 멘션을 통해 Route별 베타 기록을 수집하고 관리자 검수 흐름을 제공한다.
 5. 로그인 이후에는 즐겨찾기, 프로젝트, 본인 Beta 관리, unclaimed Beta 클레임을 제공한다.
 
@@ -23,50 +24,75 @@
 - 결제·예약 기능
 - 해외 스팟
 - 사용자 제보 기반 자동 게시
-- Phase 1에서의 사용자 계정/개인화 기능
+- Phase 1에서의 실제 DB/Admin/Instagram/OAuth 운영 완성
+- Phase 2에서의 관리자 운영 UI
+- Phase 3까지의 사용자 계정/개인화 기능
 
 ## 4. 단계별 범위
 
-### Phase 1 — 탐색/관리자 CRUD
+### Phase 1 — Public UI Baseline
 
 | ID | 기능 | 우선순위 |
 |----|------|---------|
 | P1-01 | 홈 탐색 화면, Area 탭, Crag 카드, New Updates | P0 |
-| P1-02 | Crag 상세 탭(Info/Sector/Boulder/Route/Map/Travel)과 Sector 상세 | P0 |
-| P1-03 | Boulder 바텀시트, Topo 전환, Route 리스트 | P0 |
-| P1-04 | Route 상세 공유 링크 | P0 |
-| P1-05 | Kakao Map 기반 Crag/Sector Map 탭과 Boulder 마커 | P0 |
-| P1-06 | 관리자 Area/Crag/Sector/Boulder/Topo/Route CRUD | P0 |
-| P1-07 | R2 이미지 업로드/정렬/삭제와 CDN 이미지 서빙 | P0 |
-| P1-08 | 공지(Announcement) CRUD와 홈 New Updates 노출 | P1 |
-| P1-09 | SEO 메타데이터와 OG 이미지 | P1 |
+| P1-02 | Crag 상세 탭(Info/Sector/Boulder/Route/Map/Travel) | P0 |
+| P1-03 | Topo 상세, Route 리스트, Route 상세 공유 링크 | P0 |
+| P1-04 | 모바일 shell, header/footer/bottom nav, 광고 placeholder | P0 |
+| P1-05 | 정책 페이지 3종(`/terms`, `/privacy`, `/data-deletion`) | P0 |
+| P1-06 | Figma 로고/이미지 에셋 반영 | P0 |
+| P1-07 | mock/seed 데이터 기반 화면 검증 | P0 |
+| P1-08 | SEO 메타데이터와 OG 이미지 기본값 | P1 |
 
-### Phase 2 — 베타/Instagram 웹훅
+Phase 1은 실제 DB/API/Admin 운영 완성을 목표로 하지 않는다. 현재 `phase1-implementation` 브랜치의 public UI 1차 구현을 Phase 1 완료 기준으로 삼는다.
 
-| ID | 기능 | 우선순위 |
-|----|------|---------|
-| P2-01 | Route별 Instagram 캡션 생성/복사 UI | P0 |
-| P2-02 | Cloudflare Worker `GET/POST /webhooks/instagram` 수신 및 HMAC 검증 | P0 |
-| P2-03 | WebhookInbox 저장, 멱등 처리, 원본 payload audit | P0 |
-| P2-04 | 캡션의 Boulder/Route/운영 해시태그 기반 Route 매칭과 unclaimed Beta 생성 | P0 |
-| P2-05 | 관리자 웹훅 인박스 수동 매칭/거절 | P0 |
-| P2-06 | 관리자 베타 숨김/삭제 모더레이션 | P0 |
-| P2-07 | 베타 썸네일 수집과 R2 저장, 실패 시 기본 이미지 처리 | P1 |
-| P2-08 | 비로그인 수동 베타 등록(Instagram/YouTube URL + 핸들/표시명) | P0 |
-
-Phase 2는 로그인 없이 동작하는 수집/운영 흐름에 한정한다. 수동 베타 등록은 Instagram/YouTube 링크 기반 unclaimed Beta로 저장한다. 내 기록, 프로젝트, 클레임은 Phase 3에 포함한다.
-
-### Phase 3 — 로그인/즐겨찾기/클레임
+### Phase 2 — DB Migration & Data Layer
 
 | ID | 기능 | 우선순위 |
 |----|------|---------|
-| P3-01 | Kakao/Naver/Google/Apple OAuth 로그인 | P0 |
-| P3-02 | 사용자 세션, 마이페이지, 프로필 설정 | P0 |
-| P3-03 | Route 즐겨찾기와 프로젝트 탭 | P0 |
-| P3-04 | 내 기록 탭과 본인 Beta 관리 | P0 |
-| P3-05 | Instagram 핸들 등록 후 unclaimed Beta 클레임 | P0 |
-| P3-06 | 계정 머지와 OAuth provider 연결/해제 | P1 |
-| P3-07 | 공개 프로필(`/u/<user-id>`)과 공개 범위 설정 | P1 |
+| P2-01 | D1 schema와 rollforward migration 정리 | P0 |
+| P2-02 | Phase 1 mock/seed 콘텐츠의 DB seed/import 전략 | P0 |
+| P2-03 | D1 HTTP API client와 typed repository boundary | P0 |
+| P2-04 | 홈/Crag/Topo/Route public read path를 DB 데이터로 연결 | P0 |
+| P2-05 | 공개 콘텐츠 캐싱과 revalidation tag 준비 | P0 |
+| P2-06 | `/healthz` DB ping | P1 |
+
+### Phase 3 — Admin Operations
+
+| ID | 기능 | 우선순위 |
+|----|------|---------|
+| P3-01 | 관리자 이메일+비밀번호 로그인과 `granite_admin` 세션 | P0 |
+| P3-02 | Area/Crag/Sector/Boulder/Topo/Route CRUD | P0 |
+| P3-03 | R2 이미지 업로드/정렬/삭제와 CDN 이미지 서빙 | P0 |
+| P3-04 | 공지(Announcement) CRUD와 홈 New Updates 연동 | P0 |
+| P3-05 | Server Action 권한 검증, Zod 검증, revalidation | P0 |
+| P3-06 | 관리자 audit log | P1 |
+
+### Phase 4 — Beta / Instagram
+
+| ID | 기능 | 우선순위 |
+|----|------|---------|
+| P4-01 | Route별 Instagram 캡션 생성/복사 UI | P0 |
+| P4-02 | Cloudflare Worker `GET/POST /webhooks/instagram` 수신 및 HMAC 검증 | P0 |
+| P4-03 | WebhookInbox 저장, 멱등 처리, 원본 payload audit | P0 |
+| P4-04 | 캡션의 Boulder/Route/운영 해시태그 기반 Route 매칭과 unclaimed Beta 생성 | P0 |
+| P4-05 | 관리자 웹훅 인박스 수동 매칭/거절 | P0 |
+| P4-06 | 관리자 베타 숨김/삭제 모더레이션 | P0 |
+| P4-07 | 베타 썸네일 수집과 R2 저장, 실패 시 기본 이미지 처리 | P1 |
+| P4-08 | 비로그인 수동 베타 등록(Instagram/YouTube URL + 핸들/표시명) | P0 |
+
+Phase 4는 로그인 없이 동작하는 수집/운영 흐름에 한정한다. 수동 베타 등록은 Instagram/YouTube 링크 기반 unclaimed Beta로 저장한다. 내 기록, 프로젝트, 클레임은 Phase 5에 포함한다.
+
+### Phase 5 — Login / Favorites / Claims
+
+| ID | 기능 | 우선순위 |
+|----|------|---------|
+| P5-01 | Kakao/Naver/Google/Apple OAuth 로그인 | P0 |
+| P5-02 | 사용자 세션, 마이페이지, 프로필 설정 | P0 |
+| P5-03 | Route 즐겨찾기와 프로젝트 탭 | P0 |
+| P5-04 | 내 기록 탭과 본인 Beta 관리 | P0 |
+| P5-05 | Instagram 핸들 등록 후 unclaimed Beta 클레임 | P0 |
+| P5-06 | 계정 머지와 OAuth provider 연결/해제 | P1 |
+| P5-07 | 공개 프로필(`/u/<user-id>`)과 공개 범위 설정 | P1 |
 
 ## 5. 타겟 사용자
 
@@ -137,11 +163,11 @@ Area ──< Crag ──< Sector ──< Boulder ──< Topo ──< Route
 | 탭 | 경로 | 비고 |
 |----|------|------|
 | 홈 | `/` | 메인 탐색 |
-| 기록 | `/me/records` | Phase 3 |
-| 프로젝트 | `/me/projects` | Phase 3 |
-| 마이 | `/me` | Phase 3 |
+| 기록 | `/me/records` | Phase 5 |
+| 프로젝트 | `/me/projects` | Phase 5 |
+| 마이 | `/me` | Phase 5 |
 
-Phase 1/2에서는 기록/프로젝트/마이 탭은 로그인 유도 또는 coming soon 상태로 렌더한다.
+Phase 1~4에서는 기록/프로젝트/마이 탭은 로그인 유도 또는 coming soon 상태로 렌더한다.
 
 **상단 네비게이션**: 로고(좌) + 햄버거 메뉴 아이콘(우). 햄버거 메뉴 항목:
 
@@ -159,9 +185,9 @@ Phase 1/2에서는 기록/프로젝트/마이 탭은 로그인 유도 또는 com
 ### 8.4 검색
 
 - 통합 검색 입력: "문제, 볼더, 섹터, 암장, 난이도 검색".
-- Phase 1은 D1 `LIKE %query%` 기반으로 충분하다(전체 데이터 < 수천).
+- Phase 2는 D1 `LIKE %query%` 기반으로 충분하다(전체 데이터 < 수천).
 - 결과는 카테고리별 그룹핑 (Route / Boulder / Sector / Crag).
-- FTS5 도입은 Phase 2 후보로 둔다.
+- FTS5 도입은 Phase 4 이후 후보로 둔다.
 
 ### 8.5 광고 슬롯
 
@@ -195,9 +221,9 @@ Phase 1/2에서는 기록/프로젝트/마이 탭은 로그인 유도 또는 com
 | 공지(Announcement) CRUD | ❌ | ❌ | ✅ |
 | 베타 모더레이션(숨김/삭제) | ❌ | ❌ | ✅ |
 | 웹훅 인박스 매칭/거절 | ❌ | ❌ | ✅ |
-| 회원 목록/검색 (Phase 3) | ❌ | ❌ | ✅ |
+| 회원 목록/검색 (Phase 5) | ❌ | ❌ | ✅ |
 
-"비로그인" 열의 ✅ 작업은 Phase 2부터 가능하다. 일반 유저 전용 작업은 모두 Phase 3 범위다.
+"비로그인" 열의 Beta 관련 ✅ 작업은 Phase 4부터 가능하다. 일반 유저 전용 작업은 모두 Phase 5 범위다.
 
 ## 9. 개인정보 및 정책
 
@@ -213,16 +239,18 @@ Phase 1/2에서는 기록/프로젝트/마이 탭은 로그인 유도 또는 com
 
 | 단계 | 항목 | 목적 |
 |------|------|------|
-| Phase 1 | 관리자 이메일, 비밀번호 해시 | 관리자 인증 |
-| Phase 2 | Instagram username/id, 게시물 id, caption, Instagram/YouTube media URL, thumbnail URL, raw webhook payload, 수동 등록 표시명/핸들 | 베타 수집, 중복 방지, audit |
-| Phase 3 | OAuth provider uid, 이메일, 표시 이름, 아바타, Instagram 핸들 | 로그인, 계정 식별, Beta 클레임 |
-| Phase 3 선택 | 키, 암스팬, 몸무게, YouTube ID | 프로필/기록 분석 기반 |
+| Phase 1 | 없음 또는 운영자가 제공한 정적/mock 콘텐츠 | public UI 검증 |
+| Phase 2 | 공개 콘텐츠 DB 레코드, 좌표, 이미지 URL 문자열 | public read path |
+| Phase 3 | 관리자 이메일, 비밀번호 해시, 관리자 audit log | 관리자 인증/운영 추적 |
+| Phase 4 | Instagram username/id, 게시물 id, caption, Instagram/YouTube media URL, thumbnail URL, raw webhook payload, 수동 등록 표시명/핸들 | 베타 수집, 중복 방지, audit |
+| Phase 5 | OAuth provider uid, 이메일, 표시 이름, 아바타, Instagram 핸들 | 로그인, 계정 식별, Beta 클레임 |
+| Phase 5 선택 | 키, 암스팬, 몸무게, YouTube ID | 프로필/기록 분석 기반 |
 
 ### 9.3 공개 범위와 클레임
 
 - 신체정보, 기록, 프로젝트는 기본 비공개를 우선한다.
 - Instagram 핸들만으로 생성된 unclaimed Beta는 소유권 확인 전까지 특정 사용자에게 자동 공개 귀속하지 않는다.
-- Phase 3 클레임은 로그인 사용자 입력과 기존 unclaimed Beta를 연결하되, 사칭 리스크를 줄이기 위해 관리자 검토 또는 소유 증명 흐름을 둘 수 있게 설계한다.
+- Phase 5 클레임은 로그인 사용자 입력과 기존 unclaimed Beta를 연결하되, 사칭 리스크를 줄이기 위해 관리자 검토 또는 소유 증명 흐름을 둘 수 있게 설계한다.
 
 ### 9.4 삭제/탈퇴
 
@@ -253,11 +281,13 @@ Phase 1/2에서는 기록/프로젝트/마이 탭은 로그인 유도 또는 com
 
 | 항목 | 내용 | 대응 |
 |------|------|------|
-| 콘텐츠 확보 | 초기 큐레이션 비용이 큼 | Phase 1 관리자 입력 UX 우선 |
+| 콘텐츠 확보 | 초기 큐레이션 비용이 큼 | Phase 2 seed/import와 Phase 3 관리자 입력 UX 우선 |
 | 환경 보호 | 민감 스팟 공개로 훼손 우려 | 좌표 정밀도/공개 정책 운영 |
 | 저작권 | 사진·Topo 이미지 권리 필요 | 출처/촬영자 메타데이터 필수 |
-| Instagram 검수 | Meta 앱 검수가 일정에 영향 | Phase 2를 별도 마일스톤으로 분리 |
-| Naver 검수 | 비즈니스 검수 절차 필요 | Phase 3 일정 버퍼 확보 |
+| DB 전환 | mock UI와 실제 D1 데이터 간 불일치 | Phase 2를 별도 마일스톤으로 분리 |
+| 관리자 운영 | CRUD/이미지/권한 검증 범위가 큼 | Phase 3에서 운영 기능만 집중 검증 |
+| Instagram 검수 | Meta 앱 검수가 일정에 영향 | Phase 4를 별도 마일스톤으로 분리 |
+| Naver 검수 | 비즈니스 검수 절차 필요 | Phase 5 일정 버퍼 확보 |
 | 클레임 사칭 | IG 핸들 입력만으로 오귀속 가능 | 관리자 검토/소유 증명 확장 가능 구조 |
 
 ## 13. 오픈 이슈
