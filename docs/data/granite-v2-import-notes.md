@@ -106,9 +106,13 @@ Apply these changes to align Phase 1 schema with import contract:
 
 ## Image URL Policy
 
-- **Local/preview imports**: Use local paths `/images/{entity}/{slug}/{purpose}.{ext}`
-- **Production imports**: Use CDN URLs (`https://cdn.granite.kr/...`) or CDN-compatible paths for Cloudflare image loader
-- **Never store**: Private R2 URLs, signed URLs, or raw S3 endpoint URLs
+Production policy is now **R2 + CDN webp** (switched from local preview paths).
+
+- Workbook still stages images as `/images/{entity}/{slug}/{purpose}.{ext}`. The import script (`resolveImageUrl`) converts each to `${CDN_BASE_URL}/{entity}/{slug}/{purpose}.webp`.
+- Originals are converted to webp (`cwebp -q 80`) and uploaded to the R2 bucket `granite-v2` under keys `{entity}/{slug}/{purpose}.webp` (the staging path minus the `/images/` prefix, extension swapped to `.webp`). See `scripts/upload-images-r2.sh`.
+- `CDN_BASE_URL` defaults to `https://cdn.granite.kr` (custom domain on the `granite-v2` bucket). Cloudflare Image Resizing handles per-request downscaling via the loader's `?w=&q=` params, so full-size webp is stored.
+- **Never store**: Private R2 URLs, signed URLs, or raw S3 endpoint URLs.
+- Generated migration `0002_import_v1_content.sql` contains 95 CDN webp URLs (crags 6, boulders 31, topos 50, routes 8); areas/sectors have none.
 
 ## Image Staging Status (Referenced Images)
 

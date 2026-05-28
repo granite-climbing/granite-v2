@@ -6,10 +6,10 @@ compatibility_date = "2026-05-16"
 ENVIRONMENT = "production"
 
 [[d1_databases]]
-binding = "DB"
-database_name = "granite-prod"
-database_id = "replace-with-cloudflare-d1-id"
+binding = "granite_v2"
+database_name = "granite-v2"
+database_id = "086073b7-4369-47ea-baf6-2b76de860620"
 
 [[r2_buckets]]
 binding = "BUCKET"
-bucket_name = "granite-prod-images"
+bucket_name = "granite-v2"

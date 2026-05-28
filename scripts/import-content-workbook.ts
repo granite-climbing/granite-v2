@@ -83,16 +83,31 @@ function assertNoduplicateIds(ids: string[], entity: string): void {
   }
 }
 
+const CDN_BASE = (process.env.CDN_BASE_URL ?? "https://cdn.granite.kr").replace(
+  /\/+$/,
+  "",
+);
+
 /**
- * Validates that non-empty image URLs start with /images/ (local preview policy).
+ * Validates a staged `/images/...` path and converts it to its production CDN
+ * webp URL. The staging path mirrors the R2 key, and originals are uploaded as
+ * webp, so only the extension changes.
+ *   "/images/boulders/x/cover.jpg" -> "https://cdn.granite.kr/boulders/x/cover.webp"
+ * Empty input returns "".
  */
-function assertImageUrl(url: string | null, field: string, context: string): void {
-  if (!url) return;
+function resolveImageUrl(
+  url: string | null,
+  field: string,
+  context: string,
+): string {
+  if (!url) return "";
   if (!url.startsWith("/images/")) {
     fail(
       `Image URL policy violation at ${context} [${field}]: "${url}" must start with /images/`,
     );
   }
+  const key = url.replace(/^\/images\//, "").replace(/\.[^./]+$/, ".webp");
+  return `${CDN_BASE}/${key}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -199,8 +214,11 @@ for (const [rowIdx, row] of snapshot.crags.entries()) {
   // description: use description column, fall back to summary if description is empty
   const description = row.description || row.summary || "";
 
-  const coverUrl = row.cover_image_url ?? "";
-  assertImageUrl(coverUrl, "cover_image_url", `crags[${rowIdx}] slug="${row.slug}"`);
+  const coverUrl = resolveImageUrl(
+    row.cover_image_url ?? "",
+    "cover_image_url",
+    `crags[${rowIdx}] slug="${row.slug}"`,
+  );
 
   // is_published: use cell; empty → treat as published (preview assumption)
   // Assumption: empty is_published cell in crags/sectors/boulders/routes treated as published=1 for preview import.
@@ -260,8 +278,11 @@ for (const [rowIdx, row] of snapshot.sectors.entries()) {
   const sort_order = prevCount + 1;
   sectorSortCounters.set(row.crag_slug, sort_order);
 
-  const coverUrl = row.cover_image_url ?? "";
-  assertImageUrl(coverUrl, "cover_image_url", `sectors[${rowIdx}] slug="${row.slug}"`);
+  const coverUrl = resolveImageUrl(
+    row.cover_image_url ?? "",
+    "cover_image_url",
+    `sectors[${rowIdx}] slug="${row.slug}"`,
+  );
 
   // Assumption: empty is_published cell treated as published=1 for preview import.
   const is_published = parseBooleanCell(row.is_published ?? "TRUE") ? 1 : 0;
@@ -328,8 +349,11 @@ for (const [rowIdx, row] of snapshot.boulders.entries()) {
   const sort_order = prevCount + 1;
   boulderSortCounters.set(row.sector_slug, sort_order);
 
-  const coverUrl = row.cover_image_url ?? "";
-  assertImageUrl(coverUrl, "cover_image_url", `boulders[${rowIdx}] slug="${row.slug}"`);
+  const coverUrl = resolveImageUrl(
+    row.cover_image_url ?? "",
+    "cover_image_url",
+    `boulders[${rowIdx}] slug="${row.slug}"`,
+  );
 
   // Assumption: empty is_published cell treated as published=1 for preview import.
   const is_published = parseBooleanCell(row.is_published ?? "TRUE") ? 1 : 0;
@@ -378,8 +402,11 @@ for (const [rowIdx, row] of snapshot.topos.entries()) {
     );
   }
 
-  const baseUrl = row.base_image_url ?? "";
-  assertImageUrl(baseUrl, "base_image_url", `topos[${rowIdx}] slug="${row.slug}"`);
+  const baseUrl = resolveImageUrl(
+    row.base_image_url ?? "",
+    "base_image_url",
+    `topos[${rowIdx}] slug="${row.slug}"`,
+  );
 
   // Topos sheet has no is_published column → default to 1 (published)
   const is_published = 1;
@@ -462,8 +489,11 @@ for (const [rowIdx, row] of snapshot.routes.entries()) {
   const sort_order = prevCount + 1;
   routeSortCounters.set(row.topo_slug, sort_order);
 
-  const lineUrl = row.line_image_url ?? "";
-  assertImageUrl(lineUrl, "line_image_url", `routes[${rowIdx}] slug="${row.slug}"`);
+  const lineUrl = resolveImageUrl(
+    row.line_image_url ?? "",
+    "line_image_url",
+    `routes[${rowIdx}] slug="${row.slug}"`,
+  );
 
   // Assumption: empty is_published cell treated as published=1 for preview import.
   const is_published = parseBooleanCell(row.is_published ?? "TRUE") ? 1 : 0;
