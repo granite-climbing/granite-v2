@@ -1,6 +1,8 @@
 import { saveBoulderAction, saveCragAction, saveRouteAction } from "@/lib/actions/admin-content";
 import { getAllRouteItems, getHomeModel } from "@/lib/db/repository";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminContentPage() {
   const home = await getHomeModel();
   const routes = await getAllRouteItems();

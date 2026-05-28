@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { findTopoById } from "@/lib/db/repository";
 import type { Route, TopoDetail } from "@/lib/db/schema";
 
+export const dynamic = "force-dynamic";
+
 type TopoPageProps = {
   params: Promise<{ topoId: string }>;
   searchParams?: Promise<{ route?: string }>;

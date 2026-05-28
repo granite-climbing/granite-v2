@@ -1,6 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { findRouteById } from "@/lib/db/repository";
 
+export const dynamic = "force-dynamic";
+
 type RoutePageProps = {
   params: Promise<{ routeId: string }>;
 };

@@ -4,6 +4,8 @@ import { AppHeader } from "@/components/layout/app-header";
 import { findCragBySlug } from "@/lib/db/repository";
 import type { CragDetail, RouteListItem, TabName } from "@/lib/db/schema";
 
+export const dynamic = "force-dynamic";
+
 type CragPageProps = {
   params: Promise<{ cragSlug: string }>;
   searchParams?: Promise<{ tab?: string }>;
