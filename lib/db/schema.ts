@@ -3,7 +3,10 @@ export type TabName = "Info" | "Sector" | "Boulder" | "Route" | "Map" | "Travel"
 export type Area = {
   id: string;
   name: string;
+  nameEn: string | null;
   slug: string;
+  coverImageUrl: string;
+  isPublished: boolean;
   sortOrder: number;
 };
 
@@ -11,30 +14,30 @@ export type Crag = {
   id: string;
   areaId: string;
   name: string;
+  nameEn: string | null;
   slug: string;
   lat: number | null;
   lng: number | null;
-  summary: string;
-  accessDesc: string;
-  parkingDesc: string;
+  description: string;
   season: string;
   coverImageUrl: string;
   isPublished: boolean;
+  sortOrder: number;
 };
 
 export type Sector = {
   id: string;
   cragId: string;
   name: string;
+  nameEn: string | null;
   slug: string;
   lat: number | null;
   lng: number | null;
-  summary: string;
-  accessDesc: string;
-  parkingDesc: string;
+  description: string;
   season: string;
   coverImageUrl: string;
   isPublished: boolean;
+  sortOrder: number;
 };
 
 export type Boulder = {
@@ -44,11 +47,10 @@ export type Boulder = {
   slug: string;
   lat: number;
   lng: number;
-  coordPrecision: "exact" | "approximate" | "hidden";
-  rockType: string;
   hashtags: string;
   coverImageUrl: string;
   isPublished: boolean;
+  sortOrder: number;
 };
 
 export type Topo = {
@@ -56,13 +58,13 @@ export type Topo = {
   boulderId: string;
   name: string;
   baseImageUrl: string;
+  isPublished: boolean;
   sortOrder: number;
 };
 
 export type Route = {
   id: string;
   topoId: string;
-  boulderId: string;
   name: string;
   slug: string;
   grade: string;
@@ -71,6 +73,7 @@ export type Route = {
   description: string;
   lineImageUrl: string;
   isPublished: boolean;
+  sortOrder: number;
 };
 
 export type Announcement = {
