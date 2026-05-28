@@ -11,7 +11,7 @@ type TopoPageProps = {
 export default async function TopoPage({ params, searchParams }: TopoPageProps) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
-  const topo = findTopoById(resolvedParams.topoId);
+  const topo = await findTopoById(resolvedParams.topoId);
   if (!topo) {
     notFound();
   }

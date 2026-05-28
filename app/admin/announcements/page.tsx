@@ -1,7 +1,7 @@
 import { getHomeModel } from "@/lib/db/repository";
 
-export default function AdminAnnouncementsPage() {
-  const { announcements } = getHomeModel();
+export default async function AdminAnnouncementsPage() {
+  const { announcements } = await getHomeModel();
 
   return (
     <section className="space-y-4 p-5">

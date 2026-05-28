@@ -7,7 +7,7 @@ type RoutePageProps = {
 
 export default async function RoutePage({ params }: RoutePageProps) {
   const resolvedParams = await params;
-  const route = findRouteById(resolvedParams.routeId);
+  const route = await findRouteById(resolvedParams.routeId);
   if (!route) {
     notFound();
   }

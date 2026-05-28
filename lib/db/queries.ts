@@ -29,6 +29,9 @@ import type {
   Topo,
 } from "./schema";
 
+// Re-export so that consumers can use `queries.RouteListItem` as a type
+export type { RouteListItem };
+
 // ---------------------------------------------------------------------------
 // Internal row shapes (snake_case → camelCase via SQL aliases, is_published as 0|1)
 // ---------------------------------------------------------------------------

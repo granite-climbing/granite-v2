@@ -21,14 +21,14 @@ import {
   SectorRowSchema,
   TopoRowSchema,
   WorkbookSnapshotSchema,
-} from "../lib/db/import-schema.ts";
+} from "../lib/db/import-schema";
 import {
   buildId,
   normalizeSlug,
   parseBooleanCell,
   parseGradeNum,
   parseHashtagsJson,
-} from "../lib/db/import-normalize.ts";
+} from "../lib/db/import-normalize";
 
 // ---------------------------------------------------------------------------
 // Helpers

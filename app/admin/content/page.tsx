@@ -1,9 +1,9 @@
 import { saveBoulderAction, saveCragAction, saveRouteAction } from "@/lib/actions/admin-content";
 import { getAllRouteItems, getHomeModel } from "@/lib/db/repository";
 
-export default function AdminContentPage() {
-  const home = getHomeModel();
-  const routes = getAllRouteItems();
+export default async function AdminContentPage() {
+  const home = await getHomeModel();
+  const routes = await getAllRouteItems();
 
   return (
     <section className="space-y-5 p-5">
