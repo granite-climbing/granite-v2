@@ -51,3 +51,4 @@ date: YYYY-MM-DD
 | [0015](0015-policy-docs-mirrored-in-app.md) | 공개 정책 문서를 앱 내 정적 페이지로 이관 | Accepted |
 | [0016](0016-defer-r2-backup.md) | R2 백업은 MVP 단계에서 진행하지 않음 | Accepted |
 | [0017](0017-phased-release-1-5.md) | 5단계 출시 (UI / DB / Admin / Instagram / Personalization) | Accepted |
+| [0018](0018-no-coord-precision-column.md) | 민감 좌표는 관리자 큐레이션으로 통제, coord_precision 컬럼 제거 | Accepted |

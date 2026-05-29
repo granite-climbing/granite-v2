@@ -112,7 +112,7 @@ granite-v2/
 - DB에는 `lat`, `lng`를 WGS84 `REAL`로 저장한다. PostGIS류는 사용하지 않는다.
 - Boulder 좌표는 필수이고, Crag/Sector 좌표는 선택이다.
 - Boulder에는 캡션 생성/매칭용 운영 해시태그 목록을 저장한다.
-- 민감 스팟은 `coord_precision` 또는 공개 정책으로 정밀 좌표 노출을 제한한다.
+- 민감 좌표는 별도 정밀도 컬럼 없이 관리자 큐레이션으로 통제한다: 민감 스팟은 미등록 또는 `is_published = 0`으로 비공개 처리하고, 안내가 필요하면 `description`에 직접 작성한다. published Boulder의 `lat`/`lng`는 공개 가능한 정확 좌표만 저장한다 (ADR 0018).
 - 영역 검색은 bounding box(min/max lat·lng) 기반 1차 필터링 후 앱 레벨 거리 계산을 사용한다.
 - 지도는 홈이 아니라 Crag/Sector 상세의 Map 탭에서 제공한다.
 
