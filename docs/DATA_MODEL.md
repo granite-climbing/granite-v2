@@ -171,8 +171,35 @@ Public/admin announcement cards.
 
 Phase 3 admin authentication and mutation audit.
 
-- `admins`: `id`, `email`, `password_hash`, `display_name`, `is_active`, timestamps.
-- `admin_audit_logs`: `id`, `admin_id`, `action`, `target_type`, `target_id`, `metadata`, `created_at`.
+#### `admins`
+
+| Column | Type | Required | Notes |
+|---|---:|:---:|---|
+| `id` | `TEXT` | yes | Stable generated ID |
+| `email` | `TEXT` | yes | Unique login identifier |
+| `password_hash` | `TEXT` | yes | Bcrypt hash |
+| `display_name` | `TEXT` | yes | Admin display name |
+| `is_active` | `INTEGER` | yes | `0` or `1`; soft deactivation |
+| `created_at` | `TEXT` | yes | DB timestamp |
+| `updated_at` | `TEXT` | yes | DB timestamp |
+
+#### `admin_audit_logs`
+
+| Column | Type | Required | Notes |
+|---|---:|:---:|---|
+| `id` | `TEXT` | yes | Stable generated ID |
+| `admin_id` | `TEXT` | yes | FK to `admins.id` |
+| `action` | `TEXT` | yes | e.g., `create`, `update`, `delete`, `restore` |
+| `target_type` | `TEXT` | yes | e.g., `crag`, `boulder`, `route` |
+| `target_id` | `TEXT` | yes | ID of the modified entity |
+| `metadata` | `TEXT` | yes | JSON string with change details |
+| `created_at` | `TEXT` | yes | DB timestamp |
+
+**Admin operations notes:**
+
+Phase 3 uses `admins.email` only for login lookup. JWT sessions use `admins.id` as the subject. `admin_audit_logs.metadata` stores compact JSON text with changed field names and optional before/after values; do not store passwords or secrets in metadata.
+
+Content tables and `announcements` use `deleted_at` for soft delete. Public read queries must always exclude rows where `deleted_at IS NOT NULL`. Admin read queries include deleted rows by default and label them as deleted; restore actions set `deleted_at = NULL`.
 
 ### `users`, `user_oauth_identities`, `favorites`
 
