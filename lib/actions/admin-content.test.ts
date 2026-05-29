@@ -50,6 +50,7 @@ import {
   upsertArea,
   upsertSector,
   upsertBoulder,
+  upsertTopo,
   upsertRoute,
   updatePublishState,
   softDeleteContent,
@@ -62,9 +63,12 @@ import {
   saveAreaAction,
   saveSectorAction,
   saveBoulderAction,
+  saveTopoAction,
   saveRouteAction,
   softDeleteCragAction,
   softDeleteBoulderAction,
+  softDeleteRouteAction,
+  restoreAreaAction,
   restoreCragAction,
   togglePublishAction,
 } from "./admin-content";
@@ -75,6 +79,7 @@ const mockedUpsertCrag = vi.mocked(upsertCrag);
 const mockedUpsertArea = vi.mocked(upsertArea);
 const mockedUpsertSector = vi.mocked(upsertSector);
 const mockedUpsertBoulder = vi.mocked(upsertBoulder);
+const mockedUpsertTopo = vi.mocked(upsertTopo);
 const mockedUpsertRoute = vi.mocked(upsertRoute);
 const mockedUpdatePublishState = vi.mocked(updatePublishState);
 const mockedSoftDeleteContent = vi.mocked(softDeleteContent);
@@ -267,6 +272,7 @@ describe("admin content actions", () => {
     mockedUpsertArea.mockResolvedValue(undefined);
     mockedUpsertSector.mockResolvedValue(undefined);
     mockedUpsertBoulder.mockResolvedValue(undefined);
+    mockedUpsertTopo.mockResolvedValue(undefined);
     mockedUpsertRoute.mockResolvedValue(undefined);
     mockedUpdatePublishState.mockResolvedValue(undefined);
     mockedSoftDeleteContent.mockResolvedValue(undefined);
@@ -609,5 +615,202 @@ describe("admin content actions", () => {
 
     await expect(softDeleteCragAction(formData)).rejects.toThrow("Unauthorized");
     expect(mockedSoftDeleteContent).not.toHaveBeenCalled();
+  });
+
+  // -------------------------------------------------------------------------
+  // Cache-revalidation context: saveSectorAction reads cragSlug from formData
+  // -------------------------------------------------------------------------
+
+  it("saveSectorAction: revalidates crag:<cragSlug> and sector:<sectorSlug> when cragSlug in formData", async () => {
+    const formData = new FormData();
+    formData.set("id", "sector_anyang_antique");
+    formData.set("cragId", "crag_anyang");
+    formData.set("name", "앤틱 구역");
+    formData.set("slug", "anyang_antique");
+    formData.set("coverImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+    // Revalidation context hint (hidden field supplied by admin form)
+    formData.set("cragSlug", "anyang");
+
+    await saveSectorAction(formData);
+
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:anyang");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("sector:anyang_antique");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/c/anyang");
+  });
+
+  it("saveSectorAction: skips crag tag when cragSlug not in formData", async () => {
+    const formData = new FormData();
+    formData.set("id", "sector_anyang_antique");
+    formData.set("cragId", "crag_anyang");
+    formData.set("name", "앤틱 구역");
+    formData.set("slug", "anyang_antique");
+    formData.set("coverImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+    // No cragSlug field
+
+    await saveSectorAction(formData);
+
+    expect(mockedRevalidateTag).not.toHaveBeenCalledWith(expect.stringMatching(/^crag:/));
+    // sector tag still fires
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("sector:anyang_antique");
+  });
+
+  // -------------------------------------------------------------------------
+  // Cache-revalidation context: saveRouteAction reads cragSlug/boulderId/topoId
+  // -------------------------------------------------------------------------
+
+  it("saveRouteAction: revalidates route, boulder, crag tags and paths when context in formData", async () => {
+    const formData = new FormData();
+    formData.set("id", "route_anaconda");
+    formData.set("topoId", "topo_gomul_front");
+    formData.set("name", "아나콘다");
+    formData.set("slug", "anaconda");
+    formData.set("grade", "V5");
+    formData.set("gradeNum", "5");
+    formData.set("fa", "");
+    formData.set("description", "");
+    formData.set("lineImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "1");
+    // Revalidation context hints (hidden fields supplied by admin form)
+    formData.set("cragSlug", "anyang");
+    formData.set("boulderId", "boulder_gomul_boulder");
+    // topoId is already in parsed schema (topo_gomul_front)
+
+    await saveRouteAction(formData);
+
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("route:route_anaconda");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_gomul_boulder");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:anyang");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/r/route_anaconda");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/topo_gomul_front");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/c/anyang");
+  });
+
+  // -------------------------------------------------------------------------
+  // saveTopoAction: requireAdmin + upsertTopo + audit
+  // -------------------------------------------------------------------------
+
+  it("saveTopoAction: calls requireAdmin, upserts topo, audits content.upsert, revalidates boulder and topo path", async () => {
+    const formData = new FormData();
+    formData.set("id", "topo_gomul_front");
+    formData.set("boulderId", "boulder_gomul_boulder");
+    formData.set("name", "고물 정면");
+    formData.set("baseImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+    formData.set("cragSlug", "anyang");
+
+    await saveTopoAction(formData);
+
+    expect(mockedRequireAdmin).toHaveBeenCalled();
+    expect(mockedUpsertTopo).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "topo_gomul_front", boulderId: "boulder_gomul_boulder" }),
+    );
+    expect(mockedInsertAdminAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adminId: "admin_1",
+        action: "content.upsert",
+        targetType: "topo",
+        targetId: "topo_gomul_front",
+      }),
+    );
+    // Revalidation surface
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_gomul_boulder");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/topo_gomul_front");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/c/anyang");
+  });
+
+  it("saveTopoAction: generates UUID-based id when no id provided", async () => {
+    const formData = new FormData();
+    // no id
+    formData.set("boulderId", "boulder_gomul_boulder");
+    formData.set("name", "고물 정면");
+    formData.set("baseImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+
+    await saveTopoAction(formData);
+
+    expect(mockedUpsertTopo).toHaveBeenCalledWith(
+      expect.objectContaining({ boulderId: "boulder_gomul_boulder" }),
+    );
+    // id should start with "topo_" and be longer than just "topo_"
+    const calledWith = mockedUpsertTopo.mock.calls[0][0];
+    expect(calledWith.id).toMatch(/^topo_.+/);
+    expect(calledWith.id).not.toBe("topo_");
+  });
+
+  // -------------------------------------------------------------------------
+  // restoreAreaAction: restoreContent + audit content.restore
+  // -------------------------------------------------------------------------
+
+  it("restoreAreaAction: calls restoreContent, audits content.restore, revalidates home + areas:list", async () => {
+    const formData = new FormData();
+    formData.set("id", "area_greater_seoul");
+
+    await restoreAreaAction(formData);
+
+    expect(mockedRequireAdmin).toHaveBeenCalled();
+    expect(mockedRestoreContent).toHaveBeenCalledWith({ table: "areas", id: "area_greater_seoul" });
+    expect(mockedInsertAdminAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adminId: "admin_1",
+        action: "content.restore",
+        targetType: "area",
+        targetId: "area_greater_seoul",
+      }),
+    );
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("home");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("areas:list");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/");
+  });
+
+  // -------------------------------------------------------------------------
+  // softDeleteRouteAction: previously untested
+  // -------------------------------------------------------------------------
+
+  it("softDeleteRouteAction: calls softDeleteContent, audits, revalidates route+boulder+crag tags and paths", async () => {
+    const formData = new FormData();
+    formData.set("id", "route_anaconda");
+    formData.set("cragSlug", "anyang");
+    formData.set("boulderId", "boulder_gomul_boulder");
+    formData.set("topoId", "topo_gomul_front");
+
+    await softDeleteRouteAction(formData);
+
+    expect(mockedRequireAdmin).toHaveBeenCalled();
+    expect(mockedSoftDeleteContent).toHaveBeenCalledWith({ table: "routes", id: "route_anaconda" });
+    expect(mockedInsertAdminAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adminId: "admin_1",
+        action: "content.soft_delete",
+        targetType: "route",
+        targetId: "route_anaconda",
+      }),
+    );
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("route:route_anaconda");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_gomul_boulder");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:anyang");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/r/route_anaconda");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/topo_gomul_front");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/c/anyang");
+  });
+
+  it("softDeleteRouteAction: still revalidates route tag when context fields absent", async () => {
+    const formData = new FormData();
+    formData.set("id", "route_anaconda");
+    // No cragSlug / boulderId / topoId
+
+    await softDeleteRouteAction(formData);
+
+    expect(mockedSoftDeleteContent).toHaveBeenCalledWith({ table: "routes", id: "route_anaconda" });
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("route:route_anaconda");
+    // boulder/crag tags must NOT fire when missing
+    expect(mockedRevalidateTag).not.toHaveBeenCalledWith(expect.stringMatching(/^boulder:/));
+    expect(mockedRevalidateTag).not.toHaveBeenCalledWith(expect.stringMatching(/^crag:/));
   });
 });

@@ -170,6 +170,7 @@ export async function saveCragAction(formData: FormData): Promise<void> {
 export async function saveSectorAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const parsed = parseSectorForm(Object.fromEntries(formData));
+  const cragSlug = formData.get("cragSlug")?.toString() || undefined;
   let id = parsed.id ?? `sector_${parsed.slug}`;
 
   if (!parsed.id) {
@@ -189,12 +190,14 @@ export async function saveSectorAction(formData: FormData): Promise<void> {
   }
 
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "sector", targetId: id, metadata: { slug: parsed.slug } });
-  revalidateSectorSurface(undefined, parsed.slug);
+  revalidateSectorSurface(cragSlug, parsed.slug);
 }
 
 export async function saveBoulderAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const parsed = parseBoulderForm(Object.fromEntries(formData));
+  const cragSlug = formData.get("cragSlug")?.toString() || undefined;
+  const sectorSlug = formData.get("sectorSlug")?.toString() || undefined;
   let id = parsed.id ?? `boulder_${parsed.slug}`;
 
   if (!parsed.id) {
@@ -214,24 +217,28 @@ export async function saveBoulderAction(formData: FormData): Promise<void> {
   }
 
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "boulder", targetId: id, metadata: { slug: parsed.slug } });
-  revalidateBoulderSurface(id);
+  revalidateBoulderSurface(id, cragSlug, sectorSlug);
 }
 
 export async function saveTopoAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const parsed = parseTopoForm(Object.fromEntries(formData));
+  const cragSlug = formData.get("cragSlug")?.toString() || undefined;
   // Topos have no slug — use provided id or generate a UUID-based one.
   const id = parsed.id ?? `topo_${randomUUID()}`;
 
   await upsertTopo({ ...parsed, id });
 
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "topo", targetId: id, metadata: { boulderId: parsed.boulderId } });
-  revalidateTopoSurface(parsed.boulderId, id);
+  revalidateTopoSurface(parsed.boulderId, id, cragSlug);
 }
 
 export async function saveRouteAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const parsed = parseRouteForm(Object.fromEntries(formData));
+  const cragSlug = formData.get("cragSlug")?.toString() || undefined;
+  const boulderId = formData.get("boulderId")?.toString() || undefined;
+  // topoId is already in parsed (required schema field) — use it for path revalidation too.
   let id = parsed.id ?? `route_${parsed.slug}`;
 
   if (!parsed.id) {
@@ -251,7 +258,7 @@ export async function saveRouteAction(formData: FormData): Promise<void> {
   }
 
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "route", targetId: id, metadata: { slug: parsed.slug } });
-  revalidateRouteSurface(id);
+  revalidateRouteSurface(id, boulderId, cragSlug, parsed.topoId);
 }
 
 // ---------------------------------------------------------------------------
@@ -291,10 +298,12 @@ export async function softDeleteSectorAction(formData: FormData): Promise<void> 
 export async function softDeleteBoulderAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const id = String(formData.get("id") ?? "");
+  const cragSlug = formData.get("cragSlug")?.toString() || undefined;
+  const sectorSlug = formData.get("sectorSlug")?.toString() || undefined;
 
   await softDeleteContent({ table: "boulders", id });
   await auditLog({ adminId: admin.adminId, action: "content.soft_delete", targetType: "boulder", targetId: id });
-  revalidateBoulderSurface(id);
+  revalidateBoulderSurface(id, cragSlug, sectorSlug);
 }
 
 export async function softDeleteTopoAction(formData: FormData): Promise<void> {
@@ -310,10 +319,13 @@ export async function softDeleteTopoAction(formData: FormData): Promise<void> {
 export async function softDeleteRouteAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const id = String(formData.get("id") ?? "");
+  const cragSlug = formData.get("cragSlug")?.toString() || undefined;
+  const boulderId = formData.get("boulderId")?.toString() || undefined;
+  const topoId = formData.get("topoId")?.toString() || undefined;
 
   await softDeleteContent({ table: "routes", id });
   await auditLog({ adminId: admin.adminId, action: "content.soft_delete", targetType: "route", targetId: id });
-  revalidateRouteSurface(id);
+  revalidateRouteSurface(id, boulderId, cragSlug, topoId);
 }
 
 // ---------------------------------------------------------------------------
@@ -353,10 +365,12 @@ export async function restoreSectorAction(formData: FormData): Promise<void> {
 export async function restoreBoulderAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const id = String(formData.get("id") ?? "");
+  const cragSlug = formData.get("cragSlug")?.toString() || undefined;
+  const sectorSlug = formData.get("sectorSlug")?.toString() || undefined;
 
   await restoreContent({ table: "boulders", id });
   await auditLog({ adminId: admin.adminId, action: "content.restore", targetType: "boulder", targetId: id });
-  revalidateBoulderSurface(id);
+  revalidateBoulderSurface(id, cragSlug, sectorSlug);
 }
 
 export async function restoreTopoAction(formData: FormData): Promise<void> {
@@ -372,10 +386,13 @@ export async function restoreTopoAction(formData: FormData): Promise<void> {
 export async function restoreRouteAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const id = String(formData.get("id") ?? "");
+  const cragSlug = formData.get("cragSlug")?.toString() || undefined;
+  const boulderId = formData.get("boulderId")?.toString() || undefined;
+  const topoId = formData.get("topoId")?.toString() || undefined;
 
   await restoreContent({ table: "routes", id });
   await auditLog({ adminId: admin.adminId, action: "content.restore", targetType: "route", targetId: id });
-  revalidateRouteSurface(id);
+  revalidateRouteSurface(id, boulderId, cragSlug, topoId);
 }
 
 // ---------------------------------------------------------------------------
