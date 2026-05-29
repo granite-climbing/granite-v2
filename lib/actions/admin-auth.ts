@@ -1,50 +1,38 @@
 "use server";
 
-import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ADMIN_COOKIE_NAME, createAdminToken } from "@/lib/auth/admin";
-import { findActiveAdminByEmail } from "@/lib/db/admin-queries";
-import { adminLoginSchema, type AdminLoginInput } from "./admin-auth-schema";
-
-const INVALID_CREDENTIALS = "Invalid admin credentials";
-
-export async function loginAdminForTest(input: AdminLoginInput): Promise<{
-  token: string;
-  email: string;
-  displayName: string;
-}> {
-  const parsed = adminLoginSchema.parse(input);
-  const admin = await findActiveAdminByEmail(parsed.email);
-  if (!admin) throw new Error(INVALID_CREDENTIALS);
-
-  const validPassword = await bcrypt.compare(parsed.password, admin.passwordHash);
-  if (!validPassword) throw new Error(INVALID_CREDENTIALS);
-
-  const token = await createAdminToken({
-    adminId: admin.id,
-    email: admin.email,
-    displayName: admin.displayName,
-  });
-
-  return { token, email: admin.email, displayName: admin.displayName };
-}
+import { ADMIN_COOKIE_NAME } from "@/lib/auth/admin";
+import { verifyAdminCredentials } from "@/lib/auth/admin-credentials";
+import type { AdminLoginInput } from "./admin-auth-schema";
 
 export async function loginAdminAction(formData: FormData): Promise<void> {
+  let token: string;
   try {
-    const result = await loginAdminForTest(Object.fromEntries(formData) as AdminLoginInput);
+    const result = await verifyAdminCredentials(
+      Object.fromEntries(formData) as AdminLoginInput,
+    );
+    token = result.token;
     const cookieStore = await cookies();
-    cookieStore.set(ADMIN_COOKIE_NAME, result.token, {
+    cookieStore.set(ADMIN_COOKIE_NAME, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/admin",
       maxAge: 60 * 60 * 8,
     });
-  } catch {
-    redirect("/admin/login?error=invalid_credentials");
+  } catch (err) {
+    if (err instanceof Error && err.message === "Invalid admin credentials") {
+      redirect("/admin/login?error=invalid_credentials");
+    }
+    // Surface infra errors (missing ADMIN_JWT_SECRET, D1 failure, etc.) rather
+    // than silently masking them as a login failure.
+    console.error(err);
+    throw err;
   }
 
+  // redirect() throws NEXT_REDIRECT internally and must be called outside
+  // try/catch so it propagates correctly to the Next.js runtime.
   redirect("/admin/content");
 }
 

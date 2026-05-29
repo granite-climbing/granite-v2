@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import bcrypt from "bcryptjs";
-import { loginAdminForTest } from "./admin-auth";
+import { verifyAdminCredentials } from "@/lib/auth/admin-credentials";
 import { findActiveAdminByEmail } from "@/lib/db/admin-queries";
 
 vi.mock("@/lib/db/admin-queries", () => ({
@@ -18,7 +18,7 @@ describe("admin auth", () => {
     mockedFindAdmin.mockResolvedValue(null);
 
     await expect(
-      loginAdminForTest({ email: "missing@granite.kr", password: "secret123" }),
+      verifyAdminCredentials({ email: "missing@granite.kr", password: "secret123" }),
     ).rejects.toThrow("Invalid admin credentials");
   });
 
@@ -32,7 +32,7 @@ describe("admin auth", () => {
     });
 
     await expect(
-      loginAdminForTest({ email: "ops@granite.kr", password: "wrong-password" }),
+      verifyAdminCredentials({ email: "ops@granite.kr", password: "wrong-password" }),
     ).rejects.toThrow("Invalid admin credentials");
   });
 
@@ -45,7 +45,7 @@ describe("admin auth", () => {
       isActive: true,
     });
 
-    const result = await loginAdminForTest({
+    const result = await verifyAdminCredentials({
       email: "ops@granite.kr",
       password: "correct-password",
     });
