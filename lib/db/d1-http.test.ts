@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { pingD1, queryD1, queryD1First } from "./d1-http";
+import { executeD1, pingD1, queryD1, queryD1First } from "./d1-http";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -227,6 +227,45 @@ describe("missing env vars", () => {
     await expect(queryD1("SELECT 1")).rejects.toThrow(
       /D1_HTTP_URL.*D1_API_TOKEN.*D1_DATABASE_ID/
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe("executeD1", () => {
+  beforeEach(() => setEnv());
+  afterEach(() => {
+    clearEnv();
+    vi.unstubAllGlobals();
+  });
+
+  it("executeD1 posts SQL and params to D1", async () => {
+    const fetchMock = mockFetch(makeEnvelope([]));
+
+    await executeD1("UPDATE crags SET name = ? WHERE id = ?", ["안양", "crag_anyang"]);
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url, init] = fetchMock.mock.calls[0] as [
+      string,
+      RequestInit & { headers: Record<string, string>; body: string }
+    ];
+
+    expect(url).toBe("https://api.cloudflare.com/d1/db-123/query");
+    expect(init.method).toBe("POST");
+    expect(init.headers["Content-Type"]).toBe("application/json");
+    expect(init.headers["Authorization"]).toBe("Bearer test-token");
+
+    const parsed = JSON.parse(init.body);
+    expect(parsed.sql).toBe("UPDATE crags SET name = ? WHERE id = ?");
+    expect(parsed.params).toEqual(["안양", "crag_anyang"]);
+  });
+
+  it("executeD1 throws normalized D1 errors", async () => {
+    mockFetch(makeErrorEnvelope(["constraint failed"]));
+
+    await expect(
+      executeD1("INSERT INTO areas (id) VALUES (?)", ["x"])
+    ).rejects.toThrow("D1 query failed: constraint failed");
   });
 });
 

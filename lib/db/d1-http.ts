@@ -128,6 +128,17 @@ export async function queryD1First<T>(
 }
 
 /**
+ * Execute a non-query statement (INSERT, UPDATE, DELETE).
+ * Does not return rows; throws on error.
+ */
+export async function executeD1(
+  sql: string,
+  params?: unknown[]
+): Promise<void> {
+  await executeQuery<unknown>(sql, params ?? []);
+}
+
+/**
  * Connectivity check. Returns true if `SELECT 1` succeeds, false otherwise.
  * Never throws.
  */
