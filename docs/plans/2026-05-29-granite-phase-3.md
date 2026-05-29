@@ -129,18 +129,22 @@ Existing useful files:
 
 ### Admin UI
 
+> **Route-group convention.** Every authenticated admin page below lives under `app/admin/(protected)/` (see Task 4 for the required structure and why). Only `app/admin/login/page.tsx` and the bare `app/admin/layout.tsx` sit outside the protected group. Paths like `app/admin/content/areas/page.tsx` in the lists below are shorthand for `app/admin/(protected)/content/areas/page.tsx`; the URLs (`/admin/content/areas`) are identical because route groups are URL-transparent.
+
 - Modify `app/admin/login/page.tsx`
   - Wire form to `loginAdminAction`.
   - Render `searchParams.error` message.
 
-- Modify `app/admin/layout.tsx`
-  - Protect all admin pages except `/admin/login`.
-  - Render admin nav and logout form.
+- Replace `app/admin/layout.tsx`
+  - Becomes a bare passthrough layout (NO auth) so it can safely wrap `/admin/login`.
 
-- Create `app/admin/page.tsx`
+- Create `app/admin/(protected)/layout.tsx`
+  - Auth guard via `requireAdmin()`; renders admin nav and logout form. Protects every admin page except `/admin/login`. See Task 4 for the required route-group structure.
+
+- Create `app/admin/(protected)/page.tsx`
   - Redirect to `/admin/content`.
 
-- Replace `app/admin/content/page.tsx`
+- Replace `app/admin/(protected)/content/page.tsx`
   - Dashboard-style overview and links to entity-specific pages.
 
 - Create desktop admin component system:
@@ -599,9 +603,22 @@ git commit -m "feat: add admin query boundary"
 - Create: `lib/actions/admin-auth-schema.ts`
 - Create: `lib/actions/admin-auth.ts`
 - Create: `lib/actions/admin-auth.test.ts`
-- Modify: `app/admin/login/page.tsx`
-- Modify: `app/admin/layout.tsx`
-- Create: `app/admin/page.tsx`
+- Move: `app/admin/login/page.tsx` stays OUTSIDE the protected group (no auth wrapper)
+- Replace: `app/admin/layout.tsx` becomes a bare passthrough layout (NO `requireAdmin`)
+- Create: `app/admin/(protected)/layout.tsx` (the auth-guarded shell with nav + logout)
+- Create: `app/admin/(protected)/page.tsx` (redirect to `/admin/content`)
+
+> **Required route structure (not optional).** `app/admin/layout.tsx` wraps every route under `/admin`, including `/admin/login`. If that layout calls `requireAdmin()`, hitting `/admin/login` redirects to `/admin/login` forever. The fix is a route group: keep auth in `app/admin/(protected)/layout.tsx` and leave login outside it. Route groups do not change URLs, so `/admin/content` still resolves. **All admin pages referenced later in this plan (`app/admin/content/*`, `app/admin/announcements/*`, `app/admin/audit/*`) live under `app/admin/(protected)/`.**
+>
+> ```text
+> app/admin/layout.tsx                 # bare passthrough, NO auth
+> app/admin/login/page.tsx             # login, NO auth
+> app/admin/(protected)/layout.tsx     # requireAdmin() + nav + logout
+> app/admin/(protected)/page.tsx       # redirect → /admin/content
+> app/admin/(protected)/content/...    # content overview + entity pages
+> app/admin/(protected)/announcements/...
+> app/admin/(protected)/audit/...
+> ```
 
 - [ ] **Step 1: Write auth tests**
 
@@ -767,6 +784,8 @@ export async function requireAdmin(): Promise<AdminSession> {
 }
 ```
 
+**Behavioral note:** `verifyAdminToken` now calls `findActiveAdminById` on every verification, so each protected admin navigation performs one D1 HTTP round trip. This is intentional (it lets a deactivated admin be locked out mid-session and keeps `displayName`/`email` authoritative), and acceptable for the low-traffic admin surface. Do not reuse this verifier on hot public paths.
+
 - [ ] **Step 5: Implement auth action**
 
 Create `lib/actions/admin-auth.ts`:
@@ -824,10 +843,14 @@ export async function loginAdminAction(formData: FormData): Promise<void> {
 
 export async function logoutAdminAction(): Promise<void> {
   const cookieStore = await cookies();
-  cookieStore.delete(ADMIN_COOKIE_NAME);
+  // Delete with the SAME path the cookie was set with ("/admin"); a default
+  // path="/" delete will not clear a cookie scoped to "/admin".
+  cookieStore.delete({ name: ADMIN_COOKIE_NAME, path: "/admin" });
   redirect("/admin/login");
 }
 ```
+
+Note: the login cookie above is set with `path: "/admin"`, so logout must delete with the matching `path: "/admin"`. If you later change the cookie path, update both set and delete together.
 
 - [ ] **Step 6: Wire login page**
 
@@ -874,16 +897,24 @@ export default async function AdminLoginPage({
 }
 ```
 
-- [ ] **Step 7: Protect admin layout**
+- [ ] **Step 7: Protect admin via a route group (required)**
 
-Update `app/admin/layout.tsx`:
+First make the root `app/admin/layout.tsx` a bare passthrough with NO auth, so it can safely wrap `/admin/login`:
+
+```tsx
+export default function AdminRootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return children;
+}
+```
+
+Then put the auth guard + chrome in `app/admin/(protected)/layout.tsx`:
 
 ```tsx
 import Link from "next/link";
 import { logoutAdminAction } from "@/lib/actions/admin-auth";
 import { requireAdmin } from "@/lib/auth/admin";
 
-export default async function AdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function AdminProtectedLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const admin = await requireAdmin();
 
   return (
@@ -903,6 +934,7 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
         <nav className="mt-3 flex gap-2 overflow-x-auto text-sm font-bold text-[#6F7477]">
           <Link href="/admin/content">Content</Link>
           <Link href="/admin/announcements">Announcements</Link>
+          <Link href="/admin/audit">Audit</Link>
         </nav>
       </header>
       {children}
@@ -911,19 +943,11 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
 }
 ```
 
-Important: because this protects `/admin/login` too, move login to a route group if needed:
-
-```text
-app/admin/(auth)/login/page.tsx
-app/admin/(protected)/layout.tsx
-app/admin/(protected)/content/page.tsx
-```
-
-Prefer the route group if `requireAdmin()` redirects `/admin/login` in a loop.
+`app/admin/login/page.tsx` stays at its current path (outside the `(protected)` group), so it is reachable without a session. Move `content`, `announcements`, and `audit` page directories under `app/admin/(protected)/`. URLs are unchanged because route groups are URL-transparent.
 
 - [ ] **Step 8: Create admin index redirect**
 
-Create `app/admin/page.tsx`:
+Create `app/admin/(protected)/page.tsx` (inside the protected group so `/admin` requires a session before redirecting):
 
 ```tsx
 import { redirect } from "next/navigation";
@@ -1011,7 +1035,7 @@ Do not commit real password hashes for production admins unless the repository i
 
 ## Image Policy
 
-Public image serving is already configured through R2/CDN. Admin forms must store only `https://cdn.granite.kr/...` URLs or approved CDN paths. Do not store private R2 URLs, signed URLs, or raw S3 endpoint URLs.
+Public image serving is already configured through R2/CDN. Admin forms must store only URLs on the configured `CDN_BASE_URL` host (currently `https://cdn.granite.kr/...`) or approved relative CDN paths. The `cdnUrl` validator derives the allowed host from `CDN_BASE_URL`, so it stays correct if the domain changes. Do not store private R2 URLs, signed URLs, or raw S3 endpoint URLs.
 ````
 
 - [ ] **Step 3: Decide seed strategy**
@@ -1174,9 +1198,24 @@ const sortOrder = z.union([z.string(), z.number(), z.undefined()]).transform((va
 
 const checkbox = z.union([z.string(), z.boolean(), z.undefined()]).transform((value) => value === "on" || value === true);
 
+// Derive the allowed CDN host from CDN_BASE_URL so this stays in lockstep with
+// lib/r2/images.ts (buildCdnImageUrl). Do NOT hardcode the host here — the
+// public domain is configured via env and may differ between environments.
+function cdnOrigin(): string {
+  const base = process.env.CDN_BASE_URL ?? "https://cdn.granite.kr";
+  return new URL(base).origin;
+}
+
 const cdnUrl = z.string().trim().default("").refine(
-  (value) => value === "" || value.startsWith("https://cdn.granite.kr/") || value.startsWith("/"),
-  { message: "Image URL must be empty, CDN URL, or approved CDN path" },
+  (value) => {
+    if (value === "" || value.startsWith("/")) return true;
+    try {
+      return new URL(value).origin === cdnOrigin();
+    } catch {
+      return false;
+    }
+  },
+  { message: "Image URL must be empty, a CDN URL on CDN_BASE_URL's host, or an approved CDN path" },
 );
 
 export const areaFormSchema = z.object({
@@ -1513,6 +1552,13 @@ Then add equivalent explicit functions for:
 
 Use the same pattern: explicit SQL, parameter binding, `updated_at = datetime('now')` on conflict/update.
 
+> **Soft delete vs. UNIQUE(slug) — must handle.** Soft delete only sets `deleted_at`; the row physically stays, so it still occupies its UNIQUE slot: `areas.slug` and `crags.slug` are globally UNIQUE, and `sectors`/`boulders`/`routes` enforce `UNIQUE(parent, slug)`. Re-creating a record with the same slug after a soft delete therefore fails with a constraint violation, and `ON CONFLICT(id)` upsert does NOT rescue it because the collision is on the slug index, not the id. SQLite cannot scope a UNIQUE constraint to `deleted_at IS NULL` without rebuilding the table (out of scope for roll-forward migrations). Pick one behavior and implement it in the upsert/create path:
+>
+> - **Recommended:** before insert, look up any row (including soft-deleted) with the same slug under the same parent. If it is soft-deleted, restore-and-update that row instead of inserting a new one. If it is live, reject with a clear "slug already in use" error.
+> - Alternative: require the operator to change the slug when reusing one from a deleted record.
+>
+> Add a test in `admin-content-queries.test.ts` covering "create with a slug that belongs to a soft-deleted row".
+
 - [ ] **Step 4: Run tests**
 
 Run:
@@ -1663,6 +1709,8 @@ Add equivalent actions:
 - `togglePublishAction`
 
 Delete actions are soft deletes: set `deleted_at = datetime('now')`, write audit action `content.soft_delete`, and revalidate affected public surfaces. Restore actions set `deleted_at = NULL`, write audit action `content.restore`, and revalidate affected public surfaces.
+
+> **Atomicity note.** The mutation and `insertAdminAuditLog` are two separate `executeD1` calls; the D1 HTTP path used here has no multi-statement transaction, so they can diverge if the audit insert fails after the mutation succeeds. Order them so the **mutation runs first, the audit log second** (as shown). Treat a failed audit insert as non-fatal to the data change: let the mutation stand, but log the audit failure server-side (e.g., `console.error`) so it can be reconciled — do not roll back or retry the content write. Never let an audit failure surface as a content-save failure to the operator. If true atomicity becomes a requirement later, revisit `batchD1` (see Task 2) once the deployed D1 endpoint's batch support is confirmed.
 
 - [ ] **Step 4: Run action tests**
 
@@ -2021,21 +2069,23 @@ git commit -m "feat: add admin announcement management"
 ## Task 12: Direct Admin Image Upload
 
 **Files:**
+- Modify: `next.config.ts` (raise Server Action body size limit)
 - Modify: `lib/r2/images.ts`
 - Create: `lib/actions/admin-images.ts`
 - Create: `lib/actions/admin-images.test.ts`
+- Create: `components/admin/image-upload-field.tsx` (client component glue)
 - Modify admin entity forms where image fields appear.
 
 ### Required Scope
 
 Because R2/CDN public serving is already complete, Phase 3 does not configure the CDN. It adds direct admin upload into that existing serving pipeline:
 
-- Admin forms accept only empty string, `https://cdn.granite.kr/...`, or approved CDN path.
+- Admin forms accept only empty string, a URL on the `CDN_BASE_URL` host, or an approved CDN path (see the env-derived `cdnUrl` validator in Task 6).
 - UI previews the current image URL.
 - Server Actions store the URL on the entity table.
 - No private R2 URL or signed URL is stored.
 - Admin image upload accepts `image/jpeg`, `image/png`, and `image/webp`.
-- Max upload size is 10MB.
+- Max upload size is 10MB. **This requires raising the Next.js Server Action body size limit (Step 1A); the default is 1MB and any upload over 1MB fails without it.**
 - Upload key uses `buildR2ImageKey`.
 - Persisted URL uses `buildCdnImageUrl`.
 
@@ -2065,6 +2115,30 @@ describe("admin image uploads", () => {
 });
 ```
 
+- [ ] **Step 1A: Raise the Server Action body size limit**
+
+Server Actions receive `FormData` over the same request body as the action invocation, and Next.js caps that at **1MB by default**. A 10MB image upload will fail at the framework boundary before the action runs. Raise it in `next.config.ts`:
+
+```ts
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "10mb",
+    },
+  },
+  images: {
+    loader: "custom",
+    loaderFile: "./lib/r2/cloudflare-image-loader.ts",
+  },
+  poweredByHeader: false,
+};
+
+export default nextConfig;
+```
+
+Keep the limit aligned with `MAX_IMAGE_BYTES` (10MB) in the upload action. After editing, run `pnpm build` to confirm the config still parses.
+
 - [ ] **Step 2: Implement upload action**
 
 Create `lib/actions/admin-images.ts`:
@@ -2091,10 +2165,14 @@ export function validateAdminImageFileForTest(file: File): { extension: string }
   return { extension };
 }
 
+// Env names must match the committed `.env.example`: the R2 S3 endpoint is
+// derived from CLOUDFLARE_ACCOUNT_ID, and the bucket is R2_BUCKET_NAME.
 function getR2Client(): S3Client {
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  if (!accountId) throw new Error("CLOUDFLARE_ACCOUNT_ID is required for R2 upload");
   return new S3Client({
     region: "auto",
-    endpoint: process.env.R2_ENDPOINT,
+    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
     credentials: {
       accessKeyId: process.env.R2_ACCESS_KEY_ID ?? "",
       secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? "",
@@ -2124,7 +2202,7 @@ export async function uploadAdminImageAction(formData: FormData): Promise<{ cdnU
 
   const bytes = Buffer.from(await file.arrayBuffer());
   await getR2Client().send(new PutObjectCommand({
-    Bucket: process.env.R2_BUCKET,
+    Bucket: process.env.R2_BUCKET_NAME,
     Key: key,
     Body: bytes,
     ContentType: file.type,
@@ -2145,15 +2223,74 @@ export async function uploadAdminImageAction(formData: FormData): Promise<{ cdnU
 
 - [ ] **Step 3: Add image preview and upload controls to forms**
 
-For each image URL field:
+The rest of the admin is plain server-action forms, but image upload needs a client component: `uploadAdminImageAction` returns `{ cdnUrl }`, and that value must be written back into the entity form's `coverImageUrl`/`baseImageUrl`/`lineImageUrl` field before the entity is saved. A bare `<input type="file">` inside the save form does nothing — `saveCragAction` does not read the file. Build one small client component and reuse it for every image field.
+
+Create `components/admin/image-upload-field.tsx`:
 
 ```tsx
-{crag.coverImageUrl ? (
-  <img src={crag.coverImageUrl} alt="" className="h-24 w-full rounded-[8px] object-cover" />
-) : null}
-<input name="coverImageUrl" defaultValue={crag.coverImageUrl} />
-<input type="file" name="file" accept="image/jpeg,image/png,image/webp" />
+"use client";
+
+import { useState } from "react";
+import { uploadAdminImageAction } from "@/lib/actions/admin-images";
+
+export function ImageUploadField({
+  name,
+  defaultValue,
+  entityType,
+  entityId,
+  purpose,
+}: {
+  name: string;
+  defaultValue: string;
+  entityType: string;
+  entityId: string;
+  purpose: string;
+}) {
+  const [url, setUrl] = useState(defaultValue);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onPick(file: File | undefined) {
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.set("file", file);
+      fd.set("entityType", entityType);
+      fd.set("entityId", entityId);
+      fd.set("purpose", purpose);
+      const { cdnUrl } = await uploadAdminImageAction(fd);
+      setUrl(cdnUrl);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      {url ? <img src={url} alt="" className="h-24 w-full rounded-[8px] object-cover" /> : null}
+      {/* The hidden input is what the entity save form actually submits */}
+      <input type="hidden" name={name} value={url} readOnly />
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        disabled={busy}
+        onChange={(e) => onPick(e.target.files?.[0])}
+      />
+      {busy ? <p className="text-xs text-[#6F7477]">Uploading…</p> : null}
+      {error ? <p className="text-xs text-red-700">{error}</p> : null}
+    </div>
+  );
+}
 ```
+
+Notes:
+- The upload happens **before** the entity save: the action returns the CDN URL, the component stores it in a hidden input, and the subsequent `saveCragAction` submit persists that URL. The entity must already have an `id` so `buildR2ImageKey` has a stable path; for brand-new records, save the entity first (creating its id), then attach an image on edit, or generate the id client-side and pass it through.
+- Keep the field name matching the schema (`coverImageUrl`, `baseImageUrl`, or `lineImageUrl`).
+- Because `uploadAdminImageAction` returns a value, it is invoked from the client component (not via `<form action={...}>`), which is why this glue is required.
 
 - [ ] **Step 4: Confirm validation blocks private URLs**
 
@@ -2183,7 +2320,7 @@ Expected: pass.
 - [ ] **Step 6: Commit direct upload**
 
 ```bash
-git add app/admin lib/actions/admin-images.ts lib/actions/admin-images.test.ts lib/actions/admin-content-schema.ts lib/actions/admin-content.test.ts lib/r2
+git add next.config.ts app/admin components/admin/image-upload-field.tsx lib/actions/admin-images.ts lib/actions/admin-images.test.ts lib/actions/admin-content-schema.ts lib/actions/admin-content.test.ts lib/r2
 git commit -m "feat: add direct admin image upload"
 ```
 
@@ -2444,7 +2581,7 @@ Pull requests and pushes to `main` must run:
 
 - [ ] **Step 3: Configure Vercel preview environment**
 
-Set these Vercel preview environment variables:
+Set these Vercel preview environment variables (names match the committed `.env.example`):
 
 ```text
 D1_HTTP_URL
@@ -2452,13 +2589,13 @@ D1_API_TOKEN
 D1_DATABASE_ID
 CDN_BASE_URL
 ADMIN_JWT_SECRET
+CLOUDFLARE_ACCOUNT_ID
 R2_ACCESS_KEY_ID
 R2_SECRET_ACCESS_KEY
-R2_BUCKET
-R2_ENDPOINT
+R2_BUCKET_NAME
 ```
 
-Direct admin image upload is required in Phase 3, so R2 write credentials must be configured for preview and production. Keep `CDN_BASE_URL` because stored image URLs and the image loader need the public base.
+Direct admin image upload is required in Phase 3, so R2 write credentials must be configured for preview and production. The R2 S3 endpoint is derived from `CLOUDFLARE_ACCOUNT_ID` (`https://<account-id>.r2.cloudflarestorage.com`), so there is no separate `R2_ENDPOINT` var. Keep `CDN_BASE_URL` because stored image URLs and the image loader need the public base.
 
 - [ ] **Step 4: Apply migrations to preview D1**
 
@@ -2556,10 +2693,10 @@ ADMIN_JWT_SECRET
 If direct upload is approved, also set:
 
 ```text
+CLOUDFLARE_ACCOUNT_ID
 R2_ACCESS_KEY_ID
 R2_SECRET_ACCESS_KEY
-R2_BUCKET
-R2_ENDPOINT
+R2_BUCKET_NAME
 ```
 
 Expected:
