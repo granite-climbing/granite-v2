@@ -8,7 +8,7 @@
 - **도메인**: `granite.kr`
 - **목적**: 한국 내 자연 볼더링(외벽 볼더) 스팟 정보를 탐색하고, 베타(완등) 기록을 연결한다.
 - **사용자**: 자연 볼더링에 관심 있는 클라이머
-- **현재 상태**: Phase 1 public UI baseline 진행 완료 기준 정리 중 (`phase1-implementation` 브랜치)
+- **현재 상태**: `main` 브랜치 기준 Phase 2 DB Migration & Data Layer 완료, Phase 3 Admin Operations 준비 단계
 - **단일 설계 소스**: `docs/specs/2026-05-13-granite-design.md`
 
 ## 기술 스택

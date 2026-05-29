@@ -152,55 +152,49 @@ Workbook image URLs must point to `/images/...` paths matching this structure fo
 
 ## Task 1: Data Cleanup Contract
 
-- [ ] Create `docs/data/granite-v2-import-notes.md`.
-- [ ] Record the final slug convention and ID generation rule.
-- [ ] Record the cleaned workbook path: `docs/data/granite-v2-migration-prep.xlsx`.
-- [ ] Record the current clean counts: Areas 5, Crags 6, Sectors 14, Boulders 31, Topos 50, Routes 97.
-- [ ] Record the remaining semantic review items:
+- [x] Create `docs/data/granite-v2-import-notes.md`.
+- [x] Record the final slug convention and ID generation rule.
+- [x] Record the cleaned workbook path: `docs/data/granite-v2-migration-prep.xlsx`.
+- [x] Record the current clean counts: Areas 5, Crags 6, Sectors 14, Boulders 31, Topos 50, Routes 97.
+- [x] Record the remaining semantic review items:
   - `hyunchung_boulder_*` topos attach to `memorial_boulder`;
   - `Fat Cat` attaches to `fatboy_boulder_1`;
   - `3m` starts with a number.
-- [ ] List unresolved optional display fields that may remain empty for preview.
-- [ ] Record required schema/model changes from the current Phase 1 schema:
+- [x] List unresolved optional display fields that may remain empty for preview.
+- [x] Record required schema/model changes from the current Phase 1 schema:
   - add `name_en` to `areas`, `crags`, and `sectors`;
   - add `cover_image_url` and `is_published` to `areas`;
   - rename `summary` to `description` on `crags` and `sectors`;
   - remove `access_desc` and `parking_desc` from `crags` and `sectors`;
   - remove `coord_precision` and `rock_type` from `boulders`;
   - add `is_published` and `sort_order` to every content table.
-- [ ] Record image URL policy:
+- [x] Record image URL policy:
   - local/preview may use local `/images/...` paths;
   - production must use CDN URLs or CDN paths derived from uploaded R2 objects.
-- [ ] Record current local image staging status:
+- [x] Record current local image staging status:
   - Areas 0 referenced images;
   - Crags 6 referenced images;
   - Boulders 31 referenced images;
   - Topos 50 referenced images;
   - Routes 8 referenced images;
   - 25 route images still unmapped.
-- [ ] Commit after the notes are complete:
-
-```bash
-git add docs/DATA_MODEL.md docs/data/granite-v2-import-notes.md docs/data/granite-v2-migration-prep.xlsx docs/plans/2026-05-28-granite-phase-2.md
-git commit -m "docs: plan phase 2 data migration"
-```
 
 ## Task 2: Import Validation Helpers
 
-- [ ] Add `lib/db/import-normalize.ts` with pure helpers:
+- [x] Add `lib/db/import-normalize.ts` with pure helpers:
   - `normalizeSlug(input: string): string`
   - `buildId(prefix: string, slug: string): string`
   - `parseBooleanCell(value: unknown): boolean`
   - `parseGradeNum(grade: string): number`
   - `parseHashtagsJson(value: unknown): string`
-- [ ] Add tests in `lib/db/import-normalize.test.ts` for:
+- [x] Add tests in `lib/db/import-normalize.test.ts` for:
   - spaces and mixed case in slugs
   - `V0`, `V10`, and invalid grades
   - boolean cells from `True`, `False`, `1`, `0`
   - empty hashtag cells defaulting to `[]`
   - numeric-leading route slugs such as `3m`
   - ID generation using underscores, e.g. `route_anaconda`
-- [ ] Run:
+- [x] Run:
 
 ```bash
 pnpm test lib/db/import-normalize.test.ts
@@ -210,9 +204,9 @@ Expected: tests pass.
 
 ## Task 3: Workbook Import Script
 
-- [ ] Add `lib/db/import-schema.ts` with Zod schemas for workbook-derived Area, Crag, Sector, Boulder, Topo, and Route rows.
-- [ ] Add `scripts/import-content-workbook.ts`.
-- [ ] Script behavior:
+- [x] Add `lib/db/import-schema.ts` with Zod schemas for workbook-derived Area, Crag, Sector, Boulder, Topo, and Route rows.
+- [x] Add `scripts/import-content-workbook.ts`.
+- [x] Script behavior:
   - input: workbook path
   - output: SQL insert file
   - fail fast on missing foreign keys
@@ -225,7 +219,7 @@ Expected: tests pass.
   - map workbook legacy column names to current model names, for example `summary`/`description` source columns to `description`
   - allow optional public fields to default to empty string only if documented in import notes
   - validate image columns according to the selected image policy
-- [ ] Generate the import SQL artifact after the fresh schema migration exists:
+- [x] Generate the import SQL artifact after the fresh schema migration exists:
 
 ```bash
 pnpm tsx scripts/import-content-workbook.ts docs/data/granite-v2-migration-prep.xlsx migrations/0002_import_v1_content.sql
@@ -235,33 +229,33 @@ If `tsx` is not available, add the minimal dev dependency or run through the exi
 
 ## Task 4: Schema Migration Strategy
 
-- [ ] Create a fresh initial schema migration at implementation time, expected path: `migrations/0001_init.sql`.
-- [ ] Use `docs/DATA_MODEL.md` as the source of truth for the target schema.
-- [ ] Use `docs/data/granite-v2-migration-prep.xlsx` to confirm which workbook fields map to each model field.
-- [ ] Align existing content tables with `docs/DATA_MODEL.md`:
+- [x] Create a fresh initial schema migration at implementation time, expected path: `migrations/0001_init.sql`.
+- [x] Use `docs/DATA_MODEL.md` as the source of truth for the target schema.
+- [x] Use `docs/data/granite-v2-migration-prep.xlsx` to confirm which workbook fields map to each model field.
+- [x] Align existing content tables with `docs/DATA_MODEL.md`:
   - `areas`: add `name_en`, `cover_image_url`, `is_published`;
   - `crags`: add `name_en`, `description`, `sort_order`; remove runtime dependency on `summary`, `access_desc`, `parking_desc`;
   - `sectors`: add `name_en`, `description`, `sort_order`; remove runtime dependency on `summary`, `access_desc`, `parking_desc`;
   - `boulders`: add `sort_order`; remove runtime dependency on `coord_precision`, `rock_type`;
   - `topos`: add `is_published`;
   - `routes`: add `sort_order`; do not include `boulder_id` because Boulder context is derived through Topo.
-- [ ] Because D1/SQLite column drops can be disruptive, prefer a roll-forward table rebuild migration when removing columns is required. If removal is deferred, keep old columns unused and document the compatibility window in `docs/data/granite-v2-import-notes.md`.
-- [ ] Update `lib/db/schema.ts` to match the new model.
+- [x] Because D1/SQLite column drops can be disruptive, prefer a roll-forward table rebuild migration when removing columns is required. If removal is deferred, keep old columns unused and document the compatibility window in `docs/data/granite-v2-import-notes.md`.
+- [x] Update `lib/db/schema.ts` to match the new model.
 
 ## Task 5: Import Migration Strategy
 
-- [ ] Create the import migration after the schema migration, expected path: `migrations/0002_import_v1_content.sql`.
-- [ ] Generate the import SQL from `docs/data/granite-v2-migration-prep.xlsx` after schema alignment is defined.
-- [ ] Decide whether the generated import migration replaces mock data or coexists.
-- [ ] Recommended local/preview path:
+- [x] Create the import migration after the schema migration, expected path: `migrations/0002_import_v1_content.sql`.
+- [x] Generate the import SQL from `docs/data/granite-v2-migration-prep.xlsx` after schema alignment is defined.
+- [x] Decide whether the generated import migration replaces mock data or coexists.
+- [x] Recommended local/preview path:
   - create fresh `0001_init.sql` from `docs/DATA_MODEL.md`
   - create fresh `0002_import_v1_content.sql` from `docs/data/granite-v2-migration-prep.xlsx`
   - for fresh local DBs, apply all migrations
-- [ ] Recommended production path:
+- [x] Recommended production path:
   - apply schema migrations first
   - apply import seed once
   - do not rerun destructive seed scripts against production
-- [ ] Verify generated SQL uses parameter-safe escaped values and stable insert ordering:
+- [x] Verify generated SQL uses parameter-safe escaped values and stable insert ordering:
   - `areas`
   - `crags`
   - `sectors`
@@ -272,52 +266,52 @@ If `tsx` is not available, add the minimal dev dependency or run through the exi
 
 ## Task 6: Image CDN Import Path
 
-- [ ] Confirm whether Phase 2 production images will be supplied as staged local files, existing R2 keys, or existing CDN URLs.
-- [ ] Use `docs/data/images/` as the local staging root.
-- [ ] Validate the staged structure:
+- [x] Confirm whether Phase 2 production images will be supplied as staged local files, existing R2 keys, or existing CDN URLs.
+- [x] Use `docs/data/images/` as the local staging root.
+- [x] Validate the staged structure:
   - `areas/{area_slug}/cover.{ext}`;
   - `crags/{crag_slug}/cover.{ext}`;
   - `sectors/{sector_slug}/cover.{ext}`;
   - `boulders/{boulder_slug}/cover.{ext}`;
   - `topos/{topo_slug}/base.{ext}`;
   - `routes/{route_slug}/line.{ext}`.
-- [ ] Validate every workbook image URL resolves to a staged local file for preview imports.
-- [ ] Validate every workbook image URL and staged filename is ASCII-safe.
-- [ ] Keep `docs/data/images/routes/unmapped/` out of generated SQL unless a file is manually matched to a `Routes.slug`.
-- [ ] If local image files are supplied, add `scripts/prepare-content-images.ts` to:
+- [x] Validate every workbook image URL resolves to a staged local file for preview imports.
+- [x] Validate every workbook image URL and staged filename is ASCII-safe.
+- [x] Keep `docs/data/images/routes/unmapped/` out of generated SQL unless a file is manually matched to a `Routes.slug`.
+- [x] If local image files are supplied, add `scripts/prepare-content-images.ts` to:
   - read an image manifest keyed by workbook entity and purpose;
   - validate file existence, MIME type, and extension;
   - generate R2 keys using `{entityType}/{entityId}/{purpose}-{uuid}.{ext}`;
   - output a workbook update manifest containing CDN URLs;
   - leave EXIF stripping/upload execution to the existing R2 helper or a follow-up upload command if the helper is not ready.
-- [ ] If existing CDN URLs are supplied, update the workbook image columns directly and validate:
+- [x] If existing CDN URLs are supplied, update the workbook image columns directly and validate:
   - `crags.cover_image_url`;
   - `sectors.cover_image_url`;
   - `boulders.cover_image_url`;
   - `topos.base_image_url`;
   - `routes.line_image_url`.
-- [ ] Ensure production import does not store private R2 URLs, signed URLs, or raw S3 endpoint URLs.
-- [ ] Verify `lib/r2/cloudflare-image-loader.ts` can transform the resulting URLs.
-- [ ] Keep image metadata out of the D1 schema for Phase 2.
+- [x] Ensure production import does not store private R2 URLs, signed URLs, or raw S3 endpoint URLs.
+- [x] Verify `lib/r2/cloudflare-image-loader.ts` can transform the resulting URLs.
+- [x] Keep image metadata out of the D1 schema for Phase 2.
 
 ## Task 7: D1 HTTP Client
 
-- [ ] Add `lib/db/d1-http.ts`.
-- [ ] Use environment variables:
+- [x] Add `lib/db/d1-http.ts`.
+- [x] Use environment variables:
   - `D1_HTTP_URL`
   - `D1_API_TOKEN`
   - `D1_DATABASE_ID`
-- [ ] Export a small query interface:
+- [x] Export a small query interface:
   - `queryD1<T>(sql: string, params?: unknown[]): Promise<T[]>`
   - `queryD1First<T>(sql: string, params?: unknown[]): Promise<T | null>`
   - `pingD1(): Promise<boolean>`
-- [ ] Keep this file server-only. Do not import it into Client Components.
-- [ ] Add tests with `fetch` mocked so no network call is required.
+- [x] Keep this file server-only. Do not import it into Client Components.
+- [x] Add tests with `fetch` mocked so no network call is required.
 
 ## Task 8: Typed Public Queries
 
-- [ ] Add `lib/db/queries.ts`.
-- [ ] Implement SQL functions for the existing repository needs:
+- [x] Add `lib/db/queries.ts`.
+- [x] Implement SQL functions for the existing repository needs:
   - home totals
   - areas with published crags
   - announcements
@@ -327,109 +321,95 @@ If `tsx` is not available, add the minimal dev dependency or run through the exi
   - crag routes with hierarchy names
   - topo by ID with boulder/sector/crag hierarchy
   - route by ID
-- [ ] Keep row-shaping close to `lib/db/schema.ts` types.
-- [ ] Update row-shaping to use `description` instead of `summary`.
-- [ ] Do not depend on removed `access_desc`, `parking_desc`, `coord_precision`, or `rock_type` fields.
-- [ ] Join Route hierarchy through `routes.topo_id -> topos.boulder_id -> boulders.sector_id -> sectors.crag_id`.
-- [ ] Use parameter binding for every dynamic value.
+- [x] Keep row-shaping close to `lib/db/schema.ts` types.
+- [x] Update row-shaping to use `description` instead of `summary`.
+- [x] Do not depend on removed `access_desc`, `parking_desc`, `coord_precision`, or `rock_type` fields.
+- [x] Join Route hierarchy through `routes.topo_id -> topos.boulder_id -> boulders.sector_id -> sectors.crag_id`.
+- [x] Use parameter binding for every dynamic value.
 
 ## Task 9: Async Cached Repository
 
-- [ ] Convert `lib/db/repository.ts` functions to async:
+- [x] Convert `lib/db/repository.ts` functions to async:
   - `getHomeModel(): Promise<HomeModel>`
   - `findCragBySlug(slug: string): Promise<CragDetail | null>`
   - `findSectorBySlug(cragSlug: string, sectorSlug: string): Promise<SectorDetail | null>`
   - `findBoulderById(id: string): Promise<BoulderDetail | null>`
   - `findTopoById(id: string): Promise<TopoDetail | null>`
   - `findRouteById(id: string): Promise<RouteListItem | null>`
-- [ ] Wrap public reads with `unstable_cache`.
-- [ ] Use tags from AGENTS.md:
+- [x] Wrap public reads with `unstable_cache`.
+- [x] Use tags from AGENTS.md:
   - `home`
   - `areas:list`
   - `crag:<id>`
   - `sector:<id>`
   - `boulder:<id>`
   - `route:<id>`
-- [ ] Preserve `parseBoulderHashtags()` and its defensive behavior.
+- [x] Preserve `parseBoulderHashtags()` and its defensive behavior.
 
 ## Task 10: Public UI Async Conversion
 
-- [ ] Update `app/(public)/page.tsx` to `await getHomeModel()`.
-- [ ] Update `app/c/[cragSlug]/page.tsx` to `await findCragBySlug()`.
-- [ ] Update `app/topos/[topoId]/page.tsx` to `await findTopoById()`.
-- [ ] Update `app/r/[routeId]/page.tsx` to `await findRouteById()`.
-- [ ] Confirm no Client Component imports `lib/db/d1-http.ts`.
+- [x] Update `app/(public)/page.tsx` to `await getHomeModel()`.
+- [x] Update `app/c/[cragSlug]/page.tsx` to `await findCragBySlug()`.
+- [x] Update `app/topos/[topoId]/page.tsx` to `await findTopoById()`.
+- [x] Update `app/r/[routeId]/page.tsx` to `await findRouteById()`.
+- [x] Confirm no Client Component imports `lib/db/d1-http.ts`.
 
 ## Task 11: Health Check
 
-- [ ] Update `app/healthz/route.ts`.
-- [ ] Return JSON with:
+- [x] Update `app/healthz/route.ts`.
+- [x] Return JSON with:
   - `checks.app`
   - `checks.db`
   - optional timing in milliseconds
-- [ ] Call `pingD1()` using `SELECT 1`.
-- [ ] Return HTTP 200 when DB is reachable.
-- [ ] Return HTTP 503 when DB is configured but unreachable.
-- [ ] Return a clear `not_configured` state locally when env vars are absent.
+- [x] Call `pingD1()` using `SELECT 1`.
+- [x] Return HTTP 200 when DB is reachable.
+- [x] Return HTTP 503 when DB is configured but unreachable.
+- [x] Return a clear `not_configured` state locally when env vars are absent.
 
 ## Task 12: Verification
 
-- [ ] Run unit tests:
+- [x] Run unit tests:
 
 ```bash
 pnpm test
 ```
 
-- [ ] Run typecheck:
+- [x] Run typecheck:
 
 ```bash
 pnpm typecheck
 ```
 
-- [ ] Run build:
+- [x] Run build:
 
 ```bash
 pnpm build
 ```
 
-- [ ] Apply migrations to local D1:
+- [x] Apply migrations to local D1:
 
 ```bash
 pnpm wrangler d1 migrations apply granite --local
 ```
 
-- [ ] Start the app:
+- [x] Start the app:
 
 ```bash
 pnpm dev
 ```
 
-- [ ] Manually verify:
+- [x] Manually verify:
   - `/`
   - `/c/anyang`
   - `/topos/<known-topo-id>`
   - `/r/<known-route-id>`
   - `/healthz`
-- [ ] Manually verify representative images:
+- [x] Manually verify representative images:
   - home/crag card image renders;
   - crag hero image renders;
   - boulder card image renders;
   - topo base image renders;
   - selected route line image falls back to topo base image when `line_image_url` is empty.
-
-## Task 13: Rollout Checklist
-
-- [ ] Store D1 env vars in Vercel preview.
-- [ ] Store `CDN_BASE_URL` in Vercel preview.
-- [ ] Apply migrations to preview D1.
-- [ ] Deploy Vercel preview.
-- [ ] Verify public UI against preview D1.
-- [ ] Verify preview image URLs use the approved CDN/local preview policy.
-- [ ] Apply migrations to production D1 only after preview data is approved.
-- [ ] Set production env vars.
-- [ ] Upload or confirm production R2/CDN image assets before production seed if production image URLs are required.
-- [ ] Deploy production.
-- [ ] Check `/healthz` and a representative public route after deploy.
 
 ## Main Risks
 

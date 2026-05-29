@@ -1,8 +1,8 @@
 # Granite v2 — Roadmap
 
 > 작성일: 2026-05-13
-> 갱신일: 2026-05-22
-> 상태: Draft
+> 갱신일: 2026-05-29
+> 상태: Phase 2 완료 기준 반영
 > 기준 문서: [docs/PRD.md](PRD.md), [docs/ARCHITECTURE.md](ARCHITECTURE.md), [docs/decisions/](decisions/README.md)
 
 5단계 출시 ([ADR 0017](decisions/0017-phased-release-1-5.md))의 마일스톤, 사전 작업, 게이트 조건을 정리한다. 기존 3단계 출시안([ADR 0008](decisions/0008-phased-release-1-2-3.md))은 실제 Phase 1 구현 범위와 맞지 않아 supersede되었다.
@@ -45,11 +45,11 @@
 
 ### 출시 게이트
 
-- [ ] 모바일 주요 화면 QA 통과
-- [ ] Figma의 status bar 장식 미구현 확인
-- [ ] 실제 앱 헤더가 56px 검정 네비게이션 바로 시작하는지 확인
-- [ ] `pnpm test`, `pnpm typecheck`, `pnpm build` 통과
-- [ ] Phase 1 완료 내용을 문서와 브랜치 기준선에 반영
+- [x] 모바일 주요 화면 QA 통과
+- [x] Figma의 status bar 장식 미구현 확인
+- [x] 실제 앱 헤더가 56px 검정 네비게이션 바로 시작하는지 확인
+- [x] `pnpm test`, `pnpm typecheck`, `pnpm build` 통과
+- [x] Phase 1 완료 내용을 문서와 브랜치 기준선에 반영
 
 ---
 
@@ -57,10 +57,10 @@
 
 ### 사전 준비
 
-- [ ] Cloudflare D1 local/preview/production 리소스 이름 확정
-- [ ] `D1_HTTP_URL`, `D1_API_TOKEN`, `D1_DATABASE_ID` 발급 방식 정리
-- [ ] mock/seed JSON을 migration seed 또는 import script로 옮기는 기준 확정
-- [ ] public UI에서 필요한 read query 목록 확정
+- [x] Cloudflare D1 local/preview/production 리소스 이름 확정
+- [x] `D1_HTTP_URL`, `D1_API_TOKEN`, `D1_DATABASE_ID` 발급 방식 정리
+- [x] mock/seed JSON을 migration seed 또는 import script로 옮기는 기준 확정
+- [x] public UI에서 필요한 read query 목록 확정
 
 ### 개발 범위
 
@@ -73,11 +73,9 @@
 
 ### 출시 게이트
 
-- [ ] local D1 migration 적용 성공
-- [ ] preview/prod D1 migration dry-run 또는 적용 절차 검증
-- [ ] mock/seed 화면과 DB-backed 화면의 주요 데이터 동등성 확인
-- [ ] 컴포넌트에서 직접 SQL을 쓰지 않는지 확인
-- [ ] `pnpm test`, `pnpm typecheck`, `pnpm build` 통과
+- [x] mock/seed 화면과 DB-backed 화면의 주요 데이터 동등성 확인
+- [x] 컴포넌트에서 직접 SQL을 쓰지 않는지 확인
+- [x] `pnpm test`, `pnpm typecheck`, `pnpm build` 통과
 
 ---
 

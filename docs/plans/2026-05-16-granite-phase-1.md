@@ -58,10 +58,10 @@ These items moved out of Phase 1 by [ADR 0017](../decisions/0017-phased-release-
 
 ## Phase 1 Closeout Checklist
 
-- [ ] Rebase `phase1-implementation` on top of updated `main`.
-- [ ] Run `pnpm test`.
-- [ ] Run `pnpm typecheck`.
-- [ ] Run `pnpm build`.
-- [ ] Fix only regressions in the Phase 1 public UI baseline.
-- [ ] Mark Phase 1 complete in release notes or branch handoff.
-- [ ] Start Phase 2 from the rebased Phase 1 baseline.
+- [x] Rebase `phase1-implementation` on top of updated `main`.
+- [x] Run `pnpm test`.
+- [x] Run `pnpm typecheck`.
+- [x] Run `pnpm build`.
+- [x] Fix only regressions in the Phase 1 public UI baseline.
+- [x] Mark Phase 1 complete in release notes or branch handoff.
+- [x] Start Phase 2 from the rebased Phase 1 baseline.
