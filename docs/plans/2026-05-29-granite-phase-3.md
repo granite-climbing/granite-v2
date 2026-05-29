@@ -601,7 +601,8 @@ git commit -m "feat: add admin query boundary"
 **Files:**
 - Modify: `lib/auth/admin.ts`
 - Create: `lib/actions/admin-auth-schema.ts`
-- Create: `lib/actions/admin-auth.ts`
+- Create: `lib/auth/admin-credentials.ts` (credential check — NOT a `"use server"` file)
+- Create: `lib/actions/admin-auth.ts` (exports only `loginAdminAction`/`logoutAdminAction`)
 - Create: `lib/actions/admin-auth.test.ts`
 - Move: `app/admin/login/page.tsx` stays OUTSIDE the protected group (no auth wrapper)
 - Replace: `app/admin/layout.tsx` becomes a bare passthrough layout (NO `requireAdmin`)
@@ -620,14 +621,14 @@ git commit -m "feat: add admin query boundary"
 > app/admin/(protected)/audit/...
 > ```
 
-- [ ] **Step 1: Write auth tests**
+- [x] **Step 1: Write auth tests**
 
 Create `lib/actions/admin-auth.test.ts`:
 
 ```ts
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import bcrypt from "bcryptjs";
-import { loginAdminForTest } from "./admin-auth";
+import { verifyAdminCredentials } from "@/lib/auth/admin-credentials";
 import { findActiveAdminByEmail } from "@/lib/db/admin-queries";
 
 vi.mock("@/lib/db/admin-queries", () => ({
@@ -645,7 +646,7 @@ describe("admin auth", () => {
     mockedFindAdmin.mockResolvedValue(null);
 
     await expect(
-      loginAdminForTest({ email: "missing@granite.kr", password: "secret123" }),
+      verifyAdminCredentials({ email: "missing@granite.kr", password: "secret123" }),
     ).rejects.toThrow("Invalid admin credentials");
   });
 
@@ -659,7 +660,7 @@ describe("admin auth", () => {
     });
 
     await expect(
-      loginAdminForTest({ email: "ops@granite.kr", password: "wrong-password" }),
+      verifyAdminCredentials({ email: "ops@granite.kr", password: "wrong-password" }),
     ).rejects.toThrow("Invalid admin credentials");
   });
 
@@ -672,7 +673,7 @@ describe("admin auth", () => {
       isActive: true,
     });
 
-    const result = await loginAdminForTest({
+    const result = await verifyAdminCredentials({
       email: "ops@granite.kr",
       password: "correct-password",
     });
@@ -684,7 +685,7 @@ describe("admin auth", () => {
 });
 ```
 
-- [ ] **Step 2: Run failing auth tests**
+- [x] **Step 2: Run failing auth tests**
 
 Run:
 
@@ -694,7 +695,7 @@ pnpm test lib/actions/admin-auth.test.ts
 
 Expected: fail because `admin-auth.ts` is missing.
 
-- [ ] **Step 3: Implement schema**
+- [x] **Step 3: Implement schema**
 
 Create `lib/actions/admin-auth-schema.ts`:
 
@@ -709,7 +710,7 @@ export const adminLoginSchema = z.object({
 export type AdminLoginInput = z.infer<typeof adminLoginSchema>;
 ```
 
-- [ ] **Step 4: Update JWT/session helper**
+- [x] **Step 4: Update JWT/session helper**
 
 Update `lib/auth/admin.ts`:
 
@@ -786,30 +787,36 @@ export async function requireAdmin(): Promise<AdminSession> {
 
 **Behavioral note:** `verifyAdminToken` now calls `findActiveAdminById` on every verification, so each protected admin navigation performs one D1 HTTP round trip. This is intentional (it lets a deactivated admin be locked out mid-session and keeps `displayName`/`email` authoritative), and acceptable for the low-traffic admin surface. Do not reuse this verifier on hot public paths.
 
-- [ ] **Step 5: Implement auth action**
+- [x] **Step 5: Implement credential check and auth action**
 
-Create `lib/actions/admin-auth.ts`:
+**Security boundary:** In Next.js, every exported async function in a `"use server"` file is a publicly invokable server-action endpoint. So the credential-checking function (which returns a raw JWT) must NOT live in the `"use server"` file — otherwise it becomes a public token-minting endpoint. Put it in a plain module and let only `loginAdminAction`/`logoutAdminAction` be server actions.
+
+Create `lib/auth/admin-credentials.ts` (NO `"use server"`):
 
 ```ts
-"use server";
-
 import bcrypt from "bcryptjs";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { ADMIN_COOKIE_NAME, createAdminToken } from "@/lib/auth/admin";
 import { findActiveAdminByEmail } from "@/lib/db/admin-queries";
-import { adminLoginSchema, type AdminLoginInput } from "./admin-auth-schema";
+import { createAdminToken } from "@/lib/auth/admin";
+import { adminLoginSchema, type AdminLoginInput } from "@/lib/actions/admin-auth-schema";
 
+// Precomputed valid bcrypt hash. When the email is unknown we still run a
+// compare against this so the unknown-email path takes ~the same time as the
+// wrong-password path — prevents email enumeration via response latency.
+const DUMMY_HASH = "$2b$12$aaaaaaaaaaaaaaaaaaaaaa.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 const INVALID_CREDENTIALS = "Invalid admin credentials";
 
-export async function loginAdminForTest(input: AdminLoginInput): Promise<{
+export async function verifyAdminCredentials(input: AdminLoginInput): Promise<{
   token: string;
   email: string;
   displayName: string;
 }> {
   const parsed = adminLoginSchema.parse(input);
   const admin = await findActiveAdminByEmail(parsed.email);
-  if (!admin) throw new Error(INVALID_CREDENTIALS);
+
+  if (!admin) {
+    await bcrypt.compare(parsed.password, DUMMY_HASH);
+    throw new Error(INVALID_CREDENTIALS);
+  }
 
   const validPassword = await bcrypt.compare(parsed.password, admin.passwordHash);
   if (!validPassword) throw new Error(INVALID_CREDENTIALS);
@@ -822,10 +829,22 @@ export async function loginAdminForTest(input: AdminLoginInput): Promise<{
 
   return { token, email: admin.email, displayName: admin.displayName };
 }
+```
+
+Create `lib/actions/admin-auth.ts` (exports ONLY the two actions):
+
+```ts
+"use server";
+
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { ADMIN_COOKIE_NAME } from "@/lib/auth/admin";
+import { verifyAdminCredentials } from "@/lib/auth/admin-credentials";
+import type { AdminLoginInput } from "./admin-auth-schema";
 
 export async function loginAdminAction(formData: FormData): Promise<void> {
   try {
-    const result = await loginAdminForTest(Object.fromEntries(formData) as AdminLoginInput);
+    const result = await verifyAdminCredentials(Object.fromEntries(formData) as AdminLoginInput);
     const cookieStore = await cookies();
     cookieStore.set(ADMIN_COOKIE_NAME, result.token, {
       httpOnly: true,
@@ -834,10 +853,17 @@ export async function loginAdminAction(formData: FormData): Promise<void> {
       path: "/admin",
       maxAge: 60 * 60 * 8,
     });
-  } catch {
-    redirect("/admin/login?error=invalid_credentials");
+  } catch (err) {
+    if (err instanceof Error && err.message === "Invalid admin credentials") {
+      redirect("/admin/login?error=invalid_credentials");
+    }
+    // Surface infra errors (missing ADMIN_JWT_SECRET, D1 failure, …) instead of
+    // masking them as a login failure.
+    console.error(err);
+    throw err;
   }
 
+  // redirect() throws NEXT_REDIRECT; must be OUTSIDE try/catch so it propagates.
   redirect("/admin/content");
 }
 
@@ -852,7 +878,7 @@ export async function logoutAdminAction(): Promise<void> {
 
 Note: the login cookie above is set with `path: "/admin"`, so logout must delete with the matching `path: "/admin"`. If you later change the cookie path, update both set and delete together.
 
-- [ ] **Step 6: Wire login page**
+- [x] **Step 6: Wire login page**
 
 Update `app/admin/login/page.tsx` so the form uses the action:
 
@@ -897,7 +923,7 @@ export default async function AdminLoginPage({
 }
 ```
 
-- [ ] **Step 7: Protect admin via a route group (required)**
+- [x] **Step 7: Protect admin via a route group (required)**
 
 First make the root `app/admin/layout.tsx` a bare passthrough with NO auth, so it can safely wrap `/admin/login`:
 
@@ -945,7 +971,7 @@ export default async function AdminProtectedLayout({ children }: Readonly<{ chil
 
 `app/admin/login/page.tsx` stays at its current path (outside the `(protected)` group), so it is reachable without a session. Move `content`, `announcements`, and `audit` page directories under `app/admin/(protected)/`. URLs are unchanged because route groups are URL-transparent.
 
-- [ ] **Step 8: Create admin index redirect**
+- [x] **Step 8: Create admin index redirect**
 
 Create `app/admin/(protected)/page.tsx` (inside the protected group so `/admin` requires a session before redirecting):
 
@@ -957,7 +983,7 @@ export default function AdminIndexPage() {
 }
 ```
 
-- [ ] **Step 9: Run tests**
+- [x] **Step 9: Run tests**
 
 Run:
 
@@ -968,7 +994,7 @@ pnpm typecheck
 
 Expected: both pass.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add app/admin lib/actions/admin-auth.ts lib/actions/admin-auth-schema.ts lib/actions/admin-auth.test.ts lib/auth/admin.ts
