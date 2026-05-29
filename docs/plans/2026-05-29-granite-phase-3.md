@@ -1010,7 +1010,7 @@ git commit -m "feat: add admin authentication"
 - Create: `docs/admin-operations.md`
 - Optional Create: `migrations/0004_seed_initial_admin.sql`
 
-- [ ] **Step 1: Add hash generator script**
+- [x] **Step 1: Add hash generator script**
 
 Create `scripts/create-admin-hash.ts`:
 
@@ -1028,7 +1028,7 @@ const hash = await bcrypt.hash(password, 12);
 console.log(hash);
 ```
 
-- [ ] **Step 2: Document manual admin insert**
+- [x] **Step 2: Document manual admin insert**
 
 Create `docs/admin-operations.md`:
 
@@ -1064,7 +1064,7 @@ Do not commit real password hashes for production admins unless the repository i
 Public image serving is already configured through R2/CDN. Admin forms must store only URLs on the configured `CDN_BASE_URL` host (currently `https://cdn.granite.kr/...`) or approved relative CDN paths. The `cdnUrl` validator derives the allowed host from `CDN_BASE_URL`, so it stays correct if the domain changes. Do not store private R2 URLs, signed URLs, or raw S3 endpoint URLs.
 ````
 
-- [ ] **Step 3: Decide seed strategy**
+- [x] **Step 3: Decide seed strategy**
 
 Choose one:
 
@@ -1073,7 +1073,7 @@ Choose one:
 
 Recommended: one-time insert for production, optional local seed outside production.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add scripts/create-admin-hash.ts docs/admin-operations.md
@@ -1088,7 +1088,7 @@ git commit -m "docs: add admin account operations"
 - Modify: `lib/actions/admin-content-schema.ts`
 - Modify: `lib/actions/admin-content.test.ts`
 
-- [ ] **Step 1: Replace stale form schema tests**
+- [x] **Step 1: Replace stale form schema tests**
 
 Update `lib/actions/admin-content.test.ts` to cover Phase 2 fields:
 
@@ -1170,7 +1170,7 @@ describe("admin content form parsing", () => {
 });
 ```
 
-- [ ] **Step 2: Run failing tests**
+- [x] **Step 2: Run failing tests**
 
 Run:
 
@@ -1180,7 +1180,7 @@ pnpm test lib/actions/admin-content.test.ts
 
 Expected: fail until schemas are replaced.
 
-- [ ] **Step 3: Implement aligned schemas**
+- [x] **Step 3: Implement aligned schemas**
 
 Update `lib/actions/admin-content-schema.ts` with Phase 2 fields:
 
@@ -1313,23 +1313,35 @@ export const topoFormSchema = z.object({
   sortOrder,
 });
 
+// NOTE: a per-field transform CANNOT read sibling `grade`, so blank `gradeNum`
+// must be derived at the OBJECT level. Keep `gradeNum` as a raw optional field
+// here, then add an object-level `.transform` (below) to compute the final
+// number. Do NOT call `parseGradeNum("")` in a field transform — it throws.
 export const routeFormSchema = z.object({
   id: optionalId,
   topoId: requiredText,
   name: requiredText,
   slug,
   grade: requiredText,
-  gradeNum: z.union([z.string(), z.number(), z.undefined()]).transform((value) => {
-    if (value === undefined || value === "") return parseGradeNum(String(value));
-    const parsed = Number(value);
-    if (Number.isNaN(parsed)) throw new Error("Invalid grade number");
-    return parsed;
-  }),
+  gradeNum: z.union([z.string(), z.number()]).optional(),
   fa: optionalText,
   description: optionalText,
   lineImageUrl: cdnUrl,
   isPublished: checkbox,
   sortOrder,
+}).transform((data, ctx) => {
+  // Compute final numeric gradeNum: use the provided value, else derive from grade.
+  let gradeNum: number;
+  if (data.gradeNum !== undefined && data.gradeNum !== "") {
+    gradeNum = Number(data.gradeNum);
+    if (Number.isNaN(gradeNum)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid grade number", path: ["gradeNum"] });
+      return z.NEVER;
+    }
+  } else {
+    gradeNum = parseGradeNum(data.grade);
+  }
+  return { ...data, gradeNum };
 });
 
 export function parseAreaForm(rawForm: RawForm) {
@@ -1357,7 +1369,7 @@ export function parseRouteForm(rawForm: RawForm) {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run:
 
@@ -1367,7 +1379,7 @@ pnpm test lib/actions/admin-content.test.ts
 
 Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/admin-content-schema.ts lib/actions/admin-content.test.ts
