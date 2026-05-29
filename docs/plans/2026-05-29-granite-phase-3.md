@@ -231,7 +231,7 @@ Important implementation note: `lib/db/repository.ts` currently uses some slug-b
 - Create: `migrations/0003_admin_operations.sql`
 - Modify: `docs/DATA_MODEL.md`
 
-- [ ] **Step 1: Add admin migration**
+- [x] **Step 1: Add admin migration**
 
 Create `migrations/0003_admin_operations.sql`:
 
@@ -283,7 +283,7 @@ CREATE INDEX IF NOT EXISTS idx_routes_deleted_at ON routes (deleted_at);
 CREATE INDEX IF NOT EXISTS idx_announcements_deleted_at ON announcements (deleted_at);
 ```
 
-- [ ] **Step 2: Smoke-test migration with SQLite**
+- [x] **Step 2: Smoke-test migration with SQLite**
 
 Run:
 
@@ -293,7 +293,7 @@ sqlite3 /private/tmp/granite-phase3-admin.sqlite ".read migrations/0001_init.sql
 
 Expected: both table schemas print and command exits 0.
 
-- [ ] **Step 3: Update data model docs**
+- [x] **Step 3: Update data model docs**
 
 In `docs/DATA_MODEL.md`, expand the `admins` and `admin_audit_logs` section with exact columns from the migration and note:
 
@@ -303,7 +303,7 @@ Phase 3 uses `admins.email` only for login lookup. JWT sessions use `admins.id` 
 Content tables and `announcements` use `deleted_at` for soft delete. Public read queries must always exclude rows where `deleted_at IS NOT NULL`. Admin read queries include deleted rows by default and label them as deleted; restore actions set `deleted_at = NULL`.
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add migrations/0003_admin_operations.sql docs/DATA_MODEL.md
@@ -318,7 +318,7 @@ git commit -m "feat: add admin operation tables"
 - Modify: `lib/db/d1-http.ts`
 - Modify: `lib/db/d1-http.test.ts`
 
-- [ ] **Step 1: Add failing tests for non-query execution**
+- [x] **Step 1: Add failing tests for non-query execution**
 
 Add tests to `lib/db/d1-http.test.ts`:
 
@@ -359,7 +359,7 @@ it("executeD1 throws normalized D1 errors", async () => {
 });
 ```
 
-- [ ] **Step 2: Run failing tests**
+- [x] **Step 2: Run failing tests**
 
 Run:
 
@@ -369,7 +369,7 @@ pnpm test lib/db/d1-http.test.ts
 
 Expected: fail because `executeD1` is not exported.
 
-- [ ] **Step 3: Implement helper**
+- [x] **Step 3: Implement helper**
 
 Add to `lib/db/d1-http.ts`:
 
@@ -379,7 +379,7 @@ export async function executeD1(sql: string, params?: unknown[]): Promise<void> 
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run:
 
@@ -389,7 +389,7 @@ pnpm test lib/db/d1-http.test.ts
 
 Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/db/d1-http.ts lib/db/d1-http.test.ts
@@ -404,7 +404,7 @@ git commit -m "feat: add d1 mutation helper"
 - Create: `lib/db/admin-queries.ts`
 - Create: `lib/db/admin-queries.test.ts`
 
-- [ ] **Step 1: Create admin query tests**
+- [x] **Step 1: Create admin query tests**
 
 Create `lib/db/admin-queries.test.ts`:
 
@@ -482,7 +482,7 @@ describe("admin queries", () => {
 });
 ```
 
-- [ ] **Step 2: Run failing tests**
+- [x] **Step 2: Run failing tests**
 
 Run:
 
@@ -492,7 +492,7 @@ pnpm test lib/db/admin-queries.test.ts
 
 Expected: fail because file does not exist.
 
-- [ ] **Step 3: Implement admin queries**
+- [x] **Step 3: Implement admin queries**
 
 Create `lib/db/admin-queries.ts`:
 
@@ -577,7 +577,7 @@ export async function insertAdminAuditLog(input: {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run:
 
@@ -587,7 +587,7 @@ pnpm test lib/db/admin-queries.test.ts
 
 Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/db/admin-queries.ts lib/db/admin-queries.test.ts
