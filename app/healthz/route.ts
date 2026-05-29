@@ -22,6 +22,12 @@ export async function GET() {
       dbStatus = "unreachable";
       httpStatus = 503;
     }
+  } else if (process.env.NODE_ENV === "production") {
+    // Deployed environments MUST have D1 configured — every D1-backed page
+    // would otherwise 500 at runtime. Fail the health check so load balancers
+    // and deploy gates see the misconfiguration instead of a green light.
+    // Locally (dev), missing config is expected and stays a 200.
+    httpStatus = 503;
   }
 
   const response: {
