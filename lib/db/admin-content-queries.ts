@@ -56,6 +56,15 @@ function assertMutableTable(table: string, op: string): asserts table is Mutable
   }
 }
 
+// Allowlist for parent column names used in WHERE clauses
+const parentColumnAllowlist = new Set<string>(["area_id", "crag_id", "sector_id", "boulder_id", "topo_id"]);
+
+function assertParentColumn(col: string): void {
+  if (!parentColumnAllowlist.has(col)) {
+    throw new Error(`Unsupported parentColumn: ${col}`);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Constrained table helpers
 // ---------------------------------------------------------------------------
@@ -117,7 +126,12 @@ export async function findRowBySlug(input: {
 }): Promise<{ id: string; deleted_at: string | null } | null> {
   const { table, slug, parentColumn, parentId } = input;
 
+  // Guard table name against SQL injection
+  assertMutableTable(table, "findRowBySlug");
+
   if (parentColumn !== undefined && parentId !== undefined) {
+    // Guard parent column name against SQL injection
+    assertParentColumn(parentColumn);
     return queryD1First<{ id: string; deleted_at: string | null }>(
       `SELECT id, deleted_at FROM ${table} WHERE slug = ? AND ${parentColumn} = ?`,
       [slug, parentId],

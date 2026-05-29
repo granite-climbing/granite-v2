@@ -11,7 +11,7 @@ import {
   upsertRoute,
   findRowBySlug,
 } from "./admin-content-queries";
-import { executeD1 } from "./d1-http";
+import { executeD1, queryD1First } from "./d1-http";
 
 vi.mock("./d1-http", () => ({
   executeD1: vi.fn(),
@@ -251,5 +251,57 @@ describe("admin content queries", () => {
     const result = await findRowBySlug({ table: "crags", slug: "nonexistent" });
 
     expect(result).toBeNull();
+  });
+
+  // -------------------------------------------------------------------------
+  // Security: SQL injection protection for findRowBySlug
+  // -------------------------------------------------------------------------
+
+  it("findRowBySlug throws when table is invalid", async () => {
+    await expect(
+      findRowBySlug({ table: "admins" as never, slug: "test" }),
+    ).rejects.toThrow("Unsupported findRowBySlug table: admins");
+  });
+
+  it("findRowBySlug throws when parentColumn is invalid (SQL injection attempt)", async () => {
+    await expect(
+      findRowBySlug({
+        table: "sectors",
+        slug: "s",
+        parentColumn: "1=1; DROP TABLE crags",
+        parentId: "x",
+      }),
+    ).rejects.toThrow("Unsupported parentColumn: 1=1; DROP TABLE crags");
+  });
+
+  it("findRowBySlug throws when parentColumn is not in allowlist", async () => {
+    await expect(
+      findRowBySlug({
+        table: "sectors",
+        slug: "s",
+        parentColumn: "unknown_column",
+        parentId: "x",
+      }),
+    ).rejects.toThrow("Unsupported parentColumn: unknown_column");
+  });
+
+  it("findRowBySlug accepts valid parentColumn values", async () => {
+    const { queryD1First: mockQueryD1First } = await import("./d1-http");
+    const mockedQuery = vi.mocked(mockQueryD1First);
+    mockedQuery.mockResolvedValueOnce(null);
+
+    // Test all allowlisted parent columns
+    const validColumns = ["area_id", "crag_id", "sector_id", "boulder_id", "topo_id"];
+    for (const col of validColumns) {
+      await findRowBySlug({
+        table: "sectors",
+        slug: "test",
+        parentColumn: col,
+        parentId: "parent_1",
+      });
+    }
+
+    // Should have called queryD1First 5 times without throwing
+    expect(mockedQuery).toHaveBeenCalledTimes(5);
   });
 });
