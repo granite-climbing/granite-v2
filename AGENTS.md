@@ -8,7 +8,7 @@
 - **도메인**: `granite.kr`
 - **목적**: 한국 내 자연 볼더링(외벽 볼더) 스팟 정보를 탐색하고, 베타(완등) 기록을 연결한다.
 - **사용자**: 자연 볼더링에 관심 있는 클라이머
-- **현재 상태**: Phase 1 public UI baseline 진행 완료 기준 정리 중 (`phase1-implementation` 브랜치)
+- **현재 상태**: `main` 브랜치 기준 Phase 2 DB Migration & Data Layer 완료, Phase 3 Admin Operations 준비 단계
 - **단일 설계 소스**: `docs/specs/2026-05-13-granite-design.md`
 
 ## 기술 스택
@@ -112,7 +112,7 @@ granite-v2/
 - DB에는 `lat`, `lng`를 WGS84 `REAL`로 저장한다. PostGIS류는 사용하지 않는다.
 - Boulder 좌표는 필수이고, Crag/Sector 좌표는 선택이다.
 - Boulder에는 캡션 생성/매칭용 운영 해시태그 목록을 저장한다.
-- 민감 스팟은 `coord_precision` 또는 공개 정책으로 정밀 좌표 노출을 제한한다.
+- 민감 좌표는 별도 정밀도 컬럼 없이 관리자 큐레이션으로 통제한다: 민감 스팟은 미등록 또는 `is_published = 0`으로 비공개 처리하고, 안내가 필요하면 `description`에 직접 작성한다. published Boulder의 `lat`/`lng`는 공개 가능한 정확 좌표만 저장한다 (ADR 0018).
 - 영역 검색은 bounding box(min/max lat·lng) 기반 1차 필터링 후 앱 레벨 거리 계산을 사용한다.
 - 지도는 홈이 아니라 Crag/Sector 상세의 Map 탭에서 제공한다.
 

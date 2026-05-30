@@ -1,110 +1,125 @@
+import { unstable_cache } from "next/cache";
 import {
-  announcements,
-  areas,
-  boulders,
-  crags,
-  routes,
-  sectors,
-  topos
-} from "./seed";
+  getBoulderById,
+  getBoulderTopos,
+  getCragBySlug,
+  getCragBouldersWithStats,
+  getCragRoutes,
+  getCragSectors,
+  getCragStats,
+  getPublishedAreas,
+  getPublishedAnnouncements,
+  getCragsByAreaId,
+  getRouteById,
+  getSectorBySlug,
+  getSectorRoutes,
+  getStats,
+  getTopoById,
+  getTopoRoutes,
+  parseHashtags,
+} from "./queries";
 import type {
-  Boulder,
   BoulderDetail,
-  Crag,
   CragDetail,
   HomeModel,
   RouteListItem,
-  Sector,
   SectorDetail,
   Stats,
-  TopoDetail
+  TopoDetail,
 } from "./schema";
 
-const CRAG_TABS = ["Info", "Sector", "Boulder", "Route", "Map", "Travel"] as const;
-const SECTOR_TABS = ["Info", "Boulder", "Route", "Map", "Travel"] as const;
+export const CRAG_TABS = ["Info", "Sector", "Boulder", "Route", "Map", "Travel"] as const;
+export const SECTOR_TABS = ["Info", "Boulder", "Route", "Map", "Travel"] as const;
 
+/**
+ * Parses boulder hashtag JSON defensively.
+ * Kept as a named export — used by other modules (e.g. import pipeline).
+ * Delegates to queries.parseHashtags which has identical behaviour.
+ */
 export function parseBoulderHashtags(hashtagsJson: string): string[] {
-  try {
-    const parsedValue: unknown = JSON.parse(hashtagsJson);
-    if (!Array.isArray(parsedValue)) {
-      return [];
-    }
-
-    return parsedValue.filter((value): value is string => typeof value === "string");
-  } catch {
-    return [];
-  }
+  return parseHashtags(hashtagsJson);
 }
 
-export function getHomeModel(): HomeModel {
-  const publishedCrags = crags.filter((crag) => crag.isPublished);
-  const publishedSectors = sectors.filter((sector) => sector.isPublished);
-  const publishedBoulders = boulders.filter((boulder) => boulder.isPublished);
-  const publishedRoutes = routes.filter((route) => route.isPublished);
+// ---------------------------------------------------------------------------
+// Private load helpers (un-cached, used by the cache wrappers below)
+// ---------------------------------------------------------------------------
 
-  return {
-    totals: {
-      crags: publishedCrags.length,
-      sectors: publishedSectors.length,
-      boulders: publishedBoulders.length,
-      routes: publishedRoutes.length
-    },
-    areas: [...areas]
-      .sort((left, right) => left.sortOrder - right.sortOrder)
-      .map((area) => {
-        const areaCrags = publishedCrags.filter((crag) => crag.areaId === area.id);
-        return {
-          ...area,
-          stats: buildStatsForCrags(areaCrags),
-          crags: areaCrags.map((crag) => ({
-            ...crag,
-            stats: buildStatsForCrag(crag)
-          }))
-        };
-      }),
-    announcements: announcements
-      .filter((announcement) => announcement.isPublished)
-      .sort((left, right) => left.sortOrder - right.sortOrder)
-  };
+async function loadHomeModel(): Promise<HomeModel> {
+  const [totals, areas, announcements] = await Promise.all([
+    getStats(),
+    getPublishedAreas(),
+    getPublishedAnnouncements(),
+  ]);
+
+  const areasWithCrags = await Promise.all(
+    areas.map(async (area) => {
+      const areaCrags = await getCragsByAreaId(area.id);
+
+      const cragStats = await Promise.all(
+        areaCrags.map((crag) => getCragStats(crag.id))
+      );
+
+      // Aggregate per-area stats = sum of each crag's stats + crag count
+      const areaStats: Stats = cragStats.reduce<Stats>(
+        (acc, s) => ({
+          crags: acc.crags,
+          sectors: acc.sectors + s.sectors,
+          boulders: acc.boulders + s.boulders,
+          routes: acc.routes + s.routes,
+        }),
+        { crags: areaCrags.length, sectors: 0, boulders: 0, routes: 0 }
+      );
+
+      return {
+        ...area,
+        stats: areaStats,
+        crags: areaCrags.map((crag, i) => ({
+          ...crag,
+          stats: cragStats[i] ?? { sectors: 0, boulders: 0, routes: 0 },
+        })),
+      };
+    })
+  );
+
+  return { totals, areas: areasWithCrags, announcements };
 }
 
-export function findCragBySlug(slug: string): CragDetail | null {
-  const crag = crags.find((candidate) => candidate.slug === slug && candidate.isPublished);
-  if (!crag) {
-    return null;
-  }
+async function loadCragBySlug(slug: string): Promise<CragDetail | null> {
+  const crag = await getCragBySlug(slug);
+  if (!crag) return null;
 
-  const scopedSectors = sectors.filter((sector) => sector.cragId === crag.id && sector.isPublished);
-  const scopedBoulders = getBouldersForSectors(scopedSectors);
-  const scopedRoutes = getRouteItemsForBoulders(scopedBoulders);
+  const [sectors, boulders, routes, stats] = await Promise.all([
+    getCragSectors(crag.id),
+    getCragBouldersWithStats(crag.id),
+    getCragRoutes(crag.id),
+    getCragStats(crag.id),
+  ]);
 
   return {
     ...crag,
     tabs: [...CRAG_TABS],
-    stats: { crags: 1, ...buildStatsForCrag(crag) },
-    sectors: scopedSectors,
-    boulders: scopedBoulders.map(withBoulderStats),
-    routes: scopedRoutes
+    stats: { crags: 1, ...stats },
+    sectors,
+    boulders,
+    routes,
   };
 }
 
-export function findSectorBySlug(cragSlug: string, sectorSlug: string): SectorDetail | null {
-  const crag = crags.find((candidate) => candidate.slug === cragSlug && candidate.isPublished);
-  if (!crag) {
-    return null;
-  }
+async function loadSectorBySlug(
+  cragSlug: string,
+  sectorSlug: string
+): Promise<SectorDetail | null> {
+  const [crag, sector] = await Promise.all([
+    getCragBySlug(cragSlug),
+    getSectorBySlug(cragSlug, sectorSlug),
+  ]);
 
-  const sector = sectors.find(
-    (candidate) => candidate.cragId === crag.id && candidate.slug === sectorSlug && candidate.isPublished
-  );
-  if (!sector) {
-    return null;
-  }
+  if (!crag || !sector) return null;
 
-  const scopedBoulders = boulders.filter(
-    (boulder) => boulder.sectorId === sector.id && boulder.isPublished
-  );
-  const scopedRoutes = getRouteItemsForBoulders(scopedBoulders);
+  const [boulders, routes] = await Promise.all([
+    getCragBouldersWithStats(sector.cragId, sector.id),
+    getSectorRoutes(sector.id),
+  ]);
 
   return {
     ...sector,
@@ -112,143 +127,144 @@ export function findSectorBySlug(cragSlug: string, sectorSlug: string): SectorDe
     crag,
     stats: {
       sectors: 1,
-      boulders: scopedBoulders.length,
-      routes: scopedRoutes.length
+      boulders: boulders.length,
+      routes: routes.length,
     },
-    boulders: scopedBoulders.map(withBoulderStats),
-    routes: scopedRoutes
+    boulders,
+    routes,
   };
 }
 
-export function findBoulderById(id: string): BoulderDetail | null {
-  const boulder = boulders.find((candidate) => candidate.id === id && candidate.isPublished);
-  if (!boulder) {
-    return null;
-  }
+async function loadBoulderById(id: string): Promise<BoulderDetail | null> {
+  const boulder = await getBoulderById(id);
+  if (!boulder) return null;
+
+  const topoList = await getBoulderTopos(id);
+  const toposWithRoutes = await Promise.all(
+    topoList.map(async (topo) => ({
+      ...topo,
+      routes: await getTopoRoutes(topo.id),
+    }))
+  );
 
   return {
     ...boulder,
     hashtagsList: parseBoulderHashtags(boulder.hashtags),
-    topos: topos
-      .filter((topo) => topo.boulderId === boulder.id)
-      .sort((left, right) => left.sortOrder - right.sortOrder)
-      .map((topo) => ({
-        ...topo,
-        routes: routes.filter((route) => route.topoId === topo.id && route.isPublished)
-      }))
+    topos: toposWithRoutes,
   };
 }
 
-export function findRouteById(id: string): RouteListItem | null {
-  return getAllRouteItems().find((route) => route.id === id) ?? null;
-}
+async function loadTopoById(id: string): Promise<TopoDetail | null> {
+  const topoWithCtx = await getTopoById(id);
+  if (!topoWithCtx) return null;
 
-export function findTopoById(id: string): TopoDetail | null {
-  const topo = topos.find((candidate) => candidate.id === id);
-  if (!topo) {
-    return null;
-  }
+  const { boulder, sector, crag, ...topo } = topoWithCtx;
 
-  const boulder = boulders.find((candidate) => candidate.id === topo.boulderId && candidate.isPublished);
-  const sector = boulder ? sectors.find((candidate) => candidate.id === boulder.sectorId && candidate.isPublished) : undefined;
-  const crag = sector ? crags.find((candidate) => candidate.id === sector.cragId && candidate.isPublished) : undefined;
-  if (!boulder || !sector || !crag) {
-    return null;
-  }
+  const [boulderTopos, routes] = await Promise.all([
+    getBoulderTopos(boulder.id),
+    getTopoRoutes(id),
+  ]);
 
-  const boulderTopos = topos
-    .filter((candidate) => candidate.boulderId === boulder.id)
-    .sort((left, right) => left.sortOrder - right.sortOrder);
+  const topoIndex = boulderTopos.findIndex((t) => t.id === id) + 1;
+  const topoCount = boulderTopos.length;
 
   return {
     ...topo,
-    topoIndex: boulderTopos.findIndex((candidate) => candidate.id === topo.id) + 1,
-    topoCount: boulderTopos.length,
+    topoIndex,
+    topoCount,
     boulder,
     sector,
     crag,
-    routes: routes.filter((route) => route.topoId === topo.id && route.isPublished)
+    routes,
   };
 }
 
-export function getAllRouteItems(): RouteListItem[] {
-  return getRouteItemsForBoulders(boulders.filter((boulder) => boulder.isPublished));
+async function loadRouteById(id: string): Promise<RouteListItem | null> {
+  return getRouteById(id);
 }
 
-function buildStatsForCrags(scopedCrags: Crag[]): Stats {
-  const scopedSectors = sectors.filter((sector) =>
-    scopedCrags.some((crag) => crag.id === sector.cragId && crag.isPublished) && sector.isPublished
+async function loadAllRouteItems(): Promise<RouteListItem[]> {
+  const areas = await getPublishedAreas();
+  const cragArrays = await Promise.all(
+    areas.map((area) => getCragsByAreaId(area.id))
   );
-  const scopedBoulders = getBouldersForSectors(scopedSectors);
-  const scopedRoutes = routes.filter(
-    (route) => scopedBoulders.some((boulder) => boulder.id === route.boulderId) && route.isPublished
+  const allCrags = cragArrays.flat();
+  const routeArrays = await Promise.all(
+    allCrags.map((crag) => getCragRoutes(crag.id))
   );
-
-  return {
-    crags: scopedCrags.length,
-    sectors: scopedSectors.length,
-    boulders: scopedBoulders.length,
-    routes: scopedRoutes.length
-  };
+  return routeArrays.flat();
 }
 
-function buildStatsForCrag(crag: Crag): Omit<Stats, "crags"> {
-  const scopedSectors = sectors.filter((sector) => sector.cragId === crag.id && sector.isPublished);
-  const scopedBoulders = getBouldersForSectors(scopedSectors);
-  const scopedRoutes = routes.filter(
-    (route) => scopedBoulders.some((boulder) => boulder.id === route.boulderId) && route.isPublished
+// ---------------------------------------------------------------------------
+// Public API — each function wraps its loader in unstable_cache
+// ---------------------------------------------------------------------------
+
+export async function getHomeModel(): Promise<HomeModel> {
+  const cached = unstable_cache(loadHomeModel, ["getHomeModel"], {
+    tags: ["home", "areas:list"],
+  });
+  return cached();
+}
+
+export async function findCragBySlug(slug: string): Promise<CragDetail | null> {
+  // Tag uses the slug because the id is not known before fetching.
+  const cached = unstable_cache(
+    () => loadCragBySlug(slug),
+    ["findCragBySlug", slug],
+    { tags: ["areas:list", `crag:${slug}`] }
   );
-
-  return {
-    sectors: scopedSectors.length,
-    boulders: scopedBoulders.length,
-    routes: scopedRoutes.length
-  };
+  return cached();
 }
 
-function getBouldersForSectors(scopedSectors: Sector[]): Boulder[] {
-  return boulders.filter(
-    (boulder) => scopedSectors.some((sector) => sector.id === boulder.sectorId) && boulder.isPublished
+export async function findSectorBySlug(
+  cragSlug: string,
+  sectorSlug: string
+): Promise<SectorDetail | null> {
+  // Tag uses slugs because ids are not known before fetching.
+  const cached = unstable_cache(
+    () => loadSectorBySlug(cragSlug, sectorSlug),
+    ["findSectorBySlug", cragSlug, sectorSlug],
+    { tags: [`crag:${cragSlug}`, `sector:${sectorSlug}`] }
   );
+  return cached();
 }
 
-function getRouteItemsForBoulders(scopedBoulders: Boulder[]): RouteListItem[] {
-  return routes
-    .filter((route) => scopedBoulders.some((boulder) => boulder.id === route.boulderId) && route.isPublished)
-    .map((route) => {
-      const boulder = boulders.find((candidate) => candidate.id === route.boulderId);
-      const sector = boulder ? sectors.find((candidate) => candidate.id === boulder.sectorId) : undefined;
-      const crag = sector ? crags.find((candidate) => candidate.id === sector.cragId) : undefined;
-
-      if (!boulder || !sector || !crag) {
-        throw new Error(`Route ${route.id} has an invalid hierarchy`);
-      }
-
-      return {
-        ...route,
-        boulderName: boulder.name,
-        sectorName: sector.name,
-        cragName: crag.name,
-        cragSlug: crag.slug,
-        sectorSlug: sector.slug
-      };
-    });
+export async function findBoulderById(id: string): Promise<BoulderDetail | null> {
+  const cached = unstable_cache(
+    () => loadBoulderById(id),
+    ["findBoulderById", id],
+    { tags: [`boulder:${id}`] }
+  );
+  return cached();
 }
 
-function withBoulderStats(boulder: Boulder): Boulder & {
-  routeCount: number;
-  gradeRange: string;
-  hashtagsList: string[];
-} {
-  const boulderRoutes = routes.filter((route) => route.boulderId === boulder.id && route.isPublished);
-  const routeGrades = boulderRoutes.map((route) => route.gradeNum).sort((left, right) => left - right);
-  const minGrade = routeGrades.at(0);
-  const maxGrade = routeGrades.at(-1);
+export async function findTopoById(id: string): Promise<TopoDetail | null> {
+  // No dedicated "topo:<id>" tag — topos live under boulders in the hierarchy.
+  const cached = unstable_cache(
+    () => loadTopoById(id),
+    ["findTopoById", id],
+    { tags: [`boulder:${id}`] }
+  );
+  return cached();
+}
 
-  return {
-    ...boulder,
-    routeCount: boulderRoutes.length,
-    gradeRange: minGrade === undefined || maxGrade === undefined ? "—" : `V${minGrade}-V${maxGrade}`,
-    hashtagsList: parseBoulderHashtags(boulder.hashtags)
-  };
+export async function findRouteById(id: string): Promise<RouteListItem | null> {
+  const cached = unstable_cache(
+    () => loadRouteById(id),
+    ["findRouteById", id],
+    { tags: [`route:${id}`] }
+  );
+  return cached();
+}
+
+/**
+ * Returns all published route items across all crags.
+ * Used by admin pages — not cached with a fine-grained tag; invalidate via
+ * `revalidateTag("areas:list")` after any route mutation.
+ */
+export async function getAllRouteItems(): Promise<RouteListItem[]> {
+  const cached = unstable_cache(loadAllRouteItems, ["getAllRouteItems"], {
+    tags: ["areas:list"],
+  });
+  return cached();
 }

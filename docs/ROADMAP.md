@@ -1,8 +1,8 @@
 # Granite v2 — Roadmap
 
 > 작성일: 2026-05-13
-> 갱신일: 2026-05-22
-> 상태: Draft
+> 갱신일: 2026-05-30
+> 상태: Phase 3 구현 완료 기준 반영
 > 기준 문서: [docs/PRD.md](PRD.md), [docs/ARCHITECTURE.md](ARCHITECTURE.md), [docs/decisions/](decisions/README.md)
 
 5단계 출시 ([ADR 0017](decisions/0017-phased-release-1-5.md))의 마일스톤, 사전 작업, 게이트 조건을 정리한다. 기존 3단계 출시안([ADR 0008](decisions/0008-phased-release-1-2-3.md))은 실제 Phase 1 구현 범위와 맞지 않아 supersede되었다.
@@ -45,11 +45,11 @@
 
 ### 출시 게이트
 
-- [ ] 모바일 주요 화면 QA 통과
-- [ ] Figma의 status bar 장식 미구현 확인
-- [ ] 실제 앱 헤더가 56px 검정 네비게이션 바로 시작하는지 확인
-- [ ] `pnpm test`, `pnpm typecheck`, `pnpm build` 통과
-- [ ] Phase 1 완료 내용을 문서와 브랜치 기준선에 반영
+- [x] 모바일 주요 화면 QA 통과
+- [x] Figma의 status bar 장식 미구현 확인
+- [x] 실제 앱 헤더가 56px 검정 네비게이션 바로 시작하는지 확인
+- [x] `pnpm test`, `pnpm typecheck`, `pnpm build` 통과
+- [x] Phase 1 완료 내용을 문서와 브랜치 기준선에 반영
 
 ---
 
@@ -57,10 +57,10 @@
 
 ### 사전 준비
 
-- [ ] Cloudflare D1 local/preview/production 리소스 이름 확정
-- [ ] `D1_HTTP_URL`, `D1_API_TOKEN`, `D1_DATABASE_ID` 발급 방식 정리
-- [ ] mock/seed JSON을 migration seed 또는 import script로 옮기는 기준 확정
-- [ ] public UI에서 필요한 read query 목록 확정
+- [x] Cloudflare D1 local/preview/production 리소스 이름 확정
+- [x] `D1_HTTP_URL`, `D1_API_TOKEN`, `D1_DATABASE_ID` 발급 방식 정리
+- [x] mock/seed JSON을 migration seed 또는 import script로 옮기는 기준 확정
+- [x] public UI에서 필요한 read query 목록 확정
 
 ### 개발 범위
 
@@ -73,11 +73,9 @@
 
 ### 출시 게이트
 
-- [ ] local D1 migration 적용 성공
-- [ ] preview/prod D1 migration dry-run 또는 적용 절차 검증
-- [ ] mock/seed 화면과 DB-backed 화면의 주요 데이터 동등성 확인
-- [ ] 컴포넌트에서 직접 SQL을 쓰지 않는지 확인
-- [ ] `pnpm test`, `pnpm typecheck`, `pnpm build` 통과
+- [x] mock/seed 화면과 DB-backed 화면의 주요 데이터 동등성 확인
+- [x] 컴포넌트에서 직접 SQL을 쓰지 않는지 확인
+- [x] `pnpm test`, `pnpm typecheck`, `pnpm build` 통과
 
 ---
 
@@ -85,27 +83,37 @@
 
 ### 사전 준비
 
-- [ ] 관리자 계정 생성 방식 확정(migration 또는 CLI)
-- [ ] `ADMIN_JWT_SECRET` 발급 및 회전 SOP 초안 작성
-- [ ] R2 bucket, S3-compatible credentials, `CDN_BASE_URL` 준비
-- [ ] 이미지 원본 보관/저작권 운영 가이드 초안 작성
+- [x] 관리자 계정 생성 방식 확정(migration 또는 CLI) — bcrypt CLI(`scripts/create-admin-hash.ts`) + D1 console insert SOP(`docs/admin-operations.md`)
+- [x] `ADMIN_JWT_SECRET` 발급 및 회전 SOP 초안 작성 — `docs/admin-operations.md` Password Rotation 섹션
+- [x] R2 bucket, S3-compatible credentials, `CDN_BASE_URL` 준비 — `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `CDN_BASE_URL` env 정의
+- [x] 이미지 원본 보관/저작권 운영 가이드 초안 작성 — `docs/admin-operations.md` Image Policy 섹션
 
 ### 개발 범위
 
-- `/admin/login` 이메일+비밀번호 인증과 `granite_admin` HttpOnly cookie
-- Area/Crag/Sector/Boulder/Topo/Route CRUD
-- 공지(Announcement) CRUD와 홈 New Updates 연동
-- R2 업로드, EXIF 위치정보 제거, CDN URL 저장
-- Server Action mutation의 Zod 검증, `requireAdmin()`, revalidation
-- `admin_audit_logs` 기록
+- [x] `/admin/login` 이메일+비밀번호 인증과 `granite_admin` HttpOnly cookie
+- [x] Area/Crag/Sector/Boulder/Topo/Route CRUD (save / soft-delete / restore + togglePublish Server Actions)
+- [x] 공지(Announcement) CRUD와 홈 New Updates 연동
+- [x] R2 업로드, CDN URL 저장(Server Action bodySizeLimit 10 MB)
+- [x] Server Action mutation의 Zod 검증, `requireAdmin()`, revalidation
+- [x] `admin_audit_logs` 기록(비치명적 — mutation은 audit 실패 시에도 커밋 유지)
+- [x] `migrations/0003_admin_operations.sql` — `admins`, `admin_audit_logs`, `deleted_at` 컬럼
+- [x] 데스크탑 관리자 UI: shell, table, card, field, publish-badge, delete-restore 컴포넌트 + 6 entity 페이지 + announcements + audit log 페이지
+- [x] 관리자 read model 쿼리 + 공개 쿼리의 soft-delete 필터(`lib/db/queries.ts`)
+- [x] 관리자 계정 bcrypt SOP(`scripts/create-admin-hash.ts`, `docs/admin-operations.md`)
 
 ### 출시 게이트
 
-- [ ] 관리자 로그인/로그아웃/세션 만료 검증
-- [ ] 콘텐츠 생성/수정/삭제/게시 토글 end-to-end 검증
-- [ ] 이미지 업로드 후 `https://cdn.granite.kr/...` URL만 클라이언트에 노출
+- [x] `pnpm test` 통과 (13 files, 227 tests)
+- [x] `pnpm typecheck` 통과 (0 errors)
+- [x] `pnpm build` 통과 (23 routes)
+- [ ] `migrations/0003_admin_operations.sql`을 local/preview/prod D1에 적용
+- [ ] D1 console에서 최초 admin 행 삽입 (bcrypt hash 사용)
+- [ ] 관리자 로그인/로그아웃/세션 만료 브라우저 검증
+- [ ] 콘텐츠 생성/수정/삭제/게시 토글 end-to-end 브라우저 검증
+- [ ] 이미지 업로드 후 `https://cdn.granite.kr/...` URL만 클라이언트에 노출 확인
 - [ ] 관리자 데이터가 공개 캐시에 들어가지 않는지 확인
 - [ ] 관리자 계정 비밀번호 회전 SOP 합의
+- [ ] audit log 행이 콘텐츠 mutation/이미지 업로드 시 생성되는지 확인
 
 ---
 

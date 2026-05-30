@@ -4,8 +4,10 @@ import { CragCarousel } from "@/components/public/crag-carousel";
 import { StatBar } from "@/components/public/stat-bar";
 import { getHomeModel } from "@/lib/db/repository";
 
-export default function HomePage() {
-  const model = getHomeModel();
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const model = await getHomeModel();
   const selectedArea = model.areas[0];
   const updates = model.announcements;
 

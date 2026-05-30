@@ -14,10 +14,11 @@
 | 영역 | 기술 |
 |------|------|
 | 프레임워크 | Next.js (App Router, **Server Actions** 중심) |
-| 런타임/배포 | Cloudflare Pages + Workers (`@cloudflare/next-on-pages`) |
-| 데이터베이스 | Cloudflare D1 (SQLite) |
-| 오브젝트 스토리지 | Cloudflare R2 (이미지/원본 파일) |
-| CDN/이미지 변환 | Cloudflare CDN + Image Resizing |
+| 웹앱 런타임/배포 | **Vercel** Functions Node runtime (`icn1` 서울 리전). 자세한 분리 근거는 [ADR 0003](docs/decisions/0003-vercel-cloudflare-runtime-split.md) |
+| 보조 런타임 | Cloudflare Workers — Instagram 웹훅·재시도·scheduled job 전용 (일반 CRUD는 Worker로 만들지 않음) |
+| 데이터베이스 | Cloudflare D1 (SQLite) — **HTTP API**로 호출 (`lib/db/d1-http.ts`), 바인딩 아님 |
+| 오브젝트 스토리지 | Cloudflare R2 — **S3 호환 SDK**(`@aws-sdk/client-s3`)로 접근 |
+| CDN/이미지 변환 | Cloudflare CDN + Image Resizing (`cdn.granite.kr`) |
 | 지도 | Kakao Map JavaScript SDK |
 | 스타일 | Tailwind CSS |
 | 언어 | TypeScript (strict) |
@@ -27,8 +28,11 @@
 ```
 granite-v2/
 ├── app/                    # Next.js App Router
-│   ├── (public)/           # 비로그인 라우트
-│   ├── spots/[id]/         # 스팟 상세
+│   ├── (public)/           # 비로그인 홈
+│   ├── c/[cragSlug]/       # 크랙 상세
+│   ├── topos/[topoId]/     # 토포 상세
+│   ├── r/[routeId]/        # 루트 상세
+│   ├── admin/              # 관리자 (Phase 3, JWT 보호)
 │   ├── api/                # 필요한 경우에만 (가급적 Server Actions 사용)
 │   └── layout.tsx
 ├── components/             # UI 컴포넌트
@@ -56,9 +60,9 @@ granite-v2/
 - 모든 mutation은 Server Action을 통하고, 반환 후 `revalidatePath` 또는 `revalidateTag` 호출.
 
 ### 이미지 처리
-- 원본은 R2에 업로드, 클라이언트에는 `cdn.granite.app/<key>?w=…` 형태의 변환된 URL을 노출.
-- `next/image`의 `loader`로 Cloudflare Image Resizing 사용.
-- R2 키는 `spots/{spotId}/{uuid}.{ext}` 컨벤션.
+- 원본은 R2에 업로드, 클라이언트에는 `cdn.granite.kr/<key>?w=…` 형태의 변환된 URL을 노출 (베이스는 `CDN_BASE_URL`).
+- `next/image`의 `loader`로 Cloudflare Image Resizing 사용 (`lib/r2/cloudflare-image-loader.ts`).
+- R2 키는 `{entityType}/{entityId}/{purpose}-{uuid}.{ext}` 컨벤션 (`lib/r2/images.ts`의 `buildR2ImageKey`).
 
 ### 좌표/지도
 - DB에는 `lat`, `lng` 를 `REAL`로 저장. PostGIS류는 없음 (D1).
@@ -66,11 +70,11 @@ granite-v2/
 - 좌표계는 WGS84.
 
 ### 캐싱
-- 스팟 리스트/상세는 `unstable_cache` + 태그 기반 무효화 (`spot:<id>`, `spots:list`).
+- 리스트/상세는 `unstable_cache` + 태그 기반 무효화. 실제 태그: `home`, `areas:list`, `crag:<slug>`, `sector:<slug>`, `boulder:<id>`, `route:<id>` (`lib/db/repository.ts`).
 - 정적 자산은 Cloudflare CDN 캐싱 풀 활용.
 
 ### 인증
-- MVP에서는 익명 열람. 관리자 작업은 별도 보호된 라우트 (Cloudflare Access 또는 단순 토큰)로 보호.
+- 공개 페이지는 익명 열람. 관리자 작업은 `/admin/*` 보호 라우트 + `granite_admin` HttpOnly 쿠키(JWT, `ADMIN_JWT_SECRET`)로 보호 ([ADR 0013](docs/decisions/0013-admin-auth-separate-from-user.md), Phase 3).
 
 ## 코딩 컨벤션
 
@@ -81,24 +85,31 @@ granite-v2/
 
 ## 환경 변수
 
-`.env.local` 또는 `wrangler.toml`의 `[vars]`/`[[d1_databases]]`/`[[r2_buckets]]`로 관리.
+웹앱(Vercel)은 `.env.local` / Vercel 프로젝트 ENV로, 보조 Worker는 `wrangler secret`으로 관리한다 (시크릿 분산: [ADR 0003](docs/decisions/0003-vercel-cloudflare-runtime-split.md)). 정본 목록은 `.env.example` 참고.
 
 | 키 | 용도 |
 |----|------|
-| `DB` | D1 바인딩 (wrangler) |
-| `BUCKET` | R2 바인딩 (wrangler) |
+| `D1_HTTP_URL` | D1 HTTP API 엔드포인트 (`lib/db/d1-http.ts`) |
+| `D1_API_TOKEN` | D1 HTTP API 토큰 |
+| `D1_DATABASE_ID` | D1 데이터베이스 ID |
+| `CDN_BASE_URL` | 이미지 CDN 베이스 URL (`https://cdn.granite.kr`) |
 | `NEXT_PUBLIC_KAKAO_MAP_KEY` | 카카오 JS 키 (도메인 제한 필수) |
-| `CDN_BASE_URL` | 이미지 CDN 베이스 URL |
-| `ADMIN_TOKEN` | 관리자 라우트 보호 (MVP) |
+| `ADMIN_JWT_SECRET` | 관리자 세션 JWT 서명 키 (프로덕션 필수) |
+| `CLOUDFLARE_ACCOUNT_ID` | R2 S3 엔드포인트 파생 (`https://<id>.r2.cloudflarestorage.com`) |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | R2 S3 자격증명 (관리자 이미지 업로드) |
+| `R2_BUCKET_NAME` | R2 버킷 이름 |
 
-## 개발/배포 명령 (예정)
+## 개발/배포 명령
 
 ```bash
 pnpm install
 pnpm dev                # 로컬 개발
-pnpm wrangler d1 migrations apply granite --local
-pnpm pages:build        # @cloudflare/next-on-pages
-pnpm wrangler pages deploy .vercel/output/static
+pnpm test               # vitest
+pnpm typecheck          # tsc --noEmit
+pnpm build              # next build
+pnpm wrangler d1 migrations apply granite --local   # 로컬 D1 마이그레이션
+pnpm vercel:deploy      # Vercel 프리뷰 배포
+pnpm vercel:deploy:prod # Vercel 프로덕션 배포
 ```
 
 ## 참고 문서

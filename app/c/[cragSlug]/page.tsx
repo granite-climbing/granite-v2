@@ -4,6 +4,8 @@ import { AppHeader } from "@/components/layout/app-header";
 import { findCragBySlug } from "@/lib/db/repository";
 import type { CragDetail, RouteListItem, TabName } from "@/lib/db/schema";
 
+export const dynamic = "force-dynamic";
+
 type CragPageProps = {
   params: Promise<{ cragSlug: string }>;
   searchParams?: Promise<{ tab?: string }>;
@@ -12,7 +14,7 @@ type CragPageProps = {
 export default async function CragPage({ params, searchParams }: CragPageProps) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
-  const crag = findCragBySlug(resolvedParams.cragSlug);
+  const crag = await findCragBySlug(resolvedParams.cragSlug);
   if (!crag) {
     notFound();
   }
@@ -38,7 +40,7 @@ function CragHero({ crag }: { crag: CragDetail }) {
       <div className="absolute inset-0 bg-black/30" />
       <div className="relative max-w-[328px]">
         <h1 className="text-[28px] font-extrabold leading-9">{crag.name}</h1>
-        <p className="mt-4 text-[12px] font-normal leading-4 text-white">{crag.summary}</p>
+        <p className="mt-4 text-[12px] font-normal leading-4 text-white">{crag.description}</p>
       </div>
     </section>
   );
@@ -80,7 +82,7 @@ function CragTabPanel({ crag, activeTab }: { crag: CragDetail; activeTab: TabNam
             key={sector.id}
             imageUrl={sector.coverImageUrl}
             title={sector.name}
-            meta={`${sector.season} · ${sector.summary}`}
+            meta={`${sector.season} · ${sector.description}`}
           />
         ))}
       </section>
@@ -127,8 +129,7 @@ function InfoPanel({ crag }: { crag: CragDetail }) {
       </section>
       <section className="space-y-5 px-4 pt-8">
         <MapPreview crag={crag} />
-        <InfoRow icon="●" title="Address" body={crag.accessDesc} />
-        <InfoRow icon="▰" title="How to get there?" body={crag.parkingDesc} />
+        <InfoRow icon="▰" title="How to get there?" body={crag.description} />
         <div className="grid grid-cols-2 gap-2 pt-2">
           <PillButton icon="P" label="Parking Spot" />
           <PillButton icon="☕" label="Cafe" />
@@ -261,9 +262,8 @@ function TravelPanel({ crag }: { crag: CragDetail }) {
 
 function buildTravelItems(crag: CragDetail) {
   const baseItems = [
-    { id: "access", title: `${crag.name} 접근 안내`, body: crag.accessDesc },
-    { id: "parking", title: `${crag.name} 주차 정보`, body: crag.parkingDesc },
-    { id: "season", title: `${crag.name} 시즌과 컨디션`, body: crag.summary },
+    { id: "access", title: `${crag.name} 접근 안내`, body: crag.description },
+    { id: "season", title: `${crag.name} 시즌과 컨디션`, body: crag.season },
     { id: "sector", title: "추천 섹터와 동선", body: crag.sectors.map((sector) => sector.name).join(", ") },
     { id: "boulder", title: "대표 볼더 체크리스트", body: crag.boulders.map((boulder) => boulder.name).join(", ") }
   ];

@@ -209,12 +209,14 @@ admin_audit_logs
 
 #### 콘텐츠
 
-- `areas`: `id`, `name`, `slug`, `sort_order`
-- `crags`: `id`, `area_id`, `name`, `slug`, `lat`, `lng`, `summary`, `access_desc`, `parking_desc`, `season`, `cover_image_url`, `is_published`
-- `sectors`: `id`, `crag_id`, `name`, `slug`, `lat`, `lng`, `summary`, `access_desc`, `parking_desc`, `season`, `cover_image_url`, `is_published`
-- `boulders`: `id`, `sector_id`, `name`, `slug`, `lat`, `lng`, `coord_precision`, `rock_type`, `hashtags`, `cover_image_url`, `is_published`
-- `topos`: `id`, `boulder_id`, `name`, `base_image_url`, `sort_order`
-- `routes`: `id`, `topo_id`, `boulder_id`, `name`, `slug`, `grade`, `grade_num`, `fa`, `description`, `line_image_url`, `is_published`
+> Phase 2 기준 스키마는 `docs/DATA_MODEL.md`가 canonical source이며, 아래는 요약이다.
+
+- `areas`: `id`, `name`, `name_en`, `slug`, `cover_image_url`, `is_published`, `sort_order`
+- `crags`: `id`, `area_id`, `name`, `name_en`, `slug`, `lat`, `lng`, `description`, `season`, `cover_image_url`, `is_published`, `sort_order`
+- `sectors`: `id`, `crag_id`, `name`, `name_en`, `slug`, `lat`, `lng`, `description`, `season`, `cover_image_url`, `is_published`, `sort_order`
+- `boulders`: `id`, `sector_id`, `name`, `slug`, `lat`, `lng`, `hashtags`, `cover_image_url`, `is_published`, `sort_order` (민감 좌표용 `coord_precision`은 두지 않는다 — ADR 0018; `rock_type`도 제거)
+- `topos`: `id`, `boulder_id`, `name`, `base_image_url`, `is_published`, `sort_order`
+- `routes`: `id`, `topo_id`, `name`, `slug`, `grade`, `grade_num`, `fa`, `description`, `line_image_url`, `is_published`, `sort_order` (Boulder 맥락은 `routes.topo_id → topos.boulder_id`로 파생; `boulder_id` 컬럼 없음)
 
 이미지는 전용 polymorphic 테이블로 관리하지 않는다. R2/CDN 업로드 결과 URL을 각 엔티티의 `*_image_url` `TEXT` 컬럼에 저장한다. `boulders.hashtags`는 JSON 문자열 배열로 저장하고, 캡션 생성/매칭에는 정규화된 hashtag token을 사용한다.
 
@@ -436,7 +438,7 @@ https://cdn.granite.kr/cdn-cgi/image/width=800,format=auto,quality=80/<r2-key>
 - Crag/Sector Map 탭은 해당 범위의 Boulder marker를 표시한다.
 - marker가 많아지면 `MarkerClusterer`를 사용한다.
 - marker 탭은 Boulder 바텀시트를 연다.
-- 민감 스팟은 공개 정밀도 정책을 적용한 좌표만 클라이언트로 내려보낸다.
+- 민감 좌표는 관리자 큐레이션으로 통제한다(미등록 또는 `is_published = 0`). published Boulder의 좌표는 공개 가능한 값이므로 그대로 marker로 내려보낸다. 별도 정밀도 컬럼은 두지 않는다 (ADR 0018).
 
 ## 12. 개인정보/정책
 
