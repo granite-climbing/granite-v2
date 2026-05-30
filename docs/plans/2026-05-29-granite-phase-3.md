@@ -2456,7 +2456,7 @@ git commit -m "feat: add admin audit log view"
 - Modify: `docs/ROADMAP.md`
 - Modify: `docs/admin-operations.md`
 
-- [ ] **Step 1: Run full automated verification**
+- [x] **Step 1: Run full automated verification**
 
 Run:
 
@@ -2472,7 +2472,7 @@ Expected:
 - TypeScript exits 0.
 - Next build exits 0.
 
-- [ ] **Step 2: Apply migrations to local D1**
+- [x] **Step 2: Apply migrations to local D1**
 
 Run with the project’s configured wrangler command. If `wrangler` is not installed as a dependency, either add it as a dev dependency or use the installed environment command:
 
@@ -2482,7 +2482,7 @@ pnpm wrangler d1 migrations apply granite --local
 
 Expected: `0003_admin_operations.sql` applies once.
 
-- [ ] **Step 3: Verify admin login manually**
+- [x] **Step 3: Verify admin login manually**
 
 Start app:
 
@@ -2498,7 +2498,7 @@ Manual checks:
 - Logout clears access.
 - Expired/invalid `granite_admin` cookie cannot access protected pages.
 
-- [ ] **Step 4: Verify CRUD manually**
+- [x] **Step 4: Verify CRUD manually**
 
 Use draft test records:
 
@@ -2512,7 +2512,7 @@ Use draft test records:
 - Repeat minimal create/update/toggle/soft-delete/restore for Sector, Boulder, Topo, Route.
 - Create/update/publish/soft-delete/restore an Announcement and confirm home New Updates behavior.
 
-- [ ] **Step 5: Verify audit**
+- [x] **Step 5: Verify audit**
 
 Confirm `admin_audit_logs` has entries for:
 
@@ -2522,11 +2522,11 @@ Confirm `admin_audit_logs` has entries for:
 - content restore.
 - publish toggle.
 
-- [ ] **Step 6: Update roadmap**
+- [x] **Step 6: Update roadmap**
 
 Mark completed Phase 3 items in `docs/ROADMAP.md`.
 
-- [ ] **Step 7: Commit verification docs**
+- [x] **Step 7: Commit verification docs**
 
 ```bash
 git add docs/ROADMAP.md docs/admin-operations.md
@@ -2545,7 +2545,7 @@ git commit -m "docs: record phase 3 admin verification"
 
 This task intentionally lives in Phase 3, not Phase 2, because it includes Vercel deployment, CI/CD, production environment wiring, admin session secrets, and operational checks. Public R2/CDN image serving is already complete; this rollout verifies that deployed admin and public read paths use the already-serving assets correctly. Phase 3 is complete only when the real service URL is reachable and passes smoke tests.
 
-- [ ] **Step 1: Add GitHub Actions CI**
+- [x] **Step 1: Add GitHub Actions CI**
 
 Create `.github/workflows/ci.yml`:
 
@@ -2589,7 +2589,7 @@ jobs:
         run: pnpm build
 ```
 
-- [ ] **Step 2: Add deployment documentation**
+- [x] **Step 2: Add deployment documentation**
 
 Create `docs/deployment.md`:
 
@@ -2625,7 +2625,7 @@ Pull requests and pushes to `main` must run:
 5. Smoke-test the real service URL.
 ```
 
-- [ ] **Step 3: Configure Vercel preview environment**
+- [x] **Step 3: Configure Vercel preview environment**
 
 Set these Vercel preview environment variables (names match the committed `.env.example`):
 
@@ -2643,7 +2643,7 @@ R2_BUCKET_NAME
 
 Direct admin image upload is required in Phase 3, so R2 write credentials must be configured for preview and production. The R2 S3 endpoint is derived from `CLOUDFLARE_ACCOUNT_ID` (`https://<account-id>.r2.cloudflarestorage.com`), so there is no separate `R2_ENDPOINT` var. Keep `CDN_BASE_URL` because stored image URLs and the image loader need the public base.
 
-- [ ] **Step 4: Apply migrations to preview D1**
+- [x] **Step 4: Apply migrations to preview D1**
 
 Run the project-approved D1 migration command against preview:
 
@@ -2656,7 +2656,7 @@ Expected:
 - `0001_init.sql`, `0002_import_v1_content.sql`, and `0003_admin_operations.sql` are applied or already marked applied.
 - Preview D1 contains content rows and admin operation tables.
 
-- [ ] **Step 5: Create or confirm preview admin**
+- [x] **Step 5: Create or confirm preview admin**
 
 Use the `docs/admin-operations.md` SOP:
 
@@ -2677,7 +2677,7 @@ ON CONFLICT(id) DO UPDATE SET
   updated_at = datetime('now');
 ```
 
-- [ ] **Step 6: Deploy Vercel preview**
+- [x] **Step 6: Deploy Vercel preview**
 
 Run:
 
@@ -2691,7 +2691,7 @@ Expected:
 - Preview URL is created.
 - `/healthz` returns `checks.app = "ok"` and `checks.db = "ok"`.
 
-- [ ] **Step 7: Verify preview public UI**
+- [x] **Step 7: Verify preview public UI**
 
 Open the preview deployment and verify:
 
@@ -2707,7 +2707,7 @@ Expected:
 - Images resolve through the approved CDN policy.
 - Route line fallback still works when `line_image_url` is empty.
 
-- [ ] **Step 8: Verify preview admin UI**
+- [x] **Step 8: Verify preview admin UI**
 
 Open preview admin:
 
@@ -2724,7 +2724,7 @@ Expected:
 - Public pages revalidate after publish/toggle/update.
 - Audit logs are written.
 
-- [ ] **Step 9: Configure production environment**
+- [x] **Step 9: Configure production environment**
 
 Set production variables:
 
@@ -2751,7 +2751,7 @@ Expected:
 - Production D1 target is confirmed before migration.
 - `CDN_BASE_URL` points to the already-serving production CDN.
 
-- [ ] **Step 10: Apply migrations to production D1**
+- [x] **Step 10: Apply migrations to production D1**
 
 Only after preview data and admin behavior are approved:
 
@@ -2764,7 +2764,7 @@ Expected:
 - Production D1 has content tables, imported content, `admins`, and `admin_audit_logs`.
 - No destructive import is rerun accidentally against production.
 
-- [ ] **Step 11: Create production admin**
+- [x] **Step 11: Create production admin**
 
 Use one-time D1 console execution or approved production migration. Do not commit a real production password hash unless the team explicitly accepts that risk.
 
@@ -2773,7 +2773,7 @@ Expected:
 - At least one active admin exists.
 - Password rotation SOP is documented.
 
-- [ ] **Step 12: Deploy production**
+- [x] **Step 12: Deploy production**
 
 Run:
 
@@ -2786,7 +2786,7 @@ Expected:
 - Production deployment succeeds.
 - `/healthz` returns `checks.app = "ok"` and `checks.db = "ok"`.
 
-- [ ] **Step 13: Post-deploy smoke test**
+- [x] **Step 13: Post-deploy smoke test**
 
 Verify production:
 
@@ -2808,7 +2808,7 @@ Expected:
 - `admin_audit_logs` records the draft mutation.
 - The real service URL is accessible to users.
 
-- [ ] **Step 14: Commit rollout docs**
+- [x] **Step 14: Commit rollout docs**
 
 After rollout notes are recorded:
 
