@@ -3035,7 +3035,7 @@ git commit -m "fix: sanitize admin image uploads (decode + re-encode, strip EXIF
 
 **Problem:** `togglePublishAction` flips `is_published` for any of areas/crags/sectors/boulders/topos/routes/announcements but only revalidates `home`, `areas:list`, `/`. Public detail caches (`route:<id>`, `boulder:<id>`, `sector:<slug>`, `crag:<slug>`, plus paths `/r/<id>`, `/topos/<id>`, `/c/<slug>`) are NOT invalidated. An unpublished route/topo can stay publicly visible until some unrelated mutation happens to flush its tag.
 
-- [ ] **Step 1: Add ancestry lookups (DB-driven, authoritative)**
+- [x] **Step 1: Add ancestry lookups (DB-driven, authoritative)**
 
 Add to `lib/db/admin-content-queries.ts` a small set of read helpers that, given a row id, return what's needed for revalidation. Each uses `queryD1First` and joins up the parent chain. DO NOT filter `deleted_at IS NULL` on the row itself (admin needs caches flushed for deleted rows too); the parent chain must exist.
 
@@ -3047,7 +3047,7 @@ export async function getTopoAncestry(id: string): Promise<{ cragSlug: string; b
 export async function getRouteAncestry(id: string): Promise<{ cragSlug: string; boulderId: string; topoId: string } | null>;
 ```
 
-- [ ] **Step 2: Make `togglePublishAction` entity-aware**
+- [x] **Step 2: Make `togglePublishAction` entity-aware**
 
 Switch on `table` and, after `updatePublishState`, look up ancestry and call the matching `revalidate*Surface` helper used by save/delete actions. Keep the existing table allowlist and singular-targetType audit map.
 
@@ -3055,7 +3055,7 @@ Switch on `table` and, after `updatePublishState`, look up ancestry and call the
 
 **Problem:** the parent-scoped actions currently read hidden `cragSlug`/`sectorSlug`/`boulderId` from `FormData`. If the admin uses a Create form without a parent filter selected, those hidden fields are empty even though `cragId`/`sectorId`/`topoId` are valid in the parsed schema. Revalidation degrades silently.
 
-- [ ] **Step 1: Switch every parent-scoped action to DB-driven ancestry**
+- [x] **Step 1: Switch every parent-scoped action to DB-driven ancestry**
 
 In `saveSectorAction`/`saveBoulderAction`/`saveTopoAction`/`saveRouteAction` AND their soft-delete + restore siblings: remove the `formData.get("cragSlug")` reads (the hidden inputs in the entity pages can stay — they're harmless), and resolve ancestry from the row's parent id via the new helpers. Pass the resolved values to the existing `revalidate*Surface` helpers.
 
