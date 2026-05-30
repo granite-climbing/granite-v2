@@ -20,6 +20,9 @@ import {
   getBoulderAncestry,
   getTopoAncestry,
   getRouteAncestry,
+  getSectorDescendantIds,
+  getBoulderDescendantIds,
+  getTopoDescendantIds,
 } from "@/lib/db/admin-content-queries";
 import {
   parseAreaForm,
@@ -231,12 +234,26 @@ export async function saveSectorAction(formData: FormData): Promise<void> {
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "sector", targetId: id, metadata: { slug: parsed.slug } });
   revalidateSectorSurface(cragSlug ?? undefined, parsed.slug);
 
-  // If parent changed, also invalidate the OLD ancestry surface.
+  // If parent changed, also invalidate the OLD ancestry surface AND all
+  // descendant detail caches (boulders, topos, routes embed parent context).
   if (
     oldAncestry !== null &&
     (oldAncestry.cragSlug !== (cragSlug ?? undefined) || oldAncestry.sectorSlug !== parsed.slug)
   ) {
     revalidateSectorSurface(oldAncestry.cragSlug, oldAncestry.sectorSlug);
+
+    // Flush descendant detail caches — they carry stale ancestry.
+    const descendants = await getSectorDescendantIds(id);
+    for (const boulderId of descendants.boulderIds) {
+      revalidateTag(`boulder:${boulderId}`);
+    }
+    for (const topoId of descendants.topoIds) {
+      revalidatePath(`/topos/${topoId}`);
+    }
+    for (const routeId of descendants.routeIds) {
+      revalidateTag(`route:${routeId}`);
+      revalidatePath(`/r/${routeId}`);
+    }
   }
 }
 
@@ -272,12 +289,23 @@ export async function saveBoulderAction(formData: FormData): Promise<void> {
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "boulder", targetId: id, metadata: { slug: parsed.slug } });
   revalidateBoulderSurface(id, sectorAncestry?.cragSlug, sectorAncestry?.sectorSlug);
 
-  // If parent changed, also invalidate the OLD ancestry surface.
+  // If parent changed, also invalidate the OLD ancestry surface AND all
+  // descendant detail caches (topos and routes embed parent context).
   if (
     oldAncestry !== null &&
     (oldAncestry.cragSlug !== sectorAncestry?.cragSlug || oldAncestry.sectorSlug !== sectorAncestry?.sectorSlug)
   ) {
     revalidateBoulderSurface(id, oldAncestry.cragSlug, oldAncestry.sectorSlug);
+
+    // Flush descendant detail caches — they carry stale ancestry.
+    const descendants = await getBoulderDescendantIds(id);
+    for (const topoId of descendants.topoIds) {
+      revalidatePath(`/topos/${topoId}`);
+    }
+    for (const routeId of descendants.routeIds) {
+      revalidateTag(`route:${routeId}`);
+      revalidatePath(`/r/${routeId}`);
+    }
   }
 }
 
@@ -297,12 +325,20 @@ export async function saveTopoAction(formData: FormData): Promise<void> {
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "topo", targetId: id, metadata: { boulderId: parsed.boulderId } });
   revalidateTopoSurface(parsed.boulderId, id, boulderAncestry?.cragSlug);
 
-  // If parent changed, also invalidate the OLD ancestry surface.
+  // If parent changed, also invalidate the OLD ancestry surface AND all
+  // descendant detail caches (routes embed parent context).
   if (
     oldAncestry !== null &&
     (oldAncestry.cragSlug !== boulderAncestry?.cragSlug || oldAncestry.boulderId !== parsed.boulderId)
   ) {
     revalidateTopoSurface(oldAncestry.boulderId, id, oldAncestry.cragSlug);
+
+    // Flush descendant detail caches — they carry stale ancestry.
+    const descendants = await getTopoDescendantIds(id);
+    for (const routeId of descendants.routeIds) {
+      revalidateTag(`route:${routeId}`);
+      revalidatePath(`/r/${routeId}`);
+    }
   }
 }
 

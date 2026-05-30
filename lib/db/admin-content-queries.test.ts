@@ -16,12 +16,16 @@ import {
   getBoulderAncestry,
   getTopoAncestry,
   getRouteAncestry,
+  getSectorDescendantIds,
+  getBoulderDescendantIds,
+  getTopoDescendantIds,
 } from "./admin-content-queries";
-import { executeD1, queryD1First } from "./d1-http";
+import { executeD1, queryD1First, queryD1 } from "./d1-http";
 
 vi.mock("./d1-http", () => ({
   executeD1: vi.fn(),
   queryD1First: vi.fn(),
+  queryD1: vi.fn(),
 }));
 
 const mockedExecute = vi.mocked(executeD1);
@@ -443,5 +447,88 @@ describe("admin content queries", () => {
     expect(sql).toContain("JOIN crags");
     expect(params).toEqual(["route_anaconda"]);
     expect(result).toEqual({ cragSlug: "anyang", boulderId: "boulder_gomul_boulder", topoId: "topo_gomul_front" });
+  });
+
+  // -------------------------------------------------------------------------
+  // Descendant id helpers (Task 19)
+  // -------------------------------------------------------------------------
+
+  it("getSectorDescendantIds: issues 3 queries for boulders/topos/routes, uses params [sectorId], returns ids", async () => {
+    const { queryD1: mockQueryD1 } = await import("./d1-http");
+    const mockedQueryArr = vi.mocked(mockQueryD1);
+    // boulders query → topos query → routes query
+    mockedQueryArr
+      .mockResolvedValueOnce([{ id: "b1" }, { id: "b2" }])
+      .mockResolvedValueOnce([{ id: "t1" }])
+      .mockResolvedValueOnce([{ id: "r1" }, { id: "r2" }]);
+
+    const result = await getSectorDescendantIds("sector_x");
+
+    // All three queries should have been called
+    expect(mockedQueryArr).toHaveBeenCalledTimes(3);
+
+    // boulders query: SELECT ... FROM boulders WHERE sector_id = ?
+    const boulderCall = mockedQueryArr.mock.calls[0] as [string, unknown[]];
+    expect(boulderCall[0]).toContain("boulders");
+    expect(boulderCall[0]).toContain("sector_id");
+    expect(boulderCall[1]).toEqual(["sector_x"]);
+
+    // topos query: JOINs boulders → WHERE sector_id = ?
+    const topoCall = mockedQueryArr.mock.calls[1] as [string, unknown[]];
+    expect(topoCall[0]).toContain("topos");
+    expect(topoCall[0]).toContain("boulders");
+    expect(topoCall[1]).toEqual(["sector_x"]);
+
+    // routes query: JOINs topos + boulders → WHERE sector_id = ?
+    const routeCall = mockedQueryArr.mock.calls[2] as [string, unknown[]];
+    expect(routeCall[0]).toContain("routes");
+    expect(routeCall[0]).toContain("topos");
+    expect(routeCall[0]).toContain("boulders");
+    expect(routeCall[1]).toEqual(["sector_x"]);
+
+    expect(result).toEqual({ boulderIds: ["b1", "b2"], topoIds: ["t1"], routeIds: ["r1", "r2"] });
+  });
+
+  it("getBoulderDescendantIds: issues 2 queries for topos/routes, uses params [boulderId], returns ids", async () => {
+    const { queryD1: mockQueryD1 } = await import("./d1-http");
+    const mockedQueryArr = vi.mocked(mockQueryD1);
+    mockedQueryArr
+      .mockResolvedValueOnce([{ id: "t1" }])
+      .mockResolvedValueOnce([{ id: "r1" }]);
+
+    const result = await getBoulderDescendantIds("boulder_gomul_boulder");
+
+    expect(mockedQueryArr).toHaveBeenCalledTimes(2);
+
+    // topos query: SELECT ... FROM topos WHERE boulder_id = ?
+    const topoCall = mockedQueryArr.mock.calls[0] as [string, unknown[]];
+    expect(topoCall[0]).toContain("topos");
+    expect(topoCall[0]).toContain("boulder_id");
+    expect(topoCall[1]).toEqual(["boulder_gomul_boulder"]);
+
+    // routes query: JOINs topos → WHERE boulder_id = ?
+    const routeCall = mockedQueryArr.mock.calls[1] as [string, unknown[]];
+    expect(routeCall[0]).toContain("routes");
+    expect(routeCall[0]).toContain("topos");
+    expect(routeCall[1]).toEqual(["boulder_gomul_boulder"]);
+
+    expect(result).toEqual({ topoIds: ["t1"], routeIds: ["r1"] });
+  });
+
+  it("getTopoDescendantIds: issues 1 query for routes, uses params [topoId], returns ids", async () => {
+    const { queryD1: mockQueryD1 } = await import("./d1-http");
+    const mockedQueryArr = vi.mocked(mockQueryD1);
+    mockedQueryArr.mockResolvedValueOnce([{ id: "r1" }, { id: "r2" }]);
+
+    const result = await getTopoDescendantIds("topo_gomul_front");
+
+    expect(mockedQueryArr).toHaveBeenCalledTimes(1);
+
+    const routeCall = mockedQueryArr.mock.calls[0] as [string, unknown[]];
+    expect(routeCall[0]).toContain("routes");
+    expect(routeCall[0]).toContain("topo_id");
+    expect(routeCall[1]).toEqual(["topo_gomul_front"]);
+
+    expect(result).toEqual({ routeIds: ["r1", "r2"] });
   });
 });

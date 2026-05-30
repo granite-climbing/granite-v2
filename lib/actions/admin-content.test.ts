@@ -37,6 +37,9 @@ vi.mock("@/lib/db/admin-content-queries", () => ({
   getBoulderAncestry: vi.fn(),
   getTopoAncestry: vi.fn(),
   getRouteAncestry: vi.fn(),
+  getSectorDescendantIds: vi.fn(),
+  getBoulderDescendantIds: vi.fn(),
+  getTopoDescendantIds: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({
@@ -66,6 +69,9 @@ import {
   getBoulderAncestry,
   getTopoAncestry,
   getRouteAncestry,
+  getSectorDescendantIds,
+  getBoulderDescendantIds,
+  getTopoDescendantIds,
 } from "@/lib/db/admin-content-queries";
 import { revalidatePath, revalidateTag } from "next/cache";
 import {
@@ -101,6 +107,9 @@ const mockedGetSectorAncestry = vi.mocked(getSectorAncestry);
 const mockedGetBoulderAncestry = vi.mocked(getBoulderAncestry);
 const mockedGetTopoAncestry = vi.mocked(getTopoAncestry);
 const mockedGetRouteAncestry = vi.mocked(getRouteAncestry);
+const mockedGetSectorDescendantIds = vi.mocked(getSectorDescendantIds);
+const mockedGetBoulderDescendantIds = vi.mocked(getBoulderDescendantIds);
+const mockedGetTopoDescendantIds = vi.mocked(getTopoDescendantIds);
 const mockedRevalidatePath = vi.mocked(revalidatePath);
 const mockedRevalidateTag = vi.mocked(revalidateTag);
 
@@ -297,6 +306,10 @@ describe("admin content actions", () => {
     // Default: ancestry helpers return null (actions gracefully skip optional tags)
     mockedGetCragSlugByCragId.mockResolvedValue(null);
     mockedGetSectorAncestry.mockResolvedValue(null);
+    // Default: descendant helpers return empty sets
+    mockedGetSectorDescendantIds.mockResolvedValue({ boulderIds: [], topoIds: [], routeIds: [] });
+    mockedGetBoulderDescendantIds.mockResolvedValue({ topoIds: [], routeIds: [] });
+    mockedGetTopoDescendantIds.mockResolvedValue({ routeIds: [] });
     mockedGetBoulderAncestry.mockResolvedValue(null);
     mockedGetTopoAncestry.mockResolvedValue(null);
     mockedGetRouteAncestry.mockResolvedValue(null);
@@ -1371,5 +1384,133 @@ describe("admin content actions", () => {
     // No second revalidation for old side (same parent — OLD == NEW, so no extra call)
     const cragCalls = mockedRevalidateTag.mock.calls.filter((c) => c[0] === "crag:anyang");
     expect(cragCalls).toHaveLength(1);
+  });
+
+  // -------------------------------------------------------------------------
+  // Task 19: descendant invalidation when parent moves
+  // -------------------------------------------------------------------------
+
+  it("saveSectorAction (edit, parent move): invalidates descendant boulder/topo/route detail caches", async () => {
+    // OLD ancestry: sector lives under "anyang" crag
+    mockedGetSectorAncestry.mockResolvedValueOnce({ cragSlug: "anyang", sectorSlug: "old" });
+    // NEW ancestry: sector being moved to "samsung" crag
+    mockedGetCragSlugByCragId.mockResolvedValue("samsung");
+    // Descendants
+    mockedGetSectorDescendantIds.mockResolvedValue({
+      boulderIds: ["b1", "b2"],
+      topoIds: ["t1"],
+      routeIds: ["r1", "r2"],
+    });
+
+    const formData = new FormData();
+    formData.set("id", "sector_x");
+    formData.set("cragId", "crag_samsung");
+    formData.set("name", "새 구역");
+    formData.set("slug", "new");
+    formData.set("coverImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+
+    await saveSectorAction(formData);
+
+    // Descendant boulder tags
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:b1");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:b2");
+    // Descendant topo path
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/t1");
+    // Descendant route tags and paths
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("route:r1");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/r/r1");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("route:r2");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/r/r2");
+    // OLD and NEW crag surfaces still fire (Task 18 behavior)
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:anyang");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:samsung");
+  });
+
+  it("saveSectorAction (edit, no parent change): does NOT enumerate descendants", async () => {
+    // OLD == NEW ancestry (same crag, same slug)
+    mockedGetSectorAncestry.mockResolvedValueOnce({ cragSlug: "anyang", sectorSlug: "slug" });
+    mockedGetCragSlugByCragId.mockResolvedValue("anyang");
+
+    const formData = new FormData();
+    formData.set("id", "sector_anyang_antique");
+    formData.set("cragId", "crag_anyang");
+    formData.set("name", "앤틱 구역");
+    formData.set("slug", "slug");
+    formData.set("coverImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+
+    await saveSectorAction(formData);
+
+    // Descendant helper must NOT have been called
+    expect(mockedGetSectorDescendantIds).not.toHaveBeenCalled();
+  });
+
+  it("saveBoulderAction (edit, parent move): invalidates descendant topo/route detail caches", async () => {
+    // OLD ancestry: boulder lives under anyang/anyang_antique sector
+    mockedGetBoulderAncestry.mockResolvedValueOnce({ cragSlug: "anyang", sectorSlug: "anyang_antique" });
+    // NEW ancestry: boulder being moved to samsung/samsung_east sector
+    mockedGetSectorAncestry.mockResolvedValue({ cragSlug: "samsung", sectorSlug: "samsung_east" });
+    // Descendants
+    mockedGetBoulderDescendantIds.mockResolvedValue({
+      topoIds: ["t1"],
+      routeIds: ["r1", "r2"],
+    });
+
+    const formData = new FormData();
+    formData.set("id", "boulder_x");
+    formData.set("sectorId", "sector_samsung_east");
+    formData.set("name", "볼더 X");
+    formData.set("slug", "boulder_x_slug");
+    formData.set("lat", "37.42");
+    formData.set("lng", "126.92");
+    formData.set("hashtags", "");
+    formData.set("coverImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+
+    await saveBoulderAction(formData);
+
+    // Descendant topo path
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/t1");
+    // Descendant route tags and paths
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("route:r1");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/r/r1");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("route:r2");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/r/r2");
+    // OLD and NEW surfaces still fire (Task 18 behavior)
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:anyang");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:samsung");
+  });
+
+  it("saveTopoAction (edit, parent move): invalidates descendant route detail caches only", async () => {
+    // OLD ancestry: topo lives under boulder_old in anyang
+    mockedGetTopoAncestry.mockResolvedValueOnce({ cragSlug: "anyang", boulderId: "boulder_old" });
+    // NEW ancestry: topo being moved to boulder_new in samsung
+    mockedGetBoulderAncestry.mockResolvedValue({ cragSlug: "samsung", sectorSlug: "samsung_east" });
+    // Descendants
+    mockedGetTopoDescendantIds.mockResolvedValue({ routeIds: ["r1"] });
+
+    const formData = new FormData();
+    formData.set("id", "topo_x");
+    formData.set("boulderId", "boulder_new");
+    formData.set("name", "새 토포");
+    formData.set("baseImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+
+    await saveTopoAction(formData);
+
+    // Descendant route tag and path
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("route:r1");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/r/r1");
+    // OLD and NEW surfaces still fire (Task 18 behavior)
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_old");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_new");
+    // No boulder tags from descendant logic (topos only have route descendants)
+    // Confirm getBoulderDescendantIds was NOT called
+    expect(mockedGetBoulderDescendantIds).not.toHaveBeenCalled();
   });
 });

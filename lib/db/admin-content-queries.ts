@@ -25,7 +25,7 @@
  * layer (Task 8) wires the full resolution flow.
  */
 
-import { executeD1, queryD1First } from "./d1-http";
+import { executeD1, queryD1First, queryD1 } from "./d1-http";
 
 // ---------------------------------------------------------------------------
 // Allowed tables for table-name interpolation
@@ -486,6 +486,90 @@ export async function getRouteAncestry(
     [id],
   );
   return row ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Descendant id enumeration — used by save actions to flush stale caches
+// when an entity is moved to a different parent.
+// NOTE: deleted_at is intentionally NOT filtered — we want to flush caches
+// for soft-deleted descendants too.
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns all boulder/topo/route ids that are descendants of the given sector.
+ */
+export async function getSectorDescendantIds(sectorId: string): Promise<{
+  boulderIds: string[];
+  topoIds: string[];
+  routeIds: string[];
+}> {
+  const [boulderRows, topoRows, routeRows] = await Promise.all([
+    queryD1<{ id: string }>(
+      "SELECT id FROM boulders WHERE sector_id = ?",
+      [sectorId],
+    ),
+    queryD1<{ id: string }>(
+      `SELECT t.id
+       FROM topos t
+       JOIN boulders b ON b.id = t.boulder_id
+       WHERE b.sector_id = ?`,
+      [sectorId],
+    ),
+    queryD1<{ id: string }>(
+      `SELECT r.id
+       FROM routes r
+       JOIN topos t ON t.id = r.topo_id
+       JOIN boulders b ON b.id = t.boulder_id
+       WHERE b.sector_id = ?`,
+      [sectorId],
+    ),
+  ]);
+  return {
+    boulderIds: boulderRows.map((r) => r.id),
+    topoIds: topoRows.map((r) => r.id),
+    routeIds: routeRows.map((r) => r.id),
+  };
+}
+
+/**
+ * Returns all topo/route ids that are descendants of the given boulder.
+ */
+export async function getBoulderDescendantIds(boulderId: string): Promise<{
+  topoIds: string[];
+  routeIds: string[];
+}> {
+  const [topoRows, routeRows] = await Promise.all([
+    queryD1<{ id: string }>(
+      "SELECT id FROM topos WHERE boulder_id = ?",
+      [boulderId],
+    ),
+    queryD1<{ id: string }>(
+      `SELECT r.id
+       FROM routes r
+       JOIN topos t ON t.id = r.topo_id
+       WHERE t.boulder_id = ?`,
+      [boulderId],
+    ),
+  ]);
+  return {
+    topoIds: topoRows.map((r) => r.id),
+    routeIds: routeRows.map((r) => r.id),
+  };
+}
+
+/**
+ * Returns all route ids that are descendants of the given topo.
+ */
+export async function getTopoDescendantIds(topoId: string): Promise<{
+  routeIds: string[];
+}> {
+  const routeRows = await queryD1<{ id: string }>(
+    "SELECT id FROM routes WHERE topo_id = ?",
+    [topoId],
+  );
+  return {
+    routeIds: routeRows.map((r) => r.id),
+  };
 }
 
 // routes: id, topo_id, name, slug, grade, grade_num, fa, description,
