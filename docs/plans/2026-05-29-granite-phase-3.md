@@ -3019,3 +3019,63 @@ git commit -m "fix: sanitize admin image uploads (decode + re-encode, strip EXIF
 ### Task 16 completion criteria
 - Phase 3 cannot ship until Task 16.1 and 16.2 are both committed and the full test suite + typecheck + build remain green.
 - Re-run `/codex:adversarial-review` after committing, and confirm both findings are resolved.
+
+---
+
+## Task 17: Authoritative cache invalidation (post-3rd-review)
+
+> Added after Codex's 3rd pass. Two follow-on ship-blockers about cache invalidation being driven from untrusted form context rather than the DB.
+
+**Files:**
+- Modify: `lib/db/admin-content-queries.ts` (add ancestry lookups) + matching tests
+- Modify: `lib/actions/admin-content.ts` — `togglePublishAction` becomes entity-aware; save/softDelete/restore actions resolve parent slugs server-side
+- Modify: `lib/actions/admin-content.test.ts` — new tests covering toggling routes/topos/boulders and saves without hidden context
+
+### Task 17.1 — `togglePublishAction` must invalidate entity-specific caches (HIGH)
+
+**Problem:** `togglePublishAction` flips `is_published` for any of areas/crags/sectors/boulders/topos/routes/announcements but only revalidates `home`, `areas:list`, `/`. Public detail caches (`route:<id>`, `boulder:<id>`, `sector:<slug>`, `crag:<slug>`, plus paths `/r/<id>`, `/topos/<id>`, `/c/<slug>`) are NOT invalidated. An unpublished route/topo can stay publicly visible until some unrelated mutation happens to flush its tag.
+
+- [ ] **Step 1: Add ancestry lookups (DB-driven, authoritative)**
+
+Add to `lib/db/admin-content-queries.ts` a small set of read helpers that, given a row id, return what's needed for revalidation. Each uses `queryD1First` and joins up the parent chain. DO NOT filter `deleted_at IS NULL` on the row itself (admin needs caches flushed for deleted rows too); the parent chain must exist.
+
+```ts
+export async function getCragSlugByCragId(id: string): Promise<string | null>;
+export async function getSectorAncestry(id: string): Promise<{ cragSlug: string; sectorSlug: string } | null>;
+export async function getBoulderAncestry(id: string): Promise<{ cragSlug: string; sectorSlug: string } | null>;
+export async function getTopoAncestry(id: string): Promise<{ cragSlug: string; boulderId: string } | null>;
+export async function getRouteAncestry(id: string): Promise<{ cragSlug: string; boulderId: string; topoId: string } | null>;
+```
+
+- [ ] **Step 2: Make `togglePublishAction` entity-aware**
+
+Switch on `table` and, after `updatePublishState`, look up ancestry and call the matching `revalidate*Surface` helper used by save/delete actions. Keep the existing table allowlist and singular-targetType audit map.
+
+### Task 17.2 — save / softDelete / restore actions resolve parent slugs server-side (MEDIUM)
+
+**Problem:** the parent-scoped actions currently read hidden `cragSlug`/`sectorSlug`/`boulderId` from `FormData`. If the admin uses a Create form without a parent filter selected, those hidden fields are empty even though `cragId`/`sectorId`/`topoId` are valid in the parsed schema. Revalidation degrades silently.
+
+- [ ] **Step 1: Switch every parent-scoped action to DB-driven ancestry**
+
+In `saveSectorAction`/`saveBoulderAction`/`saveTopoAction`/`saveRouteAction` AND their soft-delete + restore siblings: remove the `formData.get("cragSlug")` reads (the hidden inputs in the entity pages can stay — they're harmless), and resolve ancestry from the row's parent id via the new helpers. Pass the resolved values to the existing `revalidate*Surface` helpers.
+
+### Task 17 — Tests
+- For each affected action: regression test "save/softDelete/restore <entity> WITHOUT hidden context still invalidates parent caches" — mock the ancestry helper to return real values; assert `revalidateTag("crag:<slug>")` etc. fire.
+- For `togglePublishAction`: "unpublishing a route invalidates `route:<id>` and the parent chain" (mocking ancestry).
+- Existing tests that supplied hidden context can remain.
+
+### Task 17 — Verify + commit
+```bash
+pnpm test
+pnpm typecheck
+pnpm build
+```
+Then:
+```bash
+git add lib/actions/admin-content.ts lib/actions/admin-content.test.ts lib/db/admin-content-queries.ts lib/db/admin-content-queries.test.ts
+git commit -m "fix: derive cache-invalidation context from D1 (authoritative ancestry)"
+```
+
+### Task 17 completion criteria
+- Phase 3 cannot ship until 17.1 and 17.2 are both committed.
+- Re-run `/codex:adversarial-review` and confirm no remaining ship-blockers.
