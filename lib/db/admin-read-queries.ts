@@ -1,0 +1,596 @@
+/**
+ * Admin read queries for Cloudflare D1.
+ *
+ * Admin reads INCLUDE unpublished rows (is_published = 0) and soft-deleted
+ * rows (deleted_at IS NOT NULL) so the admin UI can display drafts and
+ * offer restore-deleted actions.
+ *
+ * Exception: we exclude rows whose PARENT is deleted, because those would be
+ * orphaned data that the admin cannot usefully act on from the child list.
+ * (e.g. crags whose parent area is deleted are hidden from the crag list;
+ * the admin must first restore the area to see its crags.)
+ *
+ * Each row shape includes `isPublished` (boolean) and `deletedAt` (string|null)
+ * so the UI can label rows accordingly.
+ */
+
+import { queryD1, queryD1First } from "./d1-http";
+
+// ---------------------------------------------------------------------------
+// Row types
+// ---------------------------------------------------------------------------
+
+export type AdminEntityCounts = {
+  published: number;
+  draft: number;
+  deleted: number;
+  total: number;
+};
+
+export type AdminContentOverview = {
+  areas: AdminEntityCounts;
+  crags: AdminEntityCounts;
+  sectors: AdminEntityCounts;
+  boulders: AdminEntityCounts;
+  topos: AdminEntityCounts;
+  routes: AdminEntityCounts;
+  announcements: AdminEntityCounts;
+};
+
+export type AdminAreaRow = {
+  id: string;
+  name: string;
+  nameEn: string | null;
+  slug: string;
+  coverImageUrl: string;
+  isPublished: boolean;
+  sortOrder: number;
+  deletedAt: string | null;
+};
+
+export type AdminCragRow = {
+  id: string;
+  areaId: string;
+  areaName: string;
+  name: string;
+  nameEn: string | null;
+  slug: string;
+  lat: number | null;
+  lng: number | null;
+  description: string;
+  season: string;
+  coverImageUrl: string;
+  isPublished: boolean;
+  sortOrder: number;
+  deletedAt: string | null;
+};
+
+export type AdminSectorRow = {
+  id: string;
+  cragId: string;
+  cragName: string;
+  cragSlug: string;
+  name: string;
+  nameEn: string | null;
+  slug: string;
+  lat: number | null;
+  lng: number | null;
+  description: string;
+  season: string;
+  coverImageUrl: string;
+  isPublished: boolean;
+  sortOrder: number;
+  deletedAt: string | null;
+};
+
+export type AdminBoulderRow = {
+  id: string;
+  sectorId: string;
+  sectorName: string;
+  cragName: string;
+  cragSlug: string;
+  name: string;
+  slug: string;
+  lat: number;
+  lng: number;
+  hashtags: string;
+  coverImageUrl: string;
+  isPublished: boolean;
+  sortOrder: number;
+  deletedAt: string | null;
+};
+
+export type AdminTopoRow = {
+  id: string;
+  boulderId: string;
+  boulderName: string;
+  boulderSlug: string;
+  name: string;
+  baseImageUrl: string;
+  isPublished: boolean;
+  sortOrder: number;
+  deletedAt: string | null;
+};
+
+export type AdminRouteRow = {
+  id: string;
+  topoId: string;
+  topoName: string;
+  boulderName: string;
+  boulderSlug: string;
+  name: string;
+  slug: string;
+  grade: string;
+  gradeNum: number;
+  fa: string;
+  description: string;
+  lineImageUrl: string;
+  isPublished: boolean;
+  sortOrder: number;
+  deletedAt: string | null;
+};
+
+export type AdminAnnouncementRow = {
+  id: string;
+  title: string;
+  body: string;
+  coverImageUrl: string;
+  cragId: string | null;
+  linkUrl: string;
+  isPublished: boolean;
+  publishedAt: string;
+  sortOrder: number;
+  deletedAt: string | null;
+};
+
+// ---------------------------------------------------------------------------
+// SQL-layer row types (is_published as 0|1)
+// ---------------------------------------------------------------------------
+
+interface OverviewSqlRow {
+  areasPublished: number;
+  areasDraft: number;
+  areasDeleted: number;
+  cragsPublished: number;
+  cragsDraft: number;
+  cragsDeleted: number;
+  sectorsPublished: number;
+  sectorsDraft: number;
+  sectorsDeleted: number;
+  bouldersPublished: number;
+  bouldersDraft: number;
+  bouldersDeleted: number;
+  toposPublished: number;
+  toposDraft: number;
+  toposDeleted: number;
+  routesPublished: number;
+  routesDraft: number;
+  routesDeleted: number;
+  announcementsPublished: number;
+  announcementsDraft: number;
+  announcementsDeleted: number;
+}
+
+interface AdminAreaSqlRow {
+  id: string;
+  name: string;
+  nameEn: string | null;
+  slug: string;
+  coverImageUrl: string;
+  isPublished: 0 | 1;
+  sortOrder: number;
+  deletedAt: string | null;
+}
+
+interface AdminCragSqlRow {
+  id: string;
+  areaId: string;
+  areaName: string;
+  name: string;
+  nameEn: string | null;
+  slug: string;
+  lat: number | null;
+  lng: number | null;
+  description: string;
+  season: string;
+  coverImageUrl: string;
+  isPublished: 0 | 1;
+  sortOrder: number;
+  deletedAt: string | null;
+}
+
+interface AdminSectorSqlRow {
+  id: string;
+  cragId: string;
+  cragName: string;
+  cragSlug: string;
+  name: string;
+  nameEn: string | null;
+  slug: string;
+  lat: number | null;
+  lng: number | null;
+  description: string;
+  season: string;
+  coverImageUrl: string;
+  isPublished: 0 | 1;
+  sortOrder: number;
+  deletedAt: string | null;
+}
+
+interface AdminBoulderSqlRow {
+  id: string;
+  sectorId: string;
+  sectorName: string;
+  cragName: string;
+  cragSlug: string;
+  name: string;
+  slug: string;
+  lat: number;
+  lng: number;
+  hashtags: string;
+  coverImageUrl: string;
+  isPublished: 0 | 1;
+  sortOrder: number;
+  deletedAt: string | null;
+}
+
+interface AdminTopoSqlRow {
+  id: string;
+  boulderId: string;
+  boulderName: string;
+  boulderSlug: string;
+  name: string;
+  baseImageUrl: string;
+  isPublished: 0 | 1;
+  sortOrder: number;
+  deletedAt: string | null;
+}
+
+interface AdminRouteSqlRow {
+  id: string;
+  topoId: string;
+  topoName: string;
+  boulderName: string;
+  boulderSlug: string;
+  name: string;
+  slug: string;
+  grade: string;
+  gradeNum: number;
+  fa: string;
+  description: string;
+  lineImageUrl: string;
+  isPublished: 0 | 1;
+  sortOrder: number;
+  deletedAt: string | null;
+}
+
+interface AdminAnnouncementSqlRow {
+  id: string;
+  title: string;
+  body: string;
+  coverImageUrl: string;
+  cragId: string | null;
+  linkUrl: string;
+  isPublished: 0 | 1;
+  publishedAt: string;
+  sortOrder: number;
+  deletedAt: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function toCounts(published: number, draft: number, deleted: number): AdminEntityCounts {
+  return { published, draft, deleted, total: published + draft + deleted };
+}
+
+function zeroOverview(): AdminContentOverview {
+  const zero = toCounts(0, 0, 0);
+  return {
+    areas: { ...zero },
+    crags: { ...zero },
+    sectors: { ...zero },
+    boulders: { ...zero },
+    topos: { ...zero },
+    routes: { ...zero },
+    announcements: { ...zero },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 1. Content overview — counts per entity
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns published / draft / deleted counts for every content entity.
+ * A row is:
+ *   - deleted   when deleted_at IS NOT NULL
+ *   - published when deleted_at IS NULL AND is_published = 1
+ *   - draft     when deleted_at IS NULL AND is_published = 0
+ */
+export async function getAdminContentOverview(): Promise<AdminContentOverview> {
+  const row = await queryD1First<OverviewSqlRow>(
+    `SELECT
+       -- areas
+       (SELECT COUNT(*) FROM areas WHERE deleted_at IS NULL AND is_published = 1)  AS areasPublished,
+       (SELECT COUNT(*) FROM areas WHERE deleted_at IS NULL AND is_published = 0)  AS areasDraft,
+       (SELECT COUNT(*) FROM areas WHERE deleted_at IS NOT NULL)                    AS areasDeleted,
+       -- crags
+       (SELECT COUNT(*) FROM crags WHERE deleted_at IS NULL AND is_published = 1)  AS cragsPublished,
+       (SELECT COUNT(*) FROM crags WHERE deleted_at IS NULL AND is_published = 0)  AS cragsDraft,
+       (SELECT COUNT(*) FROM crags WHERE deleted_at IS NOT NULL)                    AS cragsDeleted,
+       -- sectors
+       (SELECT COUNT(*) FROM sectors WHERE deleted_at IS NULL AND is_published = 1) AS sectorsPublished,
+       (SELECT COUNT(*) FROM sectors WHERE deleted_at IS NULL AND is_published = 0) AS sectorsDraft,
+       (SELECT COUNT(*) FROM sectors WHERE deleted_at IS NOT NULL)                  AS sectorsDeleted,
+       -- boulders
+       (SELECT COUNT(*) FROM boulders WHERE deleted_at IS NULL AND is_published = 1) AS bouldersPublished,
+       (SELECT COUNT(*) FROM boulders WHERE deleted_at IS NULL AND is_published = 0) AS bouldersDraft,
+       (SELECT COUNT(*) FROM boulders WHERE deleted_at IS NOT NULL)                  AS bouldersDeleted,
+       -- topos
+       (SELECT COUNT(*) FROM topos WHERE deleted_at IS NULL AND is_published = 1)   AS toposPublished,
+       (SELECT COUNT(*) FROM topos WHERE deleted_at IS NULL AND is_published = 0)   AS toposDraft,
+       (SELECT COUNT(*) FROM topos WHERE deleted_at IS NOT NULL)                    AS toposDeleted,
+       -- routes
+       (SELECT COUNT(*) FROM routes WHERE deleted_at IS NULL AND is_published = 1)  AS routesPublished,
+       (SELECT COUNT(*) FROM routes WHERE deleted_at IS NULL AND is_published = 0)  AS routesDraft,
+       (SELECT COUNT(*) FROM routes WHERE deleted_at IS NOT NULL)                   AS routesDeleted,
+       -- announcements
+       (SELECT COUNT(*) FROM announcements WHERE deleted_at IS NULL AND is_published = 1) AS announcementsPublished,
+       (SELECT COUNT(*) FROM announcements WHERE deleted_at IS NULL AND is_published = 0) AS announcementsDraft,
+       (SELECT COUNT(*) FROM announcements WHERE deleted_at IS NOT NULL)                  AS announcementsDeleted`
+  );
+
+  if (!row) return zeroOverview();
+
+  return {
+    areas: toCounts(row.areasPublished, row.areasDraft, row.areasDeleted),
+    crags: toCounts(row.cragsPublished, row.cragsDraft, row.cragsDeleted),
+    sectors: toCounts(row.sectorsPublished, row.sectorsDraft, row.sectorsDeleted),
+    boulders: toCounts(row.bouldersPublished, row.bouldersDraft, row.bouldersDeleted),
+    topos: toCounts(row.toposPublished, row.toposDraft, row.toposDeleted),
+    routes: toCounts(row.routesPublished, row.routesDraft, row.routesDeleted),
+    announcements: toCounts(row.announcementsPublished, row.announcementsDraft, row.announcementsDeleted),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 2. Areas
+// ---------------------------------------------------------------------------
+
+/** All areas — including drafts and self-deleted. No parent to filter. */
+export async function getAdminAreas(): Promise<AdminAreaRow[]> {
+  const rows = await queryD1<AdminAreaSqlRow>(
+    `SELECT
+       id,
+       name,
+       name_en         AS nameEn,
+       slug,
+       cover_image_url AS coverImageUrl,
+       is_published    AS isPublished,
+       sort_order      AS sortOrder,
+       deleted_at      AS deletedAt
+     FROM areas
+     ORDER BY sort_order ASC, name ASC`
+  );
+  return rows.map((r) => ({ ...r, isPublished: r.isPublished === 1 }));
+}
+
+// ---------------------------------------------------------------------------
+// 3. Crags
+// ---------------------------------------------------------------------------
+
+/**
+ * All crags — including drafts and self-deleted.
+ * Excludes crags whose parent area is deleted (orphaned data).
+ */
+export async function getAdminCrags(): Promise<AdminCragRow[]> {
+  const rows = await queryD1<AdminCragSqlRow>(
+    `SELECT
+       c.id,
+       c.area_id        AS areaId,
+       a.name           AS areaName,
+       c.name,
+       c.name_en        AS nameEn,
+       c.slug,
+       c.lat,
+       c.lng,
+       c.description,
+       c.season,
+       c.cover_image_url AS coverImageUrl,
+       c.is_published    AS isPublished,
+       c.sort_order      AS sortOrder,
+       c.deleted_at      AS deletedAt
+     FROM crags c
+     JOIN areas a ON a.id = c.area_id
+     WHERE a.deleted_at IS NULL
+     ORDER BY a.sort_order ASC, c.sort_order ASC, c.name ASC`
+  );
+  return rows.map((r) => ({ ...r, isPublished: r.isPublished === 1 }));
+}
+
+// ---------------------------------------------------------------------------
+// 4. Sectors
+// ---------------------------------------------------------------------------
+
+/**
+ * All sectors — including drafts and self-deleted.
+ * Excludes sectors whose parent crag or area is deleted.
+ * Optionally scoped to a single crag by cragId.
+ */
+export async function getAdminSectors(cragId?: string): Promise<AdminSectorRow[]> {
+  const sql = `SELECT
+       s.id,
+       s.crag_id        AS cragId,
+       c.name           AS cragName,
+       c.slug           AS cragSlug,
+       s.name,
+       s.name_en        AS nameEn,
+       s.slug,
+       s.lat,
+       s.lng,
+       s.description,
+       s.season,
+       s.cover_image_url AS coverImageUrl,
+       s.is_published    AS isPublished,
+       s.sort_order      AS sortOrder,
+       s.deleted_at      AS deletedAt
+     FROM sectors s
+     JOIN crags c ON c.id = s.crag_id
+     JOIN areas a ON a.id = c.area_id
+     WHERE c.deleted_at IS NULL
+       AND a.deleted_at IS NULL
+       ${cragId !== undefined ? "AND s.crag_id = ?" : ""}
+     ORDER BY a.sort_order ASC, c.sort_order ASC, s.sort_order ASC, s.name ASC`;
+
+  const params: unknown[] = cragId !== undefined ? [cragId] : [];
+  const rows = await queryD1<AdminSectorSqlRow>(sql, params.length > 0 ? params : undefined);
+  return rows.map((r) => ({ ...r, isPublished: r.isPublished === 1 }));
+}
+
+// ---------------------------------------------------------------------------
+// 5. Boulders
+// ---------------------------------------------------------------------------
+
+/**
+ * All boulders — including drafts and self-deleted.
+ * Excludes boulders whose parent sector, crag, or area is deleted.
+ * Optionally scoped to a single sector by sectorId.
+ */
+export async function getAdminBoulders(sectorId?: string): Promise<AdminBoulderRow[]> {
+  const sql = `SELECT
+       b.id,
+       b.sector_id       AS sectorId,
+       s.name            AS sectorName,
+       c.name            AS cragName,
+       c.slug            AS cragSlug,
+       b.name,
+       b.slug,
+       b.lat,
+       b.lng,
+       b.hashtags,
+       b.cover_image_url AS coverImageUrl,
+       b.is_published    AS isPublished,
+       b.sort_order      AS sortOrder,
+       b.deleted_at      AS deletedAt
+     FROM boulders b
+     JOIN sectors s ON s.id = b.sector_id
+     JOIN crags c ON c.id = s.crag_id
+     JOIN areas a ON a.id = c.area_id
+     WHERE s.deleted_at IS NULL
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL
+       ${sectorId !== undefined ? "AND b.sector_id = ?" : ""}
+     ORDER BY a.sort_order ASC, c.sort_order ASC, s.sort_order ASC, b.sort_order ASC, b.name ASC`;
+
+  const params: unknown[] = sectorId !== undefined ? [sectorId] : [];
+  const rows = await queryD1<AdminBoulderSqlRow>(sql, params.length > 0 ? params : undefined);
+  return rows.map((r) => ({ ...r, isPublished: r.isPublished === 1 }));
+}
+
+// ---------------------------------------------------------------------------
+// 6. Topos
+// ---------------------------------------------------------------------------
+
+/**
+ * All topos — including drafts and self-deleted.
+ * Excludes topos whose parent boulder, sector, crag, or area is deleted.
+ * Optionally scoped to a single boulder by boulderId.
+ */
+export async function getAdminTopos(boulderId?: string): Promise<AdminTopoRow[]> {
+  const sql = `SELECT
+       t.id,
+       t.boulder_id     AS boulderId,
+       b.name           AS boulderName,
+       b.slug           AS boulderSlug,
+       t.name,
+       t.base_image_url AS baseImageUrl,
+       t.is_published   AS isPublished,
+       t.sort_order     AS sortOrder,
+       t.deleted_at     AS deletedAt
+     FROM topos t
+     JOIN boulders b ON b.id = t.boulder_id
+     JOIN sectors s ON s.id = b.sector_id
+     JOIN crags c ON c.id = s.crag_id
+     JOIN areas a ON a.id = c.area_id
+     WHERE b.deleted_at IS NULL
+       AND s.deleted_at IS NULL
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL
+       ${boulderId !== undefined ? "AND t.boulder_id = ?" : ""}
+     ORDER BY a.sort_order ASC, c.sort_order ASC, s.sort_order ASC, b.sort_order ASC, t.sort_order ASC, t.name ASC`;
+
+  const params: unknown[] = boulderId !== undefined ? [boulderId] : [];
+  const rows = await queryD1<AdminTopoSqlRow>(sql, params.length > 0 ? params : undefined);
+  return rows.map((r) => ({ ...r, isPublished: r.isPublished === 1 }));
+}
+
+// ---------------------------------------------------------------------------
+// 7. Routes
+// ---------------------------------------------------------------------------
+
+/**
+ * All routes — including drafts and self-deleted.
+ * Excludes routes whose parent topo, boulder, sector, crag, or area is deleted.
+ * Optionally scoped to a single topo by topoId.
+ */
+export async function getAdminRoutes(topoId?: string): Promise<AdminRouteRow[]> {
+  const sql = `SELECT
+       r.id,
+       r.topo_id        AS topoId,
+       t.name           AS topoName,
+       b.name           AS boulderName,
+       b.slug           AS boulderSlug,
+       r.name,
+       r.slug,
+       r.grade,
+       r.grade_num      AS gradeNum,
+       r.fa,
+       r.description,
+       r.line_image_url AS lineImageUrl,
+       r.is_published   AS isPublished,
+       r.sort_order     AS sortOrder,
+       r.deleted_at     AS deletedAt
+     FROM routes r
+     JOIN topos t ON t.id = r.topo_id
+     JOIN boulders b ON b.id = t.boulder_id
+     JOIN sectors s ON s.id = b.sector_id
+     JOIN crags c ON c.id = s.crag_id
+     JOIN areas a ON a.id = c.area_id
+     WHERE t.deleted_at IS NULL
+       AND b.deleted_at IS NULL
+       AND s.deleted_at IS NULL
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL
+       ${topoId !== undefined ? "AND r.topo_id = ?" : ""}
+     ORDER BY a.sort_order ASC, c.sort_order ASC, s.sort_order ASC, b.sort_order ASC, t.sort_order ASC, r.sort_order ASC, r.name ASC`;
+
+  const params: unknown[] = topoId !== undefined ? [topoId] : [];
+  const rows = await queryD1<AdminRouteSqlRow>(sql, params.length > 0 ? params : undefined);
+  return rows.map((r) => ({ ...r, isPublished: r.isPublished === 1 }));
+}
+
+// ---------------------------------------------------------------------------
+// 8. Announcements
+// ---------------------------------------------------------------------------
+
+/** All announcements — including drafts and deleted. */
+export async function getAdminAnnouncements(): Promise<AdminAnnouncementRow[]> {
+  const rows = await queryD1<AdminAnnouncementSqlRow>(
+    `SELECT
+       id,
+       title,
+       body,
+       cover_image_url AS coverImageUrl,
+       crag_id         AS cragId,
+       link_url        AS linkUrl,
+       is_published    AS isPublished,
+       published_at    AS publishedAt,
+       sort_order      AS sortOrder,
+       deleted_at      AS deletedAt
+     FROM announcements
+     ORDER BY sort_order ASC, id ASC`
+  );
+  return rows.map((r) => ({ ...r, isPublished: r.isPublished === 1 }));
+}

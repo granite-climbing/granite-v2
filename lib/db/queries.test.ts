@@ -111,6 +111,8 @@ describe("getStats", () => {
     expect(sql).toMatch(/routes/);
     // no string interpolation — no literal WHERE values embedded
     expect(sql).not.toMatch(/= '1'/);
+    // soft-delete: all ancestor tables must exclude deleted rows
+    expect(sql).toMatch(/deleted_at IS NULL/);
 
     expect(stats).toEqual({ crags: 3, sectors: 7, boulders: 12, routes: 45 });
   });
@@ -175,6 +177,8 @@ describe("getPublishedAreas", () => {
     expect(sql).toMatch(/FROM areas/);
     expect(sql).toMatch(/is_published = 1/);
     expect(sql).toMatch(/ORDER BY/);
+    // soft-delete: areas must exclude deleted rows
+    expect(sql).toMatch(/deleted_at IS NULL/);
   });
 });
 
@@ -193,6 +197,8 @@ describe("getCragsByAreaId", () => {
     expect(sql).not.toContain("area-abc");
     expect(sql).toMatch(/FROM crags/);
     expect(sql).toMatch(/JOIN areas/);
+    // soft-delete: crags and areas must exclude deleted rows
+    expect(sql).toMatch(/deleted_at IS NULL/);
   });
 
   it("maps is_published 1 to true", async () => {
@@ -237,6 +243,8 @@ describe("getCragStats", () => {
     expect(sql).toMatch(/\?/);
     expect(sql).not.toContain("crag-xyz");
     expect(stats).toEqual({ sectors: 2, boulders: 5, routes: 18 });
+    // soft-delete: all subqueries must exclude deleted rows
+    expect(sql).toMatch(/deleted_at IS NULL/);
   });
 });
 
@@ -265,6 +273,15 @@ describe("getPublishedAnnouncements", () => {
     expect(anns[0].cragId).toBeNull();
     expect(anns[0].publishedAt).toBe("2024-01-01");
   });
+
+  it("SQL excludes soft-deleted announcements", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getPublishedAnnouncements();
+
+    const [sql] = mockQueryD1.mock.calls[0] as [string, unknown];
+    expect(sql).toMatch(/FROM announcements/);
+    expect(sql).toMatch(/deleted_at IS NULL/);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -282,6 +299,8 @@ describe("getCragBySlug", () => {
     expect(sql).toMatch(/\?/);
     expect(sql).not.toContain("nonexistent");
     expect(result).toBeNull();
+    // soft-delete: crag and area must exclude deleted rows
+    expect(sql).toMatch(/deleted_at IS NULL/);
   });
 
   it("returns Crag with boolean isPublished when found", async () => {
@@ -322,6 +341,10 @@ describe("getCragSectors", () => {
     expect(sql).toMatch(/JOIN crags/);
     expect(sql).toMatch(/JOIN areas/);
     expect(sql).toMatch(/\?/);
+    // soft-delete: sectors, crags, areas must exclude deleted rows
+    expect(sql).toMatch(/s\.deleted_at IS NULL/);
+    expect(sql).toMatch(/c\.deleted_at IS NULL/);
+    expect(sql).toMatch(/a\.deleted_at IS NULL/);
   });
 });
 
@@ -423,6 +446,17 @@ describe("getCragBouldersWithStats", () => {
     expect(sql).toMatch(/MIN\(r\.grade_num\)/);
     expect(sql).toMatch(/MAX\(r\.grade_num\)/);
   });
+
+  it("SQL excludes soft-deleted boulders and ancestors", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getCragBouldersWithStats("crag-1");
+
+    const [sql] = mockQueryD1.mock.calls[0] as [string, unknown];
+    expect(sql).toMatch(/b\.deleted_at IS NULL/);
+    expect(sql).toMatch(/s\.deleted_at IS NULL/);
+    expect(sql).toMatch(/c\.deleted_at IS NULL/);
+    expect(sql).toMatch(/a\.deleted_at IS NULL/);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -446,6 +480,13 @@ describe("getCragRoutes", () => {
     expect(sql).toMatch(/JOIN boulders/);
     expect(sql).toMatch(/JOIN sectors/);
     expect(sql).toMatch(/JOIN crags/);
+    // soft-delete: all entities in the join chain must exclude deleted rows
+    expect(sql).toMatch(/r\.deleted_at IS NULL/);
+    expect(sql).toMatch(/t\.deleted_at IS NULL/);
+    expect(sql).toMatch(/b\.deleted_at IS NULL/);
+    expect(sql).toMatch(/s\.deleted_at IS NULL/);
+    expect(sql).toMatch(/c\.deleted_at IS NULL/);
+    expect(sql).toMatch(/a\.deleted_at IS NULL/);
   });
 
   it("maps is_published 1 to boolean true in RouteListItem", async () => {
@@ -492,6 +533,10 @@ describe("getSectorBySlug", () => {
     expect(sql).not.toContain("sector-b");
     expect(sql).toMatch(/JOIN crags/);
     expect(sql).toMatch(/JOIN areas/);
+    // soft-delete: sector, crag, and area must exclude deleted rows
+    expect(sql).toMatch(/s\.deleted_at IS NULL/);
+    expect(sql).toMatch(/c\.deleted_at IS NULL/);
+    expect(sql).toMatch(/a\.deleted_at IS NULL/);
   });
 });
 
@@ -510,6 +555,11 @@ describe("getBoulderById", () => {
     expect(sql).toMatch(/JOIN areas/);
     expect(sql).toMatch(/b\.is_published = 1/);
     expect(sql).toMatch(/s\.is_published = 1/);
+    // soft-delete: boulder and all ancestors must exclude deleted rows
+    expect(sql).toMatch(/b\.deleted_at IS NULL/);
+    expect(sql).toMatch(/s\.deleted_at IS NULL/);
+    expect(sql).toMatch(/c\.deleted_at IS NULL/);
+    expect(sql).toMatch(/a\.deleted_at IS NULL/);
   });
 });
 
@@ -525,6 +575,8 @@ describe("getBoulderTopos", () => {
     const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
     expect(params).toEqual(["boulder-1"]);
     expect(sql).toMatch(/ORDER BY sort_order, id/);
+    // soft-delete: topos must exclude deleted rows
+    expect(sql).toMatch(/deleted_at IS NULL/);
   });
 
   it("maps is_published 0 as false", async () => {
@@ -560,6 +612,8 @@ describe("getTopoRoutes", () => {
     expect(params).toEqual(["topo-1"]);
     expect(sql).toMatch(/FROM routes/);
     expect(sql).toMatch(/topo_id = \?/);
+    // soft-delete: routes must exclude deleted rows
+    expect(sql).toMatch(/deleted_at IS NULL/);
   });
 });
 
@@ -646,6 +700,12 @@ describe("getTopoById", () => {
     expect(sql).toMatch(/JOIN areas/);
     expect(sql).toMatch(/t\.is_published = 1/);
     expect(sql).toMatch(/b\.is_published = 1/);
+    // soft-delete: topo and all ancestors must exclude deleted rows
+    expect(sql).toMatch(/t\.deleted_at IS NULL/);
+    expect(sql).toMatch(/b\.deleted_at IS NULL/);
+    expect(sql).toMatch(/s\.deleted_at IS NULL/);
+    expect(sql).toMatch(/c\.deleted_at IS NULL/);
+    expect(sql).toMatch(/a\.deleted_at IS NULL/);
   });
 });
 
@@ -658,6 +718,19 @@ describe("getRouteById", () => {
     mockQueryD1First.mockResolvedValueOnce(null);
     const result = await getRouteById("r-missing");
     expect(result).toBeNull();
+  });
+
+  it("SQL excludes soft-deleted route and ancestors", async () => {
+    mockQueryD1First.mockResolvedValueOnce(null);
+    await getRouteById("r-1");
+
+    const [sql] = mockQueryD1First.mock.calls[0] as [string, unknown];
+    expect(sql).toMatch(/r\.deleted_at IS NULL/);
+    expect(sql).toMatch(/t\.deleted_at IS NULL/);
+    expect(sql).toMatch(/b\.deleted_at IS NULL/);
+    expect(sql).toMatch(/s\.deleted_at IS NULL/);
+    expect(sql).toMatch(/c\.deleted_at IS NULL/);
+    expect(sql).toMatch(/a\.deleted_at IS NULL/);
   });
 
   it("maps RouteListItem with hierarchy names and boolean isPublished", async () => {

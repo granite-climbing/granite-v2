@@ -223,12 +223,14 @@ export async function getStats(): Promise<Stats> {
         FROM crags c
         JOIN areas a ON a.id = c.area_id
         WHERE c.is_published = 1 AND a.is_published = 1
+          AND c.deleted_at IS NULL AND a.deleted_at IS NULL
        ) AS crags,
        (SELECT COUNT(*)
         FROM sectors s
         JOIN crags c ON c.id = s.crag_id
         JOIN areas a ON a.id = c.area_id
         WHERE s.is_published = 1 AND c.is_published = 1 AND a.is_published = 1
+          AND s.deleted_at IS NULL AND c.deleted_at IS NULL AND a.deleted_at IS NULL
        ) AS sectors,
        (SELECT COUNT(*)
         FROM boulders b
@@ -237,6 +239,8 @@ export async function getStats(): Promise<Stats> {
         JOIN areas a ON a.id = c.area_id
         WHERE b.is_published = 1 AND s.is_published = 1
           AND c.is_published = 1 AND a.is_published = 1
+          AND b.deleted_at IS NULL AND s.deleted_at IS NULL
+          AND c.deleted_at IS NULL AND a.deleted_at IS NULL
        ) AS boulders,
        (SELECT COUNT(*)
         FROM routes r
@@ -248,6 +252,9 @@ export async function getStats(): Promise<Stats> {
         WHERE r.is_published = 1 AND t.is_published = 1
           AND b.is_published = 1 AND s.is_published = 1
           AND c.is_published = 1 AND a.is_published = 1
+          AND r.deleted_at IS NULL AND t.deleted_at IS NULL
+          AND b.deleted_at IS NULL AND s.deleted_at IS NULL
+          AND c.deleted_at IS NULL AND a.deleted_at IS NULL
        ) AS routes`
   );
 
@@ -271,6 +278,7 @@ export async function getPublishedAreas(): Promise<Area[]> {
        sort_order      AS sortOrder
      FROM areas
      WHERE is_published = 1
+       AND deleted_at IS NULL
      ORDER BY sort_order, id`
   );
   return rows.map(mapArea);
@@ -300,6 +308,8 @@ export async function getCragsByAreaId(areaId: string): Promise<Crag[]> {
      WHERE c.is_published = 1
        AND a.is_published = 1
        AND c.area_id = ?
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL
      ORDER BY c.sort_order, c.id`,
     [areaId]
   );
@@ -323,11 +333,13 @@ export async function getCragStats(
        (SELECT COUNT(*)
         FROM sectors s
         WHERE s.crag_id = ? AND s.is_published = 1
+          AND s.deleted_at IS NULL
        ) AS sectors,
        (SELECT COUNT(*)
         FROM boulders b
         JOIN sectors s ON s.id = b.sector_id
         WHERE s.crag_id = ? AND s.is_published = 1 AND b.is_published = 1
+          AND s.deleted_at IS NULL AND b.deleted_at IS NULL
        ) AS boulders,
        (SELECT COUNT(*)
         FROM routes r
@@ -339,6 +351,10 @@ export async function getCragStats(
           AND b.is_published = 1
           AND t.is_published = 1
           AND r.is_published = 1
+          AND s.deleted_at IS NULL
+          AND b.deleted_at IS NULL
+          AND t.deleted_at IS NULL
+          AND r.deleted_at IS NULL
        ) AS routes`,
     [cragId, cragId, cragId]
   );
@@ -363,6 +379,7 @@ export async function getPublishedAnnouncements(): Promise<Announcement[]> {
        sort_order      AS sortOrder
      FROM announcements
      WHERE is_published = 1
+       AND deleted_at IS NULL
      ORDER BY sort_order, id`
   );
   return rows.map(mapAnnouncement);
@@ -391,7 +408,9 @@ export async function getCragBySlug(slug: string): Promise<Crag | null> {
      JOIN areas a ON a.id = c.area_id
      WHERE c.slug = ?
        AND c.is_published = 1
-       AND a.is_published = 1`,
+       AND a.is_published = 1
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL`,
     [slug]
   );
   return row ? mapCrag(row) : null;
@@ -423,6 +442,9 @@ export async function getCragSectors(cragId: string): Promise<Sector[]> {
        AND s.is_published = 1
        AND c.is_published = 1
        AND a.is_published = 1
+       AND s.deleted_at IS NULL
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL
      ORDER BY s.sort_order, s.id`,
     [cragId]
   );
@@ -472,13 +494,17 @@ export async function getCragBouldersWithStats(
     JOIN sectors s ON s.id = b.sector_id
     JOIN crags c ON c.id = s.crag_id
     JOIN areas a ON a.id = c.area_id
-    LEFT JOIN topos t ON t.boulder_id = b.id AND t.is_published = 1
-    LEFT JOIN routes r ON r.topo_id = t.id AND r.is_published = 1
+    LEFT JOIN topos t ON t.boulder_id = b.id AND t.is_published = 1 AND t.deleted_at IS NULL
+    LEFT JOIN routes r ON r.topo_id = t.id AND r.is_published = 1 AND r.deleted_at IS NULL
     WHERE s.crag_id = ?
       AND b.is_published = 1
       AND s.is_published = 1
       AND c.is_published = 1
       AND a.is_published = 1
+      AND b.deleted_at IS NULL
+      AND s.deleted_at IS NULL
+      AND c.deleted_at IS NULL
+      AND a.deleted_at IS NULL
       ${sectorId !== undefined ? "AND b.sector_id = ?" : ""}
     GROUP BY b.id
     ORDER BY b.sort_order, b.id`;
@@ -534,6 +560,12 @@ export async function getCragRoutes(
        AND s.is_published = 1
        AND c.is_published = 1
        AND a.is_published = 1
+       AND r.deleted_at IS NULL
+       AND t.deleted_at IS NULL
+       AND b.deleted_at IS NULL
+       AND s.deleted_at IS NULL
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL
      ORDER BY r.sort_order, r.id`,
     [cragId]
   );
@@ -569,7 +601,10 @@ export async function getSectorBySlug(
        AND s.slug = ?
        AND s.is_published = 1
        AND c.is_published = 1
-       AND a.is_published = 1`,
+       AND a.is_published = 1
+       AND s.deleted_at IS NULL
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL`,
     [cragSlug, sectorSlug]
   );
   return row ? mapSector(row) : null;
@@ -613,6 +648,12 @@ export async function getSectorRoutes(
        AND s.is_published = 1
        AND c.is_published = 1
        AND a.is_published = 1
+       AND r.deleted_at IS NULL
+       AND t.deleted_at IS NULL
+       AND b.deleted_at IS NULL
+       AND s.deleted_at IS NULL
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL
      ORDER BY r.sort_order, r.id`,
     [sectorId]
   );
@@ -644,7 +685,11 @@ export async function getBoulderById(id: string): Promise<Boulder | null> {
        AND b.is_published = 1
        AND s.is_published = 1
        AND c.is_published = 1
-       AND a.is_published = 1`,
+       AND a.is_published = 1
+       AND b.deleted_at IS NULL
+       AND s.deleted_at IS NULL
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL`,
     [id]
   );
   return row ? mapBoulder(row) : null;
@@ -666,6 +711,7 @@ export async function getBoulderTopos(boulderId: string): Promise<Topo[]> {
      FROM topos
      WHERE boulder_id = ?
        AND is_published = 1
+       AND deleted_at IS NULL
      ORDER BY sort_order, id`,
     [boulderId]
   );
@@ -690,6 +736,7 @@ export async function getTopoRoutes(topoId: string): Promise<Route[]> {
      FROM routes
      WHERE topo_id = ?
        AND is_published = 1
+       AND deleted_at IS NULL
      ORDER BY sort_order, id`,
     [topoId]
   );
@@ -811,7 +858,12 @@ export async function getTopoById(id: string): Promise<
        AND b.is_published = 1
        AND s.is_published = 1
        AND c.is_published = 1
-       AND a.is_published = 1`,
+       AND a.is_published = 1
+       AND t.deleted_at IS NULL
+       AND b.deleted_at IS NULL
+       AND s.deleted_at IS NULL
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL`,
     [id]
   );
 
@@ -907,7 +959,13 @@ export async function getRouteById(id: string): Promise<RouteListItem | null> {
        AND b.is_published = 1
        AND s.is_published = 1
        AND c.is_published = 1
-       AND a.is_published = 1`,
+       AND a.is_published = 1
+       AND r.deleted_at IS NULL
+       AND t.deleted_at IS NULL
+       AND b.deleted_at IS NULL
+       AND s.deleted_at IS NULL
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL`,
     [id]
   );
   return row ? mapRouteListItem(row) : null;
