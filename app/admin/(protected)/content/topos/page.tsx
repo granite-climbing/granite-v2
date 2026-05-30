@@ -12,21 +12,30 @@ import { AdminField, inputCls, selectCls, btnPrimaryCls } from "@/components/adm
 import { PublishBadge } from "@/components/admin/publish-badge";
 import { DeleteControls, RestoreControls } from "@/components/admin/delete-restore-controls";
 import { ImageUploadField } from "@/components/admin/image-upload-field";
+import { EditDrawer } from "@/components/admin/edit-drawer";
+import { FormSection, FullWidth } from "@/components/admin/form-section";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 interface Props {
-  searchParams: Promise<{ boulderId?: string }>;
+  searchParams: Promise<{ boulderId?: string; edit?: string }>;
 }
 
 export default async function AdminToposPage({ searchParams }: Props) {
-  const { boulderId } = await searchParams;
+  const { boulderId, edit } = await searchParams;
   const [topos, boulders] = await Promise.all([
     getAdminTopos(boulderId || undefined),
     getAdminBoulders(),
   ]);
   const liveBoulders = boulders.filter((b) => b.deletedAt === null);
   const selectedBoulder = boulderId ? liveBoulders.find((b) => b.id === boulderId) : undefined;
+  const editRow = edit ? topos.find((t) => t.id === edit) : undefined;
+
+  // Build base href preserving boulderId filter
+  const baseHref = boulderId
+    ? `/admin/content/topos?boulderId=${boulderId}`
+    : "/admin/content/topos";
 
   return (
     <AdminShell>
@@ -50,31 +59,43 @@ export default async function AdminToposPage({ searchParams }: Props) {
       {/* Create form */}
       <AdminCard title="Create Topo">
         <form action={saveTopoAction} className="space-y-2">
-          <AdminField label="Boulder">
-            <select name="boulderId" required defaultValue={boulderId ?? ""} className={selectCls}>
-              <option value="">— select boulder —</option>
-              {liveBoulders.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.cragName} / {b.sectorName} / {b.name}
-                </option>
-              ))}
-            </select>
-          </AdminField>
-          <AdminField label="Name">
-            <input name="name" required className={inputCls} placeholder="고물 정면" />
-          </AdminField>
-          <AdminField label="Base Image URL">
-            <input name="baseImageUrl" className={inputCls} placeholder="https://cdn.granite.kr/..." />
-          </AdminField>
-          <AdminField label="Sort Order">
-            <input name="sortOrder" type="number" defaultValue="0" className={inputCls} />
-          </AdminField>
-          <AdminField label="Published">
-            <label className="flex items-center gap-2 text-sm">
-              <input name="isPublished" type="checkbox" />
-              Published
-            </label>
-          </AdminField>
+          <FormSection title="Hierarchy" cols={2}>
+            <FullWidth>
+              <AdminField label="Boulder">
+                <select name="boulderId" required defaultValue={boulderId ?? ""} className={selectCls}>
+                  <option value="">— select boulder —</option>
+                  {liveBoulders.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.cragName} / {b.sectorName} / {b.name}
+                    </option>
+                  ))}
+                </select>
+              </AdminField>
+            </FullWidth>
+          </FormSection>
+          <FormSection title="Identity" cols={1}>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Name</label>
+              <input name="name" required className={inputCls} placeholder="고물 정면" />
+            </div>
+          </FormSection>
+          <FormSection title="Image" cols={1}>
+            <FullWidth>
+              <ImageUploadField name="baseImageUrl" defaultValue="" entityType="topos" entityId="new" purpose="base" />
+            </FullWidth>
+          </FormSection>
+          <FormSection title="Publishing" cols={2}>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Sort Order</label>
+              <input name="sortOrder" type="number" defaultValue="0" className={inputCls} />
+            </div>
+            <div className="flex items-end pb-1">
+              <label className="flex items-center gap-2 text-sm">
+                <input name="isPublished" type="checkbox" />
+                Published
+              </label>
+            </div>
+          </FormSection>
           {/* Cache revalidation context */}
           <input type="hidden" name="cragSlug" value={selectedBoulder?.cragSlug ?? ""} />
           <div className="pt-2">
@@ -86,7 +107,7 @@ export default async function AdminToposPage({ searchParams }: Props) {
       {/* Topos list */}
       <div className="mt-6">
         <AdminCard title={`Topos (${topos.length})`}>
-          <AdminTable headers={["ID", "Boulder", "Name", "Sort", "Status", "Base Image", "Actions"]}>
+          <AdminTable headers={["ID", "Boulder", "Name", "Sort", "Status", "Actions"]}>
             {topos.map((topo) => (
               <AdminTableRow key={topo.id} deleted={topo.deletedAt !== null}>
                 <AdminTableCell className="font-mono text-xs text-[#57606A]">{topo.id}</AdminTableCell>
@@ -97,33 +118,14 @@ export default async function AdminToposPage({ searchParams }: Props) {
                   <PublishBadge published={topo.isPublished} deleted={topo.deletedAt !== null} />
                 </AdminTableCell>
                 <AdminTableCell>
-                  {topo.baseImageUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={topo.baseImageUrl} alt="" className="h-10 w-14 rounded object-cover" />
-                  )}
-                </AdminTableCell>
-                <AdminTableCell className="min-w-[440px]">
-                  <div className="flex flex-col gap-2">
-                    {/* Edit form */}
-                    <form action={saveTopoAction} className="flex flex-wrap items-center gap-1">
-                      <input type="hidden" name="id" value={topo.id} />
-                      <input type="hidden" name="cragSlug" value={topo.cragSlug} />
-                      <select name="boulderId" defaultValue={topo.boulderId} className={`${selectCls} w-40`}>
-                        {liveBoulders.map((b) => (
-                          <option key={b.id} value={b.id}>{b.cragName}/{b.name}</option>
-                        ))}
-                      </select>
-                      <input name="name" defaultValue={topo.name} className={`${inputCls} w-28`} />
-                      <ImageUploadField name="baseImageUrl" defaultValue={topo.baseImageUrl ?? ""} entityType="topos" entityId={topo.id} purpose="base" />
-                      <input name="sortOrder" type="number" defaultValue={topo.sortOrder} className={`${inputCls} w-14`} />
-                      <label className="flex items-center gap-1 text-xs">
-                        <input name="isPublished" type="checkbox" defaultChecked={topo.isPublished} />
-                        Pub
-                      </label>
-                      <button type="submit" className={btnPrimaryCls}>Save</button>
-                    </form>
+                  <div className="flex flex-col gap-1">
+                    <Link
+                      href={boulderId ? `?boulderId=${boulderId}&edit=${topo.id}` : `?edit=${topo.id}`}
+                      className={btnPrimaryCls}
+                    >
+                      Edit
+                    </Link>
 
-                    {/* Publish toggle */}
                     {topo.deletedAt === null && (
                       <form action={togglePublishAction} className="flex items-center gap-1">
                         <input type="hidden" name="table" value="topos" />
@@ -135,7 +137,6 @@ export default async function AdminToposPage({ searchParams }: Props) {
                       </form>
                     )}
 
-                    {/* Delete / Restore */}
                     {topo.deletedAt === null ? (
                       <DeleteControls
                         action={softDeleteTopoAction}
@@ -162,6 +163,50 @@ export default async function AdminToposPage({ searchParams }: Props) {
           </AdminTable>
         </AdminCard>
       </div>
+
+      {/* Edit drawer */}
+      {editRow && (
+        <EditDrawer title="Edit Topo" closeHref={baseHref}>
+          <form action={saveTopoAction}>
+            <input type="hidden" name="id" value={editRow.id} />
+            <input type="hidden" name="cragSlug" value={editRow.cragSlug} />
+            <FormSection title="Hierarchy" cols={2}>
+              <FullWidth>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Boulder</label>
+                <select name="boulderId" defaultValue={editRow.boulderId} className={selectCls}>
+                  {liveBoulders.map((b) => (
+                    <option key={b.id} value={b.id}>{b.cragName} / {b.name}</option>
+                  ))}
+                </select>
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Identity" cols={1}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Name</label>
+                <input name="name" required defaultValue={editRow.name} className={inputCls} />
+              </div>
+            </FormSection>
+            <FormSection title="Image" cols={1}>
+              <FullWidth>
+                <ImageUploadField name="baseImageUrl" defaultValue={editRow.baseImageUrl ?? ""} entityType="topos" entityId={editRow.id} purpose="base" />
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Publishing" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Sort Order</label>
+                <input name="sortOrder" type="number" defaultValue={editRow.sortOrder} className={inputCls} />
+              </div>
+              <div className="flex items-end pb-1">
+                <label className="flex items-center gap-2 text-sm">
+                  <input name="isPublished" type="checkbox" defaultChecked={editRow.isPublished} />
+                  Published
+                </label>
+              </div>
+            </FormSection>
+            <button type="submit" className={`${btnPrimaryCls} w-full`}>Save changes</button>
+          </form>
+        </EditDrawer>
+      )}
     </AdminShell>
   );
 }

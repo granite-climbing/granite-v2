@@ -12,11 +12,20 @@ import { AdminField, inputCls, btnPrimaryCls } from "@/components/admin/admin-fi
 import { PublishBadge } from "@/components/admin/publish-badge";
 import { DeleteControls, RestoreControls } from "@/components/admin/delete-restore-controls";
 import { ImageUploadField } from "@/components/admin/image-upload-field";
+import { EditDrawer } from "@/components/admin/edit-drawer";
+import { FormSection, FullWidth } from "@/components/admin/form-section";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminAreasPage() {
+interface Props {
+  searchParams: Promise<{ edit?: string }>;
+}
+
+export default async function AdminAreasPage({ searchParams }: Props) {
+  const { edit } = await searchParams;
   const areas = await getAdminAreas();
+  const editRow = edit ? areas.find((a) => a.id === edit) : undefined;
 
   return (
     <AdminShell>
@@ -25,27 +34,37 @@ export default async function AdminAreasPage() {
       {/* Create form */}
       <AdminCard title="Create Area">
         <form action={saveAreaAction} className="space-y-2">
-          <AdminField label="Name">
-            <input name="name" required className={inputCls} placeholder="수도권" />
-          </AdminField>
-          <AdminField label="Name (EN)">
-            <input name="nameEn" className={inputCls} placeholder="Greater Seoul" />
-          </AdminField>
-          <AdminField label="Slug">
-            <input name="slug" required className={inputCls} placeholder="greater_seoul" />
-          </AdminField>
-          <AdminField label="Cover Image URL">
-            <input name="coverImageUrl" className={inputCls} placeholder="https://cdn.granite.kr/..." />
-          </AdminField>
-          <AdminField label="Sort Order">
-            <input name="sortOrder" type="number" defaultValue="0" className={inputCls} />
-          </AdminField>
-          <AdminField label="Published">
-            <label className="flex items-center gap-2 text-sm">
-              <input name="isPublished" type="checkbox" />
-              Published
-            </label>
-          </AdminField>
+          <FormSection title="Identity" cols={2}>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Name</label>
+              <input name="name" required className={inputCls} placeholder="수도권" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Name (EN)</label>
+              <input name="nameEn" className={inputCls} placeholder="Greater Seoul" />
+            </div>
+            <div className="col-span-2">
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Slug</label>
+              <input name="slug" required className={inputCls} placeholder="greater_seoul" />
+            </div>
+          </FormSection>
+          <FormSection title="Image" cols={1}>
+            <AdminField label="Cover Image">
+              <ImageUploadField name="coverImageUrl" defaultValue="" entityType="areas" entityId="new" purpose="cover" />
+            </AdminField>
+          </FormSection>
+          <FormSection title="Publishing" cols={2}>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Sort Order</label>
+              <input name="sortOrder" type="number" defaultValue="0" className={inputCls} />
+            </div>
+            <div className="flex items-end pb-1">
+              <label className="flex items-center gap-2 text-sm">
+                <input name="isPublished" type="checkbox" />
+                Published
+              </label>
+            </div>
+          </FormSection>
           <div className="pt-2">
             <button type="submit" className={btnPrimaryCls}>Create Area</button>
           </div>
@@ -55,7 +74,7 @@ export default async function AdminAreasPage() {
       {/* Areas list */}
       <div className="mt-6">
         <AdminCard title={`All Areas (${areas.length})`}>
-          <AdminTable headers={["ID", "Name", "Slug", "Sort", "Status", "Cover", "Actions"]}>
+          <AdminTable headers={["ID", "Name", "Slug", "Sort", "Status", "Actions"]}>
             {areas.map((area) => (
               <AdminTableRow key={area.id} deleted={area.deletedAt !== null}>
                 <AdminTableCell className="font-mono text-xs text-[#57606A]">{area.id}</AdminTableCell>
@@ -69,29 +88,9 @@ export default async function AdminAreasPage() {
                   <PublishBadge published={area.isPublished} deleted={area.deletedAt !== null} />
                 </AdminTableCell>
                 <AdminTableCell>
-                  {area.coverImageUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={area.coverImageUrl} alt="" className="h-10 w-14 rounded object-cover" />
-                  )}
-                </AdminTableCell>
-                <AdminTableCell className="min-w-[420px]">
-                  <div className="flex flex-col gap-2">
-                    {/* Edit form */}
-                    <form action={saveAreaAction} className="flex flex-wrap items-center gap-1">
-                      <input type="hidden" name="id" value={area.id} />
-                      <input name="name" defaultValue={area.name} className={`${inputCls} w-32`} />
-                      <input name="nameEn" defaultValue={area.nameEn ?? ""} className={`${inputCls} w-28`} placeholder="nameEn" />
-                      <input name="slug" defaultValue={area.slug} className={`${inputCls} w-28`} />
-                      <input name="sortOrder" type="number" defaultValue={area.sortOrder} className={`${inputCls} w-14`} />
-                      <ImageUploadField name="coverImageUrl" defaultValue={area.coverImageUrl ?? ""} entityType="areas" entityId={area.id} purpose="cover" />
-                      <label className="flex items-center gap-1 text-xs">
-                        <input name="isPublished" type="checkbox" defaultChecked={area.isPublished} />
-                        Pub
-                      </label>
-                      <button type="submit" className={btnPrimaryCls}>Save</button>
-                    </form>
+                  <div className="flex flex-col gap-1">
+                    <Link href={`?edit=${area.id}`} className={btnPrimaryCls}>Edit</Link>
 
-                    {/* Publish toggle */}
                     {area.deletedAt === null && (
                       <form action={togglePublishAction} className="flex items-center gap-1">
                         <input type="hidden" name="table" value="areas" />
@@ -103,7 +102,6 @@ export default async function AdminAreasPage() {
                       </form>
                     )}
 
-                    {/* Delete / Restore */}
                     {area.deletedAt === null ? (
                       <DeleteControls
                         action={softDeleteAreaAction}
@@ -122,6 +120,47 @@ export default async function AdminAreasPage() {
           </AdminTable>
         </AdminCard>
       </div>
+
+      {/* Edit drawer */}
+      {editRow && (
+        <EditDrawer title="Edit Area" closeHref="/admin/content/areas">
+          <form action={saveAreaAction}>
+            <input type="hidden" name="id" value={editRow.id} />
+            <FormSection title="Identity" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Name</label>
+                <input name="name" required defaultValue={editRow.name} className={inputCls} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Name (EN)</label>
+                <input name="nameEn" defaultValue={editRow.nameEn ?? ""} className={inputCls} />
+              </div>
+              <FullWidth>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Slug</label>
+                <input name="slug" required defaultValue={editRow.slug} className={inputCls} />
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Image" cols={1}>
+              <FullWidth>
+                <ImageUploadField name="coverImageUrl" defaultValue={editRow.coverImageUrl ?? ""} entityType="areas" entityId={editRow.id} purpose="cover" />
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Publishing" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Sort Order</label>
+                <input name="sortOrder" type="number" defaultValue={editRow.sortOrder} className={inputCls} />
+              </div>
+              <div className="flex items-end pb-1">
+                <label className="flex items-center gap-2 text-sm">
+                  <input name="isPublished" type="checkbox" defaultChecked={editRow.isPublished} />
+                  Published
+                </label>
+              </div>
+            </FormSection>
+            <button type="submit" className={`${btnPrimaryCls} w-full`}>Save changes</button>
+          </form>
+        </EditDrawer>
+      )}
     </AdminShell>
   );
 }

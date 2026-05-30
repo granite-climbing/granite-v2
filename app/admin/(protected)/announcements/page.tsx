@@ -8,15 +8,24 @@ import { togglePublishAction } from "@/lib/actions/admin-content";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminCard } from "@/components/admin/admin-card";
 import { AdminTable, AdminTableRow, AdminTableCell } from "@/components/admin/admin-table";
-import { AdminField, inputCls, textareaCls, btnPrimaryCls } from "@/components/admin/admin-field";
+import { inputCls, textareaCls, btnPrimaryCls } from "@/components/admin/admin-field";
 import { PublishBadge } from "@/components/admin/publish-badge";
 import { DeleteControls, RestoreControls } from "@/components/admin/delete-restore-controls";
 import { ImageUploadField } from "@/components/admin/image-upload-field";
+import { EditDrawer } from "@/components/admin/edit-drawer";
+import { FormSection, FullWidth } from "@/components/admin/form-section";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminAnnouncementsPage() {
+interface Props {
+  searchParams: Promise<{ edit?: string }>;
+}
+
+export default async function AdminAnnouncementsPage({ searchParams }: Props) {
+  const { edit } = await searchParams;
   const announcements = await getAdminAnnouncements();
+  const editRow = edit ? announcements.find((a) => a.id === edit) : undefined;
 
   return (
     <AdminShell>
@@ -25,33 +34,48 @@ export default async function AdminAnnouncementsPage() {
       {/* Create form */}
       <AdminCard title="Create Announcement">
         <form action={saveAnnouncementAction} className="space-y-2">
-          <AdminField label="Title">
-            <input name="title" required className={inputCls} placeholder="이번 주 이벤트" />
-          </AdminField>
-          <AdminField label="Body">
-            <textarea name="body" rows={4} className={textareaCls} placeholder="공지 내용을 입력하세요." />
-          </AdminField>
-          <AdminField label="Cover Image URL">
-            <input name="coverImageUrl" className={inputCls} placeholder="https://cdn.granite.kr/..." />
-          </AdminField>
-          <AdminField label="Crag ID">
-            <input name="cragId" className={inputCls} placeholder="crag_anyang (optional)" />
-          </AdminField>
-          <AdminField label="Link URL">
-            <input name="linkUrl" className={inputCls} placeholder="https://instagram.com/..." />
-          </AdminField>
-          <AdminField label="Published At">
-            <input name="publishedAt" className={inputCls} placeholder="2026-05-30T09:00:00Z" />
-          </AdminField>
-          <AdminField label="Sort Order">
-            <input name="sortOrder" type="number" defaultValue="0" className={inputCls} />
-          </AdminField>
-          <AdminField label="Published">
-            <label className="flex items-center gap-2 text-sm">
-              <input name="isPublished" type="checkbox" />
-              Published
-            </label>
-          </AdminField>
+          <FormSection title="Identity" cols={1}>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Title</label>
+              <input name="title" required className={inputCls} placeholder="이번 주 이벤트" />
+            </div>
+          </FormSection>
+          <FormSection title="Body" cols={1}>
+            <FullWidth>
+              <textarea name="body" rows={4} className={textareaCls} placeholder="공지 내용을 입력하세요." />
+            </FullWidth>
+          </FormSection>
+          <FormSection title="Image" cols={1}>
+            <FullWidth>
+              <ImageUploadField name="coverImageUrl" defaultValue="" entityType="announcements" entityId="new" purpose="cover" />
+            </FullWidth>
+          </FormSection>
+          <FormSection title="Targeting" cols={2}>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Crag ID (optional)</label>
+              <input name="cragId" className={inputCls} placeholder="crag_anyang" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Link URL</label>
+              <input name="linkUrl" className={inputCls} placeholder="https://instagram.com/..." />
+            </div>
+          </FormSection>
+          <FormSection title="Publishing" cols={2}>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Published At</label>
+              <input name="publishedAt" className={inputCls} placeholder="2026-05-30T09:00:00Z" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Sort Order</label>
+              <input name="sortOrder" type="number" defaultValue="0" className={inputCls} />
+            </div>
+            <div className="col-span-2 flex items-center">
+              <label className="flex items-center gap-2 text-sm">
+                <input name="isPublished" type="checkbox" />
+                Published
+              </label>
+            </div>
+          </FormSection>
           <div className="pt-2">
             <button type="submit" className={btnPrimaryCls}>Create Announcement</button>
           </div>
@@ -79,58 +103,10 @@ export default async function AdminAnnouncementsPage() {
                 <AdminTableCell>
                   <PublishBadge published={ann.isPublished} deleted={ann.deletedAt !== null} />
                 </AdminTableCell>
-                <AdminTableCell className="min-w-[480px]">
-                  <div className="flex flex-col gap-2">
-                    {/* Edit form */}
-                    <form action={saveAnnouncementAction} className="flex flex-wrap items-start gap-1">
-                      <input type="hidden" name="id" value={ann.id} />
-                      <input
-                        name="title"
-                        defaultValue={ann.title}
-                        required
-                        className={`${inputCls} w-40`}
-                        placeholder="title"
-                      />
-                      <textarea
-                        name="body"
-                        defaultValue={ann.body}
-                        rows={2}
-                        className={`${textareaCls} w-48`}
-                        placeholder="body"
-                      />
-                      <ImageUploadField name="coverImageUrl" defaultValue={ann.coverImageUrl ?? ""} entityType="announcements" entityId={ann.id} purpose="cover" />
-                      <input
-                        name="cragId"
-                        defaultValue={ann.cragId ?? ""}
-                        className={`${inputCls} w-28`}
-                        placeholder="cragId"
-                      />
-                      <input
-                        name="linkUrl"
-                        defaultValue={ann.linkUrl}
-                        className={`${inputCls} w-40`}
-                        placeholder="linkUrl"
-                      />
-                      <input
-                        name="publishedAt"
-                        defaultValue={ann.publishedAt}
-                        className={`${inputCls} w-36`}
-                        placeholder="publishedAt"
-                      />
-                      <input
-                        name="sortOrder"
-                        type="number"
-                        defaultValue={ann.sortOrder}
-                        className={`${inputCls} w-14`}
-                      />
-                      <label className="flex items-center gap-1 text-xs">
-                        <input name="isPublished" type="checkbox" defaultChecked={ann.isPublished} />
-                        Pub
-                      </label>
-                      <button type="submit" className={btnPrimaryCls}>Save</button>
-                    </form>
+                <AdminTableCell>
+                  <div className="flex flex-col gap-1">
+                    <Link href={`?edit=${ann.id}`} className={btnPrimaryCls}>Edit</Link>
 
-                    {/* Publish toggle */}
                     {ann.deletedAt === null && (
                       <form action={togglePublishAction} className="flex items-center gap-1">
                         <input type="hidden" name="table" value="announcements" />
@@ -142,7 +118,6 @@ export default async function AdminAnnouncementsPage() {
                       </form>
                     )}
 
-                    {/* Delete / Restore */}
                     {ann.deletedAt === null ? (
                       <DeleteControls
                         action={softDeleteAnnouncementAction}
@@ -161,6 +136,58 @@ export default async function AdminAnnouncementsPage() {
           </AdminTable>
         </AdminCard>
       </div>
+
+      {/* Edit drawer */}
+      {editRow && (
+        <EditDrawer title="Edit Announcement" closeHref="/admin/announcements">
+          <form action={saveAnnouncementAction}>
+            <input type="hidden" name="id" value={editRow.id} />
+            <FormSection title="Identity" cols={1}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Title</label>
+                <input name="title" required defaultValue={editRow.title} className={inputCls} />
+              </div>
+            </FormSection>
+            <FormSection title="Body" cols={1}>
+              <FullWidth>
+                <textarea name="body" defaultValue={editRow.body} rows={5} className={textareaCls} />
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Image" cols={1}>
+              <FullWidth>
+                <ImageUploadField name="coverImageUrl" defaultValue={editRow.coverImageUrl ?? ""} entityType="announcements" entityId={editRow.id} purpose="cover" />
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Targeting" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Crag ID (optional)</label>
+                <input name="cragId" defaultValue={editRow.cragId ?? ""} className={inputCls} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Link URL</label>
+                <input name="linkUrl" defaultValue={editRow.linkUrl} className={inputCls} />
+              </div>
+            </FormSection>
+            <FormSection title="Publishing" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Published At</label>
+                <input name="publishedAt" defaultValue={editRow.publishedAt} className={inputCls} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Sort Order</label>
+                <input name="sortOrder" type="number" defaultValue={editRow.sortOrder} className={inputCls} />
+              </div>
+              <div className="col-span-2 flex items-center">
+                <label className="flex items-center gap-2 text-sm">
+                  <input name="isPublished" type="checkbox" defaultChecked={editRow.isPublished} />
+                  Published
+                </label>
+              </div>
+            </FormSection>
+            <button type="submit" className={`${btnPrimaryCls} w-full`}>Save changes</button>
+          </form>
+        </EditDrawer>
+      )}
     </AdminShell>
   );
 }

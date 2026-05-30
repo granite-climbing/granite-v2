@@ -12,21 +12,30 @@ import { AdminField, inputCls, selectCls, textareaCls, btnPrimaryCls } from "@/c
 import { PublishBadge } from "@/components/admin/publish-badge";
 import { DeleteControls, RestoreControls } from "@/components/admin/delete-restore-controls";
 import { ImageUploadField } from "@/components/admin/image-upload-field";
+import { EditDrawer } from "@/components/admin/edit-drawer";
+import { FormSection, FullWidth } from "@/components/admin/form-section";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 interface Props {
-  searchParams: Promise<{ topoId?: string }>;
+  searchParams: Promise<{ topoId?: string; edit?: string }>;
 }
 
 export default async function AdminRoutesPage({ searchParams }: Props) {
-  const { topoId } = await searchParams;
+  const { topoId, edit } = await searchParams;
   const [routes, topos] = await Promise.all([
     getAdminRoutes(topoId || undefined),
     getAdminTopos(),
   ]);
   const liveTopos = topos.filter((t) => t.deletedAt === null);
   const selectedTopo = topoId ? liveTopos.find((t) => t.id === topoId) : undefined;
+  const editRow = edit ? routes.find((r) => r.id === edit) : undefined;
+
+  // Build base href preserving topoId filter
+  const baseHref = topoId
+    ? `/admin/content/routes?topoId=${topoId}`
+    : "/admin/content/routes";
 
   return (
     <AdminShell>
@@ -50,46 +59,66 @@ export default async function AdminRoutesPage({ searchParams }: Props) {
       {/* Create form */}
       <AdminCard title="Create Route">
         <form action={saveRouteAction} className="space-y-2">
-          <AdminField label="Topo">
-            <select name="topoId" required defaultValue={topoId ?? ""} className={selectCls}>
-              <option value="">— select topo —</option>
-              {liveTopos.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.boulderName} / {t.name}
-                </option>
-              ))}
-            </select>
-          </AdminField>
-          <AdminField label="Name">
-            <input name="name" required className={inputCls} placeholder="아나콘다" />
-          </AdminField>
-          <AdminField label="Slug">
-            <input name="slug" required className={inputCls} placeholder="anaconda" />
-          </AdminField>
-          <AdminField label="Grade">
-            <input name="grade" required className={inputCls} placeholder="V5" />
-          </AdminField>
-          <AdminField label="Grade Num">
-            <input name="gradeNum" type="number" className={inputCls} placeholder="auto-derived from grade" />
-          </AdminField>
-          <AdminField label="FA">
-            <input name="fa" className={inputCls} placeholder="홍길동" />
-          </AdminField>
-          <AdminField label="Description">
-            <textarea name="description" className={textareaCls} rows={2} />
-          </AdminField>
-          <AdminField label="Line Image URL">
-            <input name="lineImageUrl" className={inputCls} placeholder="https://cdn.granite.kr/..." />
-          </AdminField>
-          <AdminField label="Sort Order">
-            <input name="sortOrder" type="number" defaultValue="0" className={inputCls} />
-          </AdminField>
-          <AdminField label="Published">
-            <label className="flex items-center gap-2 text-sm">
-              <input name="isPublished" type="checkbox" />
-              Published
-            </label>
-          </AdminField>
+          <FormSection title="Hierarchy" cols={2}>
+            <FullWidth>
+              <AdminField label="Topo">
+                <select name="topoId" required defaultValue={topoId ?? ""} className={selectCls}>
+                  <option value="">— select topo —</option>
+                  {liveTopos.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.boulderName} / {t.name}
+                    </option>
+                  ))}
+                </select>
+              </AdminField>
+            </FullWidth>
+          </FormSection>
+          <FormSection title="Identity" cols={2}>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Name</label>
+              <input name="name" required className={inputCls} placeholder="아나콘다" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Slug</label>
+              <input name="slug" required className={inputCls} placeholder="anaconda" />
+            </div>
+          </FormSection>
+          <FormSection title="Grade" cols={2}>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Grade</label>
+              <input name="grade" required className={inputCls} placeholder="V5" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Grade Num</label>
+              <input name="gradeNum" type="number" className={inputCls} placeholder="auto-derived" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">FA</label>
+              <input name="fa" className={inputCls} placeholder="홍길동" />
+            </div>
+          </FormSection>
+          <FormSection title="Description" cols={1}>
+            <FullWidth>
+              <textarea name="description" className={textareaCls} rows={2} />
+            </FullWidth>
+          </FormSection>
+          <FormSection title="Image" cols={1}>
+            <FullWidth>
+              <ImageUploadField name="lineImageUrl" defaultValue="" entityType="routes" entityId="new" purpose="line" />
+            </FullWidth>
+          </FormSection>
+          <FormSection title="Publishing" cols={2}>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Sort Order</label>
+              <input name="sortOrder" type="number" defaultValue="0" className={inputCls} />
+            </div>
+            <div className="flex items-end pb-1">
+              <label className="flex items-center gap-2 text-sm">
+                <input name="isPublished" type="checkbox" />
+                Published
+              </label>
+            </div>
+          </FormSection>
           {/* Cache revalidation context */}
           <input type="hidden" name="cragSlug" value={selectedTopo?.cragSlug ?? ""} />
           <input type="hidden" name="boulderId" value={selectedTopo?.boulderId ?? ""} />
@@ -102,7 +131,7 @@ export default async function AdminRoutesPage({ searchParams }: Props) {
       {/* Routes list */}
       <div className="mt-6">
         <AdminCard title={`Routes (${routes.length})`}>
-          <AdminTable headers={["ID", "Topo / Boulder", "Name", "Slug", "Grade", "FA", "Sort", "Status", "Actions"]}>
+          <AdminTable headers={["ID", "Topo / Boulder", "Name", "Slug", "Grade", "Sort", "Status", "Actions"]}>
             {routes.map((route) => (
               <AdminTableRow key={route.id} deleted={route.deletedAt !== null}>
                 <AdminTableCell className="font-mono text-xs text-[#57606A]">{route.id}</AdminTableCell>
@@ -113,39 +142,19 @@ export default async function AdminRoutesPage({ searchParams }: Props) {
                 <AdminTableCell className="font-semibold">{route.name}</AdminTableCell>
                 <AdminTableCell className="font-mono text-xs">{route.slug}</AdminTableCell>
                 <AdminTableCell className="font-bold">{route.grade}</AdminTableCell>
-                <AdminTableCell className="text-xs">{route.fa}</AdminTableCell>
                 <AdminTableCell>{route.sortOrder}</AdminTableCell>
                 <AdminTableCell>
                   <PublishBadge published={route.isPublished} deleted={route.deletedAt !== null} />
                 </AdminTableCell>
-                <AdminTableCell className="min-w-[560px]">
-                  <div className="flex flex-col gap-2">
-                    {/* Edit form */}
-                    <form action={saveRouteAction} className="flex flex-wrap items-center gap-1">
-                      <input type="hidden" name="id" value={route.id} />
-                      <input type="hidden" name="cragSlug" value={route.cragSlug} />
-                      <input type="hidden" name="boulderId" value={route.boulderId} />
-                      <select name="topoId" defaultValue={route.topoId} className={`${selectCls} w-36`}>
-                        {liveTopos.map((t) => (
-                          <option key={t.id} value={t.id}>{t.boulderName}/{t.name}</option>
-                        ))}
-                      </select>
-                      <input name="name" defaultValue={route.name} className={`${inputCls} w-24`} />
-                      <input name="slug" defaultValue={route.slug} className={`${inputCls} w-24`} />
-                      <input name="grade" defaultValue={route.grade} className={`${inputCls} w-14`} />
-                      <input name="gradeNum" type="number" defaultValue={route.gradeNum} className={`${inputCls} w-14`} />
-                      <input name="fa" defaultValue={route.fa} className={`${inputCls} w-20`} placeholder="FA" />
-                      <input name="description" defaultValue={route.description} className={`${inputCls} w-36`} placeholder="desc" />
-                      <ImageUploadField name="lineImageUrl" defaultValue={route.lineImageUrl ?? ""} entityType="routes" entityId={route.id} purpose="line" />
-                      <input name="sortOrder" type="number" defaultValue={route.sortOrder} className={`${inputCls} w-14`} />
-                      <label className="flex items-center gap-1 text-xs">
-                        <input name="isPublished" type="checkbox" defaultChecked={route.isPublished} />
-                        Pub
-                      </label>
-                      <button type="submit" className={btnPrimaryCls}>Save</button>
-                    </form>
+                <AdminTableCell>
+                  <div className="flex flex-col gap-1">
+                    <Link
+                      href={topoId ? `?topoId=${topoId}&edit=${route.id}` : `?edit=${route.id}`}
+                      className={btnPrimaryCls}
+                    >
+                      Edit
+                    </Link>
 
-                    {/* Publish toggle */}
                     {route.deletedAt === null && (
                       <form action={togglePublishAction} className="flex items-center gap-1">
                         <input type="hidden" name="table" value="routes" />
@@ -157,7 +166,6 @@ export default async function AdminRoutesPage({ searchParams }: Props) {
                       </form>
                     )}
 
-                    {/* Delete / Restore */}
                     {route.deletedAt === null ? (
                       <DeleteControls
                         action={softDeleteRouteAction}
@@ -186,6 +194,74 @@ export default async function AdminRoutesPage({ searchParams }: Props) {
           </AdminTable>
         </AdminCard>
       </div>
+
+      {/* Edit drawer */}
+      {editRow && (
+        <EditDrawer title="Edit Route" closeHref={baseHref}>
+          <form action={saveRouteAction}>
+            <input type="hidden" name="id" value={editRow.id} />
+            <input type="hidden" name="cragSlug" value={editRow.cragSlug} />
+            <input type="hidden" name="boulderId" value={editRow.boulderId} />
+            <FormSection title="Hierarchy" cols={2}>
+              <FullWidth>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Topo</label>
+                <select name="topoId" defaultValue={editRow.topoId} className={selectCls}>
+                  {liveTopos.map((t) => (
+                    <option key={t.id} value={t.id}>{t.boulderName} / {t.name}</option>
+                  ))}
+                </select>
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Identity" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Name</label>
+                <input name="name" required defaultValue={editRow.name} className={inputCls} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Slug</label>
+                <input name="slug" required defaultValue={editRow.slug} className={inputCls} />
+              </div>
+            </FormSection>
+            <FormSection title="Grade" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Grade</label>
+                <input name="grade" required defaultValue={editRow.grade} className={inputCls} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Grade Num</label>
+                <input name="gradeNum" type="number" defaultValue={editRow.gradeNum} className={inputCls} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">FA</label>
+                <input name="fa" defaultValue={editRow.fa} className={inputCls} />
+              </div>
+            </FormSection>
+            <FormSection title="Description" cols={1}>
+              <FullWidth>
+                <textarea name="description" defaultValue={editRow.description} className={textareaCls} rows={3} />
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Image" cols={1}>
+              <FullWidth>
+                <ImageUploadField name="lineImageUrl" defaultValue={editRow.lineImageUrl ?? ""} entityType="routes" entityId={editRow.id} purpose="line" />
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Publishing" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Sort Order</label>
+                <input name="sortOrder" type="number" defaultValue={editRow.sortOrder} className={inputCls} />
+              </div>
+              <div className="flex items-end pb-1">
+                <label className="flex items-center gap-2 text-sm">
+                  <input name="isPublished" type="checkbox" defaultChecked={editRow.isPublished} />
+                  Published
+                </label>
+              </div>
+            </FormSection>
+            <button type="submit" className={`${btnPrimaryCls} w-full`}>Save changes</button>
+          </form>
+        </EditDrawer>
+      )}
     </AdminShell>
   );
 }

@@ -12,21 +12,34 @@ import { AdminField, inputCls, selectCls, textareaCls, btnPrimaryCls } from "@/c
 import { PublishBadge } from "@/components/admin/publish-badge";
 import { DeleteControls, RestoreControls } from "@/components/admin/delete-restore-controls";
 import { ImageUploadField } from "@/components/admin/image-upload-field";
+import { EditDrawer } from "@/components/admin/edit-drawer";
+import { FormSection, FullWidth } from "@/components/admin/form-section";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 interface Props {
-  searchParams: Promise<{ cragId?: string }>;
+  searchParams: Promise<{ cragId?: string; edit?: string }>;
 }
 
 export default async function AdminSectorsPage({ searchParams }: Props) {
-  const { cragId } = await searchParams;
+  const { cragId, edit } = await searchParams;
   const [sectors, crags] = await Promise.all([
     getAdminSectors(cragId || undefined),
     getAdminCrags(),
   ]);
   const liveCrags = crags.filter((c) => c.deletedAt === null);
   const selectedCrag = cragId ? liveCrags.find((c) => c.id === cragId) : undefined;
+
+  // For drawer we need all sectors (not filtered) so we can find by id across all crags
+  // If edit id isn't in the filtered list, we still have it from the full fetch when no cragId filter.
+  // The sectors list may be filtered; look for editRow in it first, otherwise it won't render.
+  const editRow = edit ? sectors.find((s) => s.id === edit) : undefined;
+
+  // Build base href preserving cragId filter
+  const baseHref = cragId
+    ? `/admin/content/sectors?cragId=${cragId}`
+    : "/admin/content/sectors";
 
   return (
     <AdminShell>
@@ -50,48 +63,69 @@ export default async function AdminSectorsPage({ searchParams }: Props) {
       {/* Create form */}
       <AdminCard title="Create Sector">
         <form action={saveSectorAction} className="space-y-2">
-          <AdminField label="Crag">
-            <select name="cragId" required defaultValue={cragId ?? ""} className={selectCls}>
-              <option value="">— select crag —</option>
-              {liveCrags.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </AdminField>
-          {/* cragSlug hidden: populated dynamically — leave blank for create (action reads from sector's crag) */}
-          <AdminField label="Name">
-            <input name="name" required className={inputCls} placeholder="앤틱 구역" />
-          </AdminField>
-          <AdminField label="Name (EN)">
-            <input name="nameEn" className={inputCls} placeholder="Antique Zone" />
-          </AdminField>
-          <AdminField label="Slug">
-            <input name="slug" required className={inputCls} placeholder="anyang_antique" />
-          </AdminField>
-          <AdminField label="Lat">
-            <input name="lat" type="number" step="any" className={inputCls} />
-          </AdminField>
-          <AdminField label="Lng">
-            <input name="lng" type="number" step="any" className={inputCls} />
-          </AdminField>
-          <AdminField label="Description">
-            <textarea name="description" className={textareaCls} rows={2} />
-          </AdminField>
-          <AdminField label="Season">
-            <input name="season" className={inputCls} />
-          </AdminField>
-          <AdminField label="Cover Image URL">
-            <input name="coverImageUrl" className={inputCls} />
-          </AdminField>
-          <AdminField label="Sort Order">
-            <input name="sortOrder" type="number" defaultValue="0" className={inputCls} />
-          </AdminField>
-          <AdminField label="Published">
-            <label className="flex items-center gap-2 text-sm">
-              <input name="isPublished" type="checkbox" />
-              Published
-            </label>
-          </AdminField>
+          <FormSection title="Hierarchy" cols={2}>
+            <FullWidth>
+              <AdminField label="Crag">
+                <select name="cragId" required defaultValue={cragId ?? ""} className={selectCls}>
+                  <option value="">— select crag —</option>
+                  {liveCrags.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </AdminField>
+            </FullWidth>
+          </FormSection>
+          <FormSection title="Identity" cols={2}>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Name</label>
+              <input name="name" required className={inputCls} placeholder="앤틱 구역" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Name (EN)</label>
+              <input name="nameEn" className={inputCls} placeholder="Antique Zone" />
+            </div>
+            <FullWidth>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Slug</label>
+              <input name="slug" required className={inputCls} placeholder="anyang_antique" />
+            </FullWidth>
+          </FormSection>
+          <FormSection title="Location" cols={2}>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Lat</label>
+              <input name="lat" type="number" step="any" className={inputCls} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Lng</label>
+              <input name="lng" type="number" step="any" className={inputCls} />
+            </div>
+          </FormSection>
+          <FormSection title="Content" cols={1}>
+            <FullWidth>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Description</label>
+              <textarea name="description" className={textareaCls} rows={2} />
+            </FullWidth>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Season</label>
+              <input name="season" className={inputCls} />
+            </div>
+          </FormSection>
+          <FormSection title="Image" cols={1}>
+            <FullWidth>
+              <ImageUploadField name="coverImageUrl" defaultValue="" entityType="sectors" entityId="new" purpose="cover" />
+            </FullWidth>
+          </FormSection>
+          <FormSection title="Publishing" cols={2}>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#374151]">Sort Order</label>
+              <input name="sortOrder" type="number" defaultValue="0" className={inputCls} />
+            </div>
+            <div className="flex items-end pb-1">
+              <label className="flex items-center gap-2 text-sm">
+                <input name="isPublished" type="checkbox" />
+                Published
+              </label>
+            </div>
+          </FormSection>
           {/* cragSlug for revalidation — empty on create since we don't know slug yet */}
           <input type="hidden" name="cragSlug" value={selectedCrag?.slug ?? ""} />
           <div className="pt-2">
@@ -117,34 +151,15 @@ export default async function AdminSectorsPage({ searchParams }: Props) {
                 <AdminTableCell>
                   <PublishBadge published={sector.isPublished} deleted={sector.deletedAt !== null} />
                 </AdminTableCell>
-                <AdminTableCell className="min-w-[520px]">
-                  <div className="flex flex-col gap-2">
-                    {/* Edit form */}
-                    <form action={saveSectorAction} className="flex flex-wrap items-center gap-1">
-                      <input type="hidden" name="id" value={sector.id} />
-                      <input type="hidden" name="cragSlug" value={sector.cragSlug} />
-                      <select name="cragId" defaultValue={sector.cragId} className={`${selectCls} w-28`}>
-                        {liveCrags.map((c) => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
-                      <input name="name" defaultValue={sector.name} className={`${inputCls} w-24`} />
-                      <input name="nameEn" defaultValue={sector.nameEn ?? ""} className={`${inputCls} w-24`} placeholder="nameEn" />
-                      <input name="slug" defaultValue={sector.slug} className={`${inputCls} w-28`} />
-                      <input name="lat" type="number" step="any" defaultValue={sector.lat ?? ""} className={`${inputCls} w-20`} placeholder="lat" />
-                      <input name="lng" type="number" step="any" defaultValue={sector.lng ?? ""} className={`${inputCls} w-20`} placeholder="lng" />
-                      <input name="season" defaultValue={sector.season} className={`${inputCls} w-24`} placeholder="season" />
-                      <input name="description" defaultValue={sector.description} className={`${inputCls} w-36`} placeholder="desc" />
-                      <ImageUploadField name="coverImageUrl" defaultValue={sector.coverImageUrl ?? ""} entityType="sectors" entityId={sector.id} purpose="cover" />
-                      <input name="sortOrder" type="number" defaultValue={sector.sortOrder} className={`${inputCls} w-14`} />
-                      <label className="flex items-center gap-1 text-xs">
-                        <input name="isPublished" type="checkbox" defaultChecked={sector.isPublished} />
-                        Pub
-                      </label>
-                      <button type="submit" className={btnPrimaryCls}>Save</button>
-                    </form>
+                <AdminTableCell>
+                  <div className="flex flex-col gap-1">
+                    <Link
+                      href={cragId ? `?cragId=${cragId}&edit=${sector.id}` : `?edit=${sector.id}`}
+                      className={btnPrimaryCls}
+                    >
+                      Edit
+                    </Link>
 
-                    {/* Publish toggle */}
                     {sector.deletedAt === null && (
                       <form action={togglePublishAction} className="flex items-center gap-1">
                         <input type="hidden" name="table" value="sectors" />
@@ -156,7 +171,6 @@ export default async function AdminSectorsPage({ searchParams }: Props) {
                       </form>
                     )}
 
-                    {/* Delete / Restore */}
                     {sector.deletedAt === null ? (
                       <DeleteControls
                         action={softDeleteSectorAction}
@@ -183,6 +197,78 @@ export default async function AdminSectorsPage({ searchParams }: Props) {
           </AdminTable>
         </AdminCard>
       </div>
+
+      {/* Edit drawer */}
+      {editRow && (
+        <EditDrawer title="Edit Sector" closeHref={baseHref}>
+          <form action={saveSectorAction}>
+            <input type="hidden" name="id" value={editRow.id} />
+            <input type="hidden" name="cragSlug" value={editRow.cragSlug} />
+            <FormSection title="Hierarchy" cols={2}>
+              <FullWidth>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Crag</label>
+                <select name="cragId" defaultValue={editRow.cragId} className={selectCls}>
+                  {liveCrags.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Identity" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Name</label>
+                <input name="name" required defaultValue={editRow.name} className={inputCls} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Name (EN)</label>
+                <input name="nameEn" defaultValue={editRow.nameEn ?? ""} className={inputCls} />
+              </div>
+              <FullWidth>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Slug</label>
+                <input name="slug" required defaultValue={editRow.slug} className={inputCls} />
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Location" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Lat</label>
+                <input name="lat" type="number" step="any" defaultValue={editRow.lat ?? ""} className={inputCls} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Lng</label>
+                <input name="lng" type="number" step="any" defaultValue={editRow.lng ?? ""} className={inputCls} />
+              </div>
+            </FormSection>
+            <FormSection title="Content" cols={1}>
+              <FullWidth>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Description</label>
+                <textarea name="description" defaultValue={editRow.description} className={textareaCls} rows={3} />
+              </FullWidth>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Season</label>
+                <input name="season" defaultValue={editRow.season} className={inputCls} />
+              </div>
+            </FormSection>
+            <FormSection title="Image" cols={1}>
+              <FullWidth>
+                <ImageUploadField name="coverImageUrl" defaultValue={editRow.coverImageUrl ?? ""} entityType="sectors" entityId={editRow.id} purpose="cover" />
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Publishing" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Sort Order</label>
+                <input name="sortOrder" type="number" defaultValue={editRow.sortOrder} className={inputCls} />
+              </div>
+              <div className="flex items-end pb-1">
+                <label className="flex items-center gap-2 text-sm">
+                  <input name="isPublished" type="checkbox" defaultChecked={editRow.isPublished} />
+                  Published
+                </label>
+              </div>
+            </FormSection>
+            <button type="submit" className={`${btnPrimaryCls} w-full`}>Save changes</button>
+          </form>
+        </EditDrawer>
+      )}
     </AdminShell>
   );
 }
