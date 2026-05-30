@@ -9,6 +9,7 @@ import {
   upsertBoulder,
   upsertTopo,
   upsertRoute,
+  upsertAnnouncement,
   findRowBySlug,
 } from "./admin-content-queries";
 import { executeD1, queryD1First } from "./d1-http";
@@ -303,5 +304,59 @@ describe("admin content queries", () => {
 
     // Should have called queryD1First 5 times without throwing
     expect(mockedQuery).toHaveBeenCalledTimes(5);
+  });
+
+  // -------------------------------------------------------------------------
+  // upsertAnnouncement
+  // -------------------------------------------------------------------------
+
+  it("upserts announcements with all columns", async () => {
+    await upsertAnnouncement({
+      id: "announcement_abc123",
+      title: "이번 주 볼더링 이벤트",
+      body: "자세한 내용은 인스타그램을 참고하세요.",
+      coverImageUrl: "https://cdn.granite.kr/announcements/abc123/cover.webp",
+      cragId: "crag_anyang",
+      linkUrl: "https://instagram.com/granite.kr/posts/abc",
+      isPublished: true,
+      publishedAt: "2026-05-30T09:00:00Z",
+      sortOrder: 1,
+    });
+
+    const call = mockedExecute.mock.calls[0];
+    expect(call[0]).toContain("INSERT INTO announcements");
+    expect(call[0]).toContain("ON CONFLICT(id) DO UPDATE SET");
+    // Verify all 9 positional parameters are in the right order
+    expect(call[1]).toEqual([
+      "announcement_abc123",
+      "이번 주 볼더링 이벤트",
+      "자세한 내용은 인스타그램을 참고하세요.",
+      "https://cdn.granite.kr/announcements/abc123/cover.webp",
+      "crag_anyang",
+      "https://instagram.com/granite.kr/posts/abc",
+      1,
+      "2026-05-30T09:00:00Z",
+      1,
+    ]);
+  });
+
+  it("upserts announcements with null cragId and empty fields", async () => {
+    await upsertAnnouncement({
+      id: "announcement_xyz",
+      title: "공지사항",
+      body: "",
+      coverImageUrl: "",
+      cragId: null,
+      linkUrl: "",
+      isPublished: false,
+      publishedAt: "",
+      sortOrder: 0,
+    });
+
+    const call = mockedExecute.mock.calls[0];
+    expect(call[0]).toContain("INSERT INTO announcements");
+    // cragId (index 4) should be null, isPublished (index 6) should be 0
+    expect(call[1]![4]).toBeNull();
+    expect(call[1]![6]).toBe(0);
   });
 });

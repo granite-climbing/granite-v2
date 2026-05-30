@@ -195,3 +195,23 @@ export function parseTopoForm(rawForm: RawForm) {
 export function parseRouteForm(rawForm: RawForm) {
   return routeFormSchema.parse(rawForm);
 }
+
+// ---------------------------------------------------------------------------
+// Announcements
+// ---------------------------------------------------------------------------
+
+export const announcementFormSchema = z.object({
+  id: optionalId,
+  title: requiredText,
+  body: optionalText,
+  coverImageUrl: cdnUrl,
+  cragId: nullableText,
+  linkUrl: optionalText,
+  isPublished: checkbox,
+  publishedAt: optionalText,
+  sortOrder,
+});
+
+export function parseAnnouncementForm(rawForm: RawForm) {
+  return announcementFormSchema.parse(rawForm);
+}

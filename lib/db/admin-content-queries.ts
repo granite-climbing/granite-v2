@@ -359,6 +359,49 @@ export async function upsertTopo(input: {
   );
 }
 
+// announcements: id, title, body, cover_image_url, crag_id, link_url,
+//                is_published, published_at, sort_order
+// NOTE: softDeleteAnnouncement / restoreAnnouncement delegate to the generic
+//       softDeleteContent / restoreContent helpers (table:"announcements").
+export async function upsertAnnouncement(input: {
+  id: string;
+  title: string;
+  body: string;
+  coverImageUrl: string;
+  cragId: string | null;
+  linkUrl: string;
+  isPublished: boolean;
+  publishedAt: string;
+  sortOrder: number;
+}): Promise<void> {
+  await executeD1(
+    `INSERT INTO announcements
+       (id, title, body, cover_image_url, crag_id, link_url, is_published, published_at, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       title           = excluded.title,
+       body            = excluded.body,
+       cover_image_url = excluded.cover_image_url,
+       crag_id         = excluded.crag_id,
+       link_url        = excluded.link_url,
+       is_published    = excluded.is_published,
+       published_at    = excluded.published_at,
+       sort_order      = excluded.sort_order,
+       updated_at      = datetime('now')`,
+    [
+      input.id,
+      input.title,
+      input.body,
+      input.coverImageUrl,
+      input.cragId,
+      input.linkUrl,
+      input.isPublished ? 1 : 0,
+      input.publishedAt,
+      input.sortOrder,
+    ],
+  );
+}
+
 // routes: id, topo_id, name, slug, grade, grade_num, fa, description,
 //         line_image_url, is_published, sort_order
 // NOTE: routes has NO boulder_id column. Parent is topo_id only.
