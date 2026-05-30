@@ -504,6 +504,7 @@ describe("admin content actions", () => {
     const formData = new FormData();
     formData.set("id", "crag_anyang");
     formData.set("slug", "anyang");
+    formData.set("confirm", "DELETE");
 
     await softDeleteCragAction(formData);
 
@@ -524,6 +525,7 @@ describe("admin content actions", () => {
   it("softDeleteBoulderAction: calls softDeleteContent with boulders table, revalidates boulder tag", async () => {
     const formData = new FormData();
     formData.set("id", "boulder_gomul_boulder");
+    formData.set("confirm", "DELETE");
 
     await softDeleteBoulderAction(formData);
 
@@ -591,6 +593,28 @@ describe("admin content actions", () => {
   });
 
   // -------------------------------------------------------------------------
+  // Soft-delete confirm guard
+  // -------------------------------------------------------------------------
+
+  it("softDeleteCragAction: throws when confirm field is missing", async () => {
+    const formData = new FormData();
+    formData.set("id", "crag_anyang");
+    // No confirm field
+
+    await expect(softDeleteCragAction(formData)).rejects.toThrow(/"DELETE"/);
+    expect(mockedSoftDeleteContent).not.toHaveBeenCalled();
+  });
+
+  it("softDeleteCragAction: throws when confirm field is not 'DELETE'", async () => {
+    const formData = new FormData();
+    formData.set("id", "crag_anyang");
+    formData.set("confirm", "delete");
+
+    await expect(softDeleteCragAction(formData)).rejects.toThrow(/"DELETE"/);
+    expect(mockedSoftDeleteContent).not.toHaveBeenCalled();
+  });
+
+  // -------------------------------------------------------------------------
   // Non-fatal audit: audit failure does not surface as action failure
   // -------------------------------------------------------------------------
 
@@ -622,6 +646,7 @@ describe("admin content actions", () => {
 
     const formData = new FormData();
     formData.set("id", "crag_anyang");
+    formData.set("confirm", "DELETE");
 
     await expect(softDeleteCragAction(formData)).rejects.toThrow("Unauthorized");
     expect(mockedSoftDeleteContent).not.toHaveBeenCalled();
@@ -789,6 +814,7 @@ describe("admin content actions", () => {
     formData.set("cragSlug", "anyang");
     formData.set("boulderId", "boulder_gomul_boulder");
     formData.set("topoId", "topo_gomul_front");
+    formData.set("confirm", "DELETE");
 
     await softDeleteRouteAction(formData);
 
@@ -813,6 +839,7 @@ describe("admin content actions", () => {
   it("softDeleteRouteAction: still revalidates route tag when context fields absent", async () => {
     const formData = new FormData();
     formData.set("id", "route_anaconda");
+    formData.set("confirm", "DELETE");
     // No cragSlug / boulderId / topoId
 
     await softDeleteRouteAction(formData);

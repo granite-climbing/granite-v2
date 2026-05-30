@@ -87,6 +87,7 @@ export type AdminBoulderRow = {
   id: string;
   sectorId: string;
   sectorName: string;
+  sectorSlug: string;
   cragName: string;
   cragSlug: string;
   name: string;
@@ -105,6 +106,7 @@ export type AdminTopoRow = {
   boulderId: string;
   boulderName: string;
   boulderSlug: string;
+  cragSlug: string;
   name: string;
   baseImageUrl: string;
   isPublished: boolean;
@@ -116,8 +118,10 @@ export type AdminRouteRow = {
   id: string;
   topoId: string;
   topoName: string;
+  boulderId: string;
   boulderName: string;
   boulderSlug: string;
+  cragSlug: string;
   name: string;
   slug: string;
   grade: string;
@@ -221,6 +225,7 @@ interface AdminBoulderSqlRow {
   id: string;
   sectorId: string;
   sectorName: string;
+  sectorSlug: string;
   cragName: string;
   cragSlug: string;
   name: string;
@@ -239,6 +244,7 @@ interface AdminTopoSqlRow {
   boulderId: string;
   boulderName: string;
   boulderSlug: string;
+  cragSlug: string;
   name: string;
   baseImageUrl: string;
   isPublished: 0 | 1;
@@ -250,8 +256,10 @@ interface AdminRouteSqlRow {
   id: string;
   topoId: string;
   topoName: string;
+  boulderId: string;
   boulderName: string;
   boulderSlug: string;
+  cragSlug: string;
   name: string;
   slug: string;
   grade: string;
@@ -463,6 +471,7 @@ export async function getAdminBoulders(sectorId?: string): Promise<AdminBoulderR
        b.id,
        b.sector_id       AS sectorId,
        s.name            AS sectorName,
+       s.slug            AS sectorSlug,
        c.name            AS cragName,
        c.slug            AS cragSlug,
        b.name,
@@ -504,6 +513,7 @@ export async function getAdminTopos(boulderId?: string): Promise<AdminTopoRow[]>
        t.boulder_id     AS boulderId,
        b.name           AS boulderName,
        b.slug           AS boulderSlug,
+       c.slug           AS cragSlug,
        t.name,
        t.base_image_url AS baseImageUrl,
        t.is_published   AS isPublished,
@@ -540,8 +550,10 @@ export async function getAdminRoutes(topoId?: string): Promise<AdminRouteRow[]> 
        r.id,
        r.topo_id        AS topoId,
        t.name           AS topoName,
+       b.id             AS boulderId,
        b.name           AS boulderName,
        b.slug           AS boulderSlug,
+       c.slug           AS cragSlug,
        r.name,
        r.slug,
        r.grade,
