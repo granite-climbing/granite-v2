@@ -3146,7 +3146,7 @@ git commit -m "fix: revalidate old AND new ancestry when admin moves content bet
 
 ### Task 19.1 — Descendant id enumerators
 
-- [ ] **Step 1: Add D1 read helpers**
+- [x] **Step 1: Add D1 read helpers**
 
 In `lib/db/admin-content-queries.ts`, add:
 ```ts
