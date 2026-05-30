@@ -3132,3 +3132,74 @@ git commit -m "fix: revalidate old AND new ancestry when admin moves content bet
 ### Task 18 completion criteria
 - 18.1 committed; full suite + typecheck + build green.
 - Re-run `/codex:adversarial-review` and confirm no remaining ship-blockers.
+
+---
+
+## Task 19: Invalidate descendant detail caches on parent moves (post-5th-review)
+
+> Added after Codex's 5th pass. Task 18 invalidates the moved entity's own crag/sector/boulder surface, but descendant pages (`/topos/<id>`, `/r/<id>`) embed ancestry (`topo.crag.slug`, `topo.boulder.name`, route's joined crag/sector/boulder) and were left stale.
+
+**Files:**
+- Modify: `lib/db/admin-content-queries.ts` — add descendant id enumerators + tests
+- Modify: `lib/actions/admin-content.ts` — `saveSectorAction`, `saveBoulderAction`, `saveTopoAction`
+- Modify: `lib/actions/admin-content.test.ts` — descendant-invalidation regression tests
+
+### Task 19.1 — Descendant id enumerators
+
+- [ ] **Step 1: Add D1 read helpers**
+
+In `lib/db/admin-content-queries.ts`, add:
+```ts
+export async function getSectorDescendantIds(sectorId: string): Promise<{
+  boulderIds: string[];
+  topoIds: string[];
+  routeIds: string[];
+}>;
+export async function getBoulderDescendantIds(boulderId: string): Promise<{
+  topoIds: string[];
+  routeIds: string[];
+}>;
+export async function getTopoDescendantIds(topoId: string): Promise<{
+  routeIds: string[];
+}>;
+```
+Each uses `queryD1` to fetch ids via JOINs from the parent down. DO NOT filter `deleted_at` (admin still needs to flush caches for soft-deleted descendants). Unit tests should mock `queryD1` and assert the SQL contains the right JOINs / param `[id]`.
+
+### Task 19.2 — Wire descendant invalidation into save actions
+
+For each of `saveSectorAction`, `saveBoulderAction`, `saveTopoAction`:
+- BEFORE upsert (only when editing — `parsed.id` present), in addition to the OLD ancestry snapshot from Task 18, also snapshot the descendant ids via the matching helper.
+- After upsert, compute the NEW ancestry as today.
+- If OLD ancestry differs from NEW ancestry (the parent changed OR the entity's own slug changed), iterate the OLD-snapshot descendant ids and invalidate per-id detail caches:
+  - boulders: `revalidateTag(\`boulder:${id}\`)` and (defensively) `revalidatePath(\`/c/${OLD.cragSlug}\`)`
+  - topos: `revalidatePath(\`/topos/${id}\`)` (no topo cache tag exists)
+  - routes: `revalidateTag(\`route:${id}\`)` and `revalidatePath(\`/r/${id}\`)`
+
+For `saveSectorAction`: invalidate ALL THREE descendant types (boulder/topo/route).
+For `saveBoulderAction`: invalidate topo + route.
+For `saveTopoAction`: invalidate route only.
+
+This keeps cost proportional to the change: a sector with N descendants pays N tag invalidations, but only on edits that actually changed ancestry (the OLD/NEW guard already gates this). New creates skip the descendant lookup entirely.
+
+### Task 19.3 — Tests
+
+In `lib/actions/admin-content.test.ts`:
+- "saveSectorAction (edit, parent move): invalidates descendant boulder/route tags AND `/topos/<id>` paths" — mock `getSectorAncestry` for OLD, `getCragSlugByCragId` (or whatever resolves NEW) for NEW, and `getSectorDescendantIds` to return `{boulderIds:["b1","b2"], topoIds:["t1"], routeIds:["r1","r2"]}`. Call saveSectorAction with `parsed.id="sector_x"`, NEW cragId different from OLD. Assert `revalidateTag("boulder:b1")`, `revalidateTag("boulder:b2")`, `revalidatePath("/topos/t1")`, `revalidateTag("route:r1")`, `revalidateTag("route:r2")` all fire.
+- "saveSectorAction (edit, no parent change): does NOT enumerate descendants" — OLD === NEW; assert `getSectorDescendantIds` is NOT called.
+- Same pattern for boulder and topo.
+
+### Task 19 — Verify + commit
+```bash
+pnpm test
+pnpm typecheck
+pnpm build
+```
+Then:
+```bash
+git add lib/actions/admin-content.ts lib/actions/admin-content.test.ts lib/db/admin-content-queries.ts lib/db/admin-content-queries.test.ts
+git commit -m "fix: invalidate descendant detail caches when admin moves a sector/boulder/topo"
+```
+
+### Task 19 completion criteria
+- 19.1 / 19.2 / 19.3 committed; full suite + typecheck + build green.
+- Re-run `/codex:adversarial-review` (6th pass) and confirm no remaining ship-blockers.
