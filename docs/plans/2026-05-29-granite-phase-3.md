@@ -2868,3 +2868,154 @@ Phase 3 is complete when:
 - Preview deployment verifies admin CRUD and public D1 reads.
 - Production deployment smoke test passes after admin tables and production admin are configured.
 - The real service URL is accessible after Phase 3 production deployment.
+
+---
+
+## Task 16: Post-review hardening — slug-derived id collisions + image sanitization
+
+> Added after the Codex adversarial review surfaced two pre-ship blockers. Both must land before Phase 3 ships to production.
+
+**Files:**
+- Modify: `lib/actions/admin-content.ts` (id generation for parent-scoped entities)
+- Modify: `lib/actions/admin-content.test.ts` (new collision regression tests)
+- Modify: `lib/actions/admin-images.ts` (sanitize bytes before R2 upload)
+- Modify: `lib/actions/admin-images-validate.ts` (or add `lib/actions/admin-images-sanitize.ts`)
+- Modify: `lib/actions/admin-images.test.ts` (sanitization assertions)
+- Modify: `lib/r2/images.ts` if extension/content-type derivation needs to change
+- Modify: `package.json` / lockfile (add `sharp`)
+
+### Task 16.1 — Fix parent-scoped slug id collisions (CRITICAL)
+
+**Problem (Codex review):** Sectors, boulders, and routes have `UNIQUE(parent, slug)` in SQL (e.g. `UNIQUE(crag_id, slug)` on `sectors`), so the SAME slug may legitimately appear under TWO different parents. However the save actions generate the primary key as `sector_${slug}` / `boulder_${slug}` / `route_${slug}` — slug-only. `findRowBySlug` runs in parent scope and finds nothing under the new parent, so the action proceeds to `upsertSector` with a globally colliding id. `ON CONFLICT(id) DO UPDATE` then **overwrites the unrelated row that lives under a different parent** — silent data loss.
+
+Areas and crags are NOT affected: `areas.slug` and `crags.slug` are GLOBALLY UNIQUE, so `findRowBySlug` (no parent scope) would already catch the live duplicate and reject it.
+
+Topos already use `topo_${randomUUID()}` (no slug) and announcements use `announcement_${randomUUID()}` — both safe.
+
+- [ ] **Step 1: Switch parent-scoped id generation to UUID**
+
+In `lib/actions/admin-content.ts`, change the three affected save actions:
+```ts
+let id = parsed.id ?? `sector_${randomUUID()}`;   // saveSectorAction
+let id = parsed.id ?? `boulder_${randomUUID()}`;  // saveBoulderAction
+let id = parsed.id ?? `route_${randomUUID()}`;    // saveRouteAction
+```
+Leave `saveAreaAction` and `saveCragAction` on the slug-based id (they are scoped globally so collisions are already handled by `findRowBySlug`).
+
+> Trade-off note: UUIDs make admin debugging slightly harder (you can no longer guess an id from a slug). The plan accepts this — silent overwrite of unrelated content is the worse failure mode. If a friendlier id is desired later, a follow-up could use `sector_${cragId}_${slug}` etc.; the UUID change is enough to ship.
+
+- [ ] **Step 2: Add collision regression tests**
+
+Add to `lib/actions/admin-content.test.ts` — for each of sector / boulder / route, a test that:
+1. Mocks `findRowBySlug` to return `null` (no collision in parent scope) and `requireAdmin`/`upsert*`/`auditLog` as before.
+2. Calls the save action TWICE with the same `slug` under TWO DIFFERENT parents (e.g. `cragId="crag_a"` then `cragId="crag_b"`).
+3. Asserts `upsertSector` (etc.) is called with TWO DIFFERENT `id` values (not the same `sector_<slug>` twice).
+
+These tests fail today and pass after Step 1.
+
+- [ ] **Step 3: Run + commit**
+```bash
+pnpm test lib/actions/admin-content.test.ts
+pnpm test
+pnpm typecheck
+```
+All pass. Then:
+```bash
+git add lib/actions/admin-content.ts lib/actions/admin-content.test.ts
+git commit -m "fix: avoid id collision when saving parent-scoped content under different parents"
+```
+
+### Task 16.2 — Sanitize uploaded image bytes before R2 (HIGH)
+
+**Problem (Codex review):** `uploadAdminImageAction` trusts the browser-reported MIME type and uploads original bytes to R2 unchanged. Original bytes carry EXIF (GPS coordinates, camera serials, etc.). For a curated outdoor-bouldering CDN, leaking GPS EXIF on every cover image undermines coordinate stewardship and is a real privacy/business risk. There is also no server-side content sniffing — a `.jpg` extension on a non-image file would pass.
+
+- [ ] **Step 1: Add sharp**
+
+Add `sharp` to dependencies:
+```bash
+pnpm add sharp
+```
+`sharp` is a standard Node image library; Vercel Node runtime supports it. By default `sharp` does NOT preserve metadata on output (no EXIF/ICC/XMP).
+
+- [ ] **Step 2: Add a server-side sanitizer**
+
+Create `lib/actions/admin-images-sanitize.ts` (NOT a `"use server"` file — pure helpers + an awaited sharp pipeline):
+
+```ts
+import sharp from "sharp";
+
+const MAX_DIMENSION = 4000;        // px — admin covers are big but bounded
+const ALLOWED_OUTPUT_FORMATS = new Set(["jpeg", "png", "webp"]);
+
+export type SanitizedImage = {
+  bytes: Buffer;
+  contentType: "image/jpeg" | "image/png" | "image/webp";
+  extension: "jpg" | "png" | "webp";
+  width: number;
+  height: number;
+};
+
+export async function sanitizeAdminImage(input: Buffer): Promise<SanitizedImage> {
+  // Decode via sharp — also validates that input IS an image (rejects content-type spoofing).
+  const pipeline = sharp(input, { failOn: "error" }).rotate(); // honour EXIF orientation then drop metadata
+  const meta = await pipeline.metadata();
+  if (!meta.format || !ALLOWED_OUTPUT_FORMATS.has(meta.format)) {
+    throw new Error("Unsupported image format");
+  }
+  if (!meta.width || !meta.height || meta.width > MAX_DIMENSION || meta.height > MAX_DIMENSION) {
+    throw new Error(`Image dimensions exceed ${MAX_DIMENSION}px or are missing`);
+  }
+
+  // Re-encode in the same family without metadata. `withMetadata` is NOT called,
+  // so EXIF/GPS/XMP/ICC are stripped.
+  let buffer: Buffer;
+  let contentType: SanitizedImage["contentType"];
+  let extension: SanitizedImage["extension"];
+  if (meta.format === "jpeg") {
+    buffer = await pipeline.jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+    contentType = "image/jpeg";
+    extension = "jpg";
+  } else if (meta.format === "png") {
+    buffer = await pipeline.png({ compressionLevel: 9 }).toBuffer();
+    contentType = "image/png";
+    extension = "png";
+  } else {
+    buffer = await pipeline.webp({ quality: 85 }).toBuffer();
+    contentType = "image/webp";
+    extension = "webp";
+  }
+
+  return { bytes: buffer, contentType, extension, width: meta.width, height: meta.height };
+}
+```
+
+- [ ] **Step 3: Wire sanitizer into `uploadAdminImageAction`**
+
+In `lib/actions/admin-images.ts`:
+- Keep `requireAdmin`, the FormData reads, and `validateAdminImageFileForTest` (size + browser-MIME pre-check is still useful as a cheap early reject).
+- AFTER `Buffer.from(await file.arrayBuffer())`, call `sanitizeAdminImage(bytes)` and use ITS `bytes`/`contentType`/`extension` for `buildR2ImageKey` + the `PutObjectCommand` (NOT the browser-reported values).
+- Add the sanitized `width`/`height` to the audit metadata for forensics.
+
+- [ ] **Step 4: Tests**
+
+Update `lib/actions/admin-images.test.ts`:
+- Keep the 3 existing pure-validator tests.
+- Add a test for `sanitizeAdminImage` using a fixture buffer that sharp can parse (e.g. construct a tiny test image via `sharp({create:{...}}).jpeg().toBuffer()`). Assert: returns expected `contentType`, `extension`, `width`, `height`; the output buffer is non-empty.
+- Add a test that `sanitizeAdminImage` REJECTS a non-image buffer (e.g. `Buffer.from("not an image")`) with a thrown error.
+- Add a test that an image with EXIF GPS in input does NOT contain EXIF in the output. (Generate input with sharp `withMetadata({exif: ...})` if convenient, then re-decode the output with sharp and assert `metadata.exif === undefined`.)
+
+- [ ] **Step 5: Run + commit**
+```bash
+pnpm test
+pnpm typecheck
+pnpm build
+```
+All pass. Then:
+```bash
+git add lib/actions/admin-images.ts lib/actions/admin-images-sanitize.ts lib/actions/admin-images.test.ts package.json pnpm-lock.yaml
+git commit -m "fix: sanitize admin image uploads (decode + re-encode, strip EXIF, enforce dimensions)"
+```
+
+### Task 16 completion criteria
+- Phase 3 cannot ship until Task 16.1 and 16.2 are both committed and the full test suite + typecheck + build remain green.
+- Re-run `/codex:adversarial-review` after committing, and confirm both findings are resolved.
