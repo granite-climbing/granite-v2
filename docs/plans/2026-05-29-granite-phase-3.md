@@ -2892,7 +2892,7 @@ Areas and crags are NOT affected: `areas.slug` and `crags.slug` are GLOBALLY UNI
 
 Topos already use `topo_${randomUUID()}` (no slug) and announcements use `announcement_${randomUUID()}` — both safe.
 
-- [ ] **Step 1: Switch parent-scoped id generation to UUID**
+- [x] **Step 1: Switch parent-scoped id generation to UUID**
 
 In `lib/actions/admin-content.ts`, change the three affected save actions:
 ```ts
@@ -2904,7 +2904,7 @@ Leave `saveAreaAction` and `saveCragAction` on the slug-based id (they are scope
 
 > Trade-off note: UUIDs make admin debugging slightly harder (you can no longer guess an id from a slug). The plan accepts this — silent overwrite of unrelated content is the worse failure mode. If a friendlier id is desired later, a follow-up could use `sector_${cragId}_${slug}` etc.; the UUID change is enough to ship.
 
-- [ ] **Step 2: Add collision regression tests**
+- [x] **Step 2: Add collision regression tests**
 
 Add to `lib/actions/admin-content.test.ts` — for each of sector / boulder / route, a test that:
 1. Mocks `findRowBySlug` to return `null` (no collision in parent scope) and `requireAdmin`/`upsert*`/`auditLog` as before.
@@ -2913,7 +2913,7 @@ Add to `lib/actions/admin-content.test.ts` — for each of sector / boulder / ro
 
 These tests fail today and pass after Step 1.
 
-- [ ] **Step 3: Run + commit**
+- [x] **Step 3: Run + commit**
 ```bash
 pnpm test lib/actions/admin-content.test.ts
 pnpm test
@@ -2929,7 +2929,7 @@ git commit -m "fix: avoid id collision when saving parent-scoped content under d
 
 **Problem (Codex review):** `uploadAdminImageAction` trusts the browser-reported MIME type and uploads original bytes to R2 unchanged. Original bytes carry EXIF (GPS coordinates, camera serials, etc.). For a curated outdoor-bouldering CDN, leaking GPS EXIF on every cover image undermines coordinate stewardship and is a real privacy/business risk. There is also no server-side content sniffing — a `.jpg` extension on a non-image file would pass.
 
-- [ ] **Step 1: Add sharp**
+- [x] **Step 1: Add sharp**
 
 Add `sharp` to dependencies:
 ```bash
@@ -2937,7 +2937,7 @@ pnpm add sharp
 ```
 `sharp` is a standard Node image library; Vercel Node runtime supports it. By default `sharp` does NOT preserve metadata on output (no EXIF/ICC/XMP).
 
-- [ ] **Step 2: Add a server-side sanitizer**
+- [x] **Step 2: Add a server-side sanitizer**
 
 Create `lib/actions/admin-images-sanitize.ts` (NOT a `"use server"` file — pure helpers + an awaited sharp pipeline):
 
@@ -2989,14 +2989,14 @@ export async function sanitizeAdminImage(input: Buffer): Promise<SanitizedImage>
 }
 ```
 
-- [ ] **Step 3: Wire sanitizer into `uploadAdminImageAction`**
+- [x] **Step 3: Wire sanitizer into `uploadAdminImageAction`**
 
 In `lib/actions/admin-images.ts`:
 - Keep `requireAdmin`, the FormData reads, and `validateAdminImageFileForTest` (size + browser-MIME pre-check is still useful as a cheap early reject).
 - AFTER `Buffer.from(await file.arrayBuffer())`, call `sanitizeAdminImage(bytes)` and use ITS `bytes`/`contentType`/`extension` for `buildR2ImageKey` + the `PutObjectCommand` (NOT the browser-reported values).
 - Add the sanitized `width`/`height` to the audit metadata for forensics.
 
-- [ ] **Step 4: Tests**
+- [x] **Step 4: Tests**
 
 Update `lib/actions/admin-images.test.ts`:
 - Keep the 3 existing pure-validator tests.
@@ -3004,7 +3004,7 @@ Update `lib/actions/admin-images.test.ts`:
 - Add a test that `sanitizeAdminImage` REJECTS a non-image buffer (e.g. `Buffer.from("not an image")`) with a thrown error.
 - Add a test that an image with EXIF GPS in input does NOT contain EXIF in the output. (Generate input with sharp `withMetadata({exif: ...})` if convenient, then re-decode the output with sharp and assert `metadata.exif === undefined`.)
 
-- [ ] **Step 5: Run + commit**
+- [x] **Step 5: Run + commit**
 ```bash
 pnpm test
 pnpm typecheck
