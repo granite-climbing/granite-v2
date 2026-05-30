@@ -557,7 +557,7 @@ describe("admin content actions", () => {
   // togglePublishAction
   // -------------------------------------------------------------------------
 
-  it("togglePublishAction: calls updatePublishState, audits content.publish_toggle, revalidates", async () => {
+  it("togglePublishAction: calls updatePublishState, audits content.publish_toggle with singular targetType, revalidates", async () => {
     const formData = new FormData();
     formData.set("table", "crags");
     formData.set("id", "crag_anyang");
@@ -572,12 +572,22 @@ describe("admin content actions", () => {
     expect(mockedInsertAdminAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         action: "content.publish_toggle",
-        targetType: "crags",
+        targetType: "crag",
         targetId: "crag_anyang",
       }),
     );
     expect(mockedRevalidateTag).toHaveBeenCalledWith("home");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/");
+  });
+
+  it("togglePublishAction: throws 'Unsupported table' when table not in allowlist", async () => {
+    const formData = new FormData();
+    formData.set("table", "invalid_table");
+    formData.set("id", "some_id");
+    formData.set("isPublished", "on");
+
+    await expect(togglePublishAction(formData)).rejects.toThrow("Unsupported table: invalid_table");
+    expect(mockedUpdatePublishState).not.toHaveBeenCalled();
   });
 
   // -------------------------------------------------------------------------

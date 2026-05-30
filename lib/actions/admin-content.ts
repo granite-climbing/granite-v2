@@ -26,6 +26,23 @@ import {
 } from "./admin-content-schema";
 
 // ---------------------------------------------------------------------------
+// Table validation and singular name mapping for publish toggle
+// ---------------------------------------------------------------------------
+
+const ALLOWED_TOGGLE_TABLES = ["areas", "crags", "sectors", "boulders", "topos", "routes", "announcements"] as const;
+type ToggleTable = (typeof ALLOWED_TOGGLE_TABLES)[number];
+
+const SINGULAR_BY_TABLE: Record<ToggleTable, string> = {
+  areas: "area",
+  crags: "crag",
+  sectors: "sector",
+  boulders: "boulder",
+  topos: "topo",
+  routes: "route",
+  announcements: "announcement",
+};
+
+// ---------------------------------------------------------------------------
 // Non-fatal audit helper
 // ---------------------------------------------------------------------------
 
@@ -47,7 +64,7 @@ async function auditLog(input: {
 // Slug-collision resolution for save actions
 // Applies to: area, crag, sector, boulder, route (NOT topo — no slug).
 // Returns the resolved id to use for the upsert.
-// Side effect: if a soft-deleted row is found, calls restoreContent on it.
+// If a soft-deleted row is found, returns its id; the CALLER must call restoreContent on it.
 // ---------------------------------------------------------------------------
 
 async function resolveSlugConflict(input: {
@@ -70,7 +87,7 @@ async function resolveSlugConflict(input: {
 
   if (existing.deleted_at !== null) {
     // Soft-deleted row: reuse its id so the upsert updates it.
-    // restoreContent is called AFTER the upsert in the save action.
+    // The caller must invoke restoreContent after the upsert.
     return existing.id;
   }
 
@@ -159,6 +176,9 @@ export async function saveCragAction(formData: FormData): Promise<void> {
 
   await upsertCrag({ ...parsed, id });
 
+  // Non-atomic: D1 HTTP has no transaction support, so upsert and restore are separate calls.
+  // This is acceptable for the admin path because the upsert is the source of truth; a crash
+  // between upsert and restore would leave the row updated-but-soft-deleted, which a re-save resolves.
   if (!parsed.id && id !== `crag_${parsed.slug}`) {
     await restoreContent({ table: "crags", id });
   }
@@ -405,9 +425,14 @@ export async function togglePublishAction(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   const isPublished = formData.get("isPublished") === "on" || formData.get("isPublished") === "true";
 
-  // table is validated inside updatePublishState via assertMutableTable.
+  if (!ALLOWED_TOGGLE_TABLES.includes(table as ToggleTable)) {
+    throw new Error(`Unsupported table: ${table}`);
+  }
+
+  const validTable = table as ToggleTable;
+
   await updatePublishState({
-    table: table as Parameters<typeof updatePublishState>[0]["table"],
+    table: validTable,
     id,
     isPublished,
   });
@@ -415,7 +440,7 @@ export async function togglePublishAction(formData: FormData): Promise<void> {
   await auditLog({
     adminId: admin.adminId,
     action: "content.publish_toggle",
-    targetType: table,
+    targetType: SINGULAR_BY_TABLE[validTable],
     targetId: id,
     metadata: { isPublished },
   });
