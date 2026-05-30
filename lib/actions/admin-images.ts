@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth/admin";
 import { insertAdminAuditLog } from "@/lib/db/admin-queries";
 import { buildCdnImageUrl, buildR2ImageKey, type ImageEntityType } from "@/lib/r2/images";
 import { validateAdminImageFileForTest } from "@/lib/actions/admin-images-validate";
+import { sanitizeAdminImage } from "@/lib/actions/admin-images-sanitize";
 
 // Re-export for tests — Next.js only requires async functions to be exported
 // from "use server" modules when they are invoked as Server Actions. A re-export
@@ -39,20 +40,30 @@ export async function uploadAdminImageAction(formData: FormData): Promise<{ cdnU
   if (typeof entityId !== "string") throw new Error("entityId is required");
   if (typeof purpose !== "string") throw new Error("purpose is required");
 
-  const { extension } = validateAdminImageFileForTest(file);
+  // Cheap pre-validation: size cap + browser-declared MIME allowlist.
+  // This is a fast early reject before we touch native code.
+  validateAdminImageFileForTest(file);
+
+  // Server-side content validation + EXIF/GPS stripping.
+  // sanitizeAdminImage decodes the bytes with sharp (not trusting the browser's
+  // MIME header), enforces format + dimension limits, and re-encodes without
+  // any metadata — so no GPS, Make, XMP, or ICC reaches R2 or the public CDN.
+  const inputBytes = Buffer.from(await file.arrayBuffer());
+  const sanitized = await sanitizeAdminImage(inputBytes);
+
+  // Use the sanitizer's extension, which is authoritative (content-sniffed).
   const key = buildR2ImageKey({
     entityType: entityType as ImageEntityType,
     entityId,
     purpose,
-    extension,
+    extension: sanitized.extension,
   });
 
-  const bytes = Buffer.from(await file.arrayBuffer());
   await getR2Client().send(new PutObjectCommand({
     Bucket: process.env.R2_BUCKET_NAME,
     Key: key,
-    Body: bytes,
-    ContentType: file.type,
+    Body: sanitized.bytes,
+    ContentType: sanitized.contentType,
   }));
 
   const cdnUrl = buildCdnImageUrl(key);
@@ -64,7 +75,15 @@ export async function uploadAdminImageAction(formData: FormData): Promise<{ cdnU
       action: "image.upload",
       targetType: entityType,
       targetId: entityId,
-      metadata: { key, purpose, contentType: file.type, size: file.size },
+      metadata: {
+        key,
+        purpose,
+        contentType: sanitized.contentType,
+        size: file.size,
+        width: sanitized.width,
+        height: sanitized.height,
+        sanitizedBytes: sanitized.bytes.length,
+      },
     });
   } catch (err) {
     console.error("Failed to write audit log for image.upload:", err);
