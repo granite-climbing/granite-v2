@@ -426,7 +426,7 @@ describe("admin content actions", () => {
       }),
     );
     expect(mockedUpsertSector).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "sector_anyang_antique" }),
+      expect.objectContaining({ id: expect.stringMatching(/^sector_/) }),
     );
   });
 
@@ -457,7 +457,7 @@ describe("admin content actions", () => {
       }),
     );
     expect(mockedUpsertBoulder).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "boulder_gomul_boulder" }),
+      expect.objectContaining({ id: expect.stringMatching(/^boulder_/) }),
     );
     expect(mockedInsertAdminAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({ action: "content.upsert", targetType: "boulder" }),
@@ -492,8 +492,161 @@ describe("admin content actions", () => {
       }),
     );
     expect(mockedUpsertRoute).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "route_anaconda" }),
+      expect.objectContaining({ id: expect.stringMatching(/^route_/) }),
     );
+  });
+
+  // -------------------------------------------------------------------------
+  // Parent-scoped id collision regression tests
+  // -------------------------------------------------------------------------
+
+  it("saveSectorAction: generates different UUIDs for same slug under different crags (collision regression)", async () => {
+    mockedFindRowBySlug.mockResolvedValue(null);
+
+    // First call: create sector with slug "anyang" under crag_a
+    const formData1 = new FormData();
+    formData1.set("cragId", "crag_a");
+    formData1.set("name", "Sector A");
+    formData1.set("slug", "anyang");
+    formData1.set("coverImageUrl", "");
+    formData1.set("isPublished", "on");
+    formData1.set("sortOrder", "0");
+
+    await saveSectorAction(formData1);
+
+    const call1 = mockedUpsertSector.mock.calls[0];
+    const id1 = call1?.[0]?.id;
+
+    // Reset mock for second call
+    mockedUpsertSector.mockClear();
+    mockedFindRowBySlug.mockClear();
+    mockedFindRowBySlug.mockResolvedValue(null);
+
+    // Second call: create sector with same slug "anyang" under crag_b
+    const formData2 = new FormData();
+    formData2.set("cragId", "crag_b");
+    formData2.set("name", "Sector B");
+    formData2.set("slug", "anyang");
+    formData2.set("coverImageUrl", "");
+    formData2.set("isPublished", "on");
+    formData2.set("sortOrder", "0");
+
+    await saveSectorAction(formData2);
+
+    const call2 = mockedUpsertSector.mock.calls[0];
+    const id2 = call2?.[0]?.id;
+
+    // Verify both ids match the prefix
+    expect(id1).toMatch(/^sector_/);
+    expect(id2).toMatch(/^sector_/);
+    // Verify they are different (UUID prevents collision)
+    expect(id1).not.toBe(id2);
+    // Verify upsertSector was called twice total (once per call)
+    expect(mockedUpsertSector).toHaveBeenCalledTimes(1); // This call's upserts
+  });
+
+  it("saveBoulderAction: generates different UUIDs for same slug under different sectors (collision regression)", async () => {
+    mockedFindRowBySlug.mockResolvedValue(null);
+
+    // First call: create boulder with slug "gomul" under sector_a
+    const formData1 = new FormData();
+    formData1.set("sectorId", "sector_a");
+    formData1.set("name", "Boulder A");
+    formData1.set("slug", "gomul");
+    formData1.set("lat", "37.42");
+    formData1.set("lng", "126.92");
+    formData1.set("hashtags", "");
+    formData1.set("coverImageUrl", "");
+    formData1.set("isPublished", "on");
+    formData1.set("sortOrder", "0");
+
+    await saveBoulderAction(formData1);
+
+    const call1 = mockedUpsertBoulder.mock.calls[0];
+    const id1 = call1?.[0]?.id;
+
+    // Reset mock for second call
+    mockedUpsertBoulder.mockClear();
+    mockedFindRowBySlug.mockClear();
+    mockedFindRowBySlug.mockResolvedValue(null);
+
+    // Second call: create boulder with same slug "gomul" under sector_b
+    const formData2 = new FormData();
+    formData2.set("sectorId", "sector_b");
+    formData2.set("name", "Boulder B");
+    formData2.set("slug", "gomul");
+    formData2.set("lat", "37.42");
+    formData2.set("lng", "126.92");
+    formData2.set("hashtags", "");
+    formData2.set("coverImageUrl", "");
+    formData2.set("isPublished", "on");
+    formData2.set("sortOrder", "0");
+
+    await saveBoulderAction(formData2);
+
+    const call2 = mockedUpsertBoulder.mock.calls[0];
+    const id2 = call2?.[0]?.id;
+
+    // Verify both ids match the prefix
+    expect(id1).toMatch(/^boulder_/);
+    expect(id2).toMatch(/^boulder_/);
+    // Verify they are different (UUID prevents collision)
+    expect(id1).not.toBe(id2);
+    // Verify upsertBoulder was called twice total (once per call)
+    expect(mockedUpsertBoulder).toHaveBeenCalledTimes(1); // This call's upserts
+  });
+
+  it("saveRouteAction: generates different UUIDs for same slug under different topos (collision regression)", async () => {
+    mockedFindRowBySlug.mockResolvedValue(null);
+
+    // First call: create route with slug "anaconda" under topo_a
+    const formData1 = new FormData();
+    formData1.set("topoId", "topo_a");
+    formData1.set("name", "Route A");
+    formData1.set("slug", "anaconda");
+    formData1.set("grade", "V5");
+    formData1.set("gradeNum", "5");
+    formData1.set("fa", "");
+    formData1.set("description", "");
+    formData1.set("lineImageUrl", "");
+    formData1.set("isPublished", "on");
+    formData1.set("sortOrder", "1");
+
+    await saveRouteAction(formData1);
+
+    const call1 = mockedUpsertRoute.mock.calls[0];
+    const id1 = call1?.[0]?.id;
+
+    // Reset mock for second call
+    mockedUpsertRoute.mockClear();
+    mockedFindRowBySlug.mockClear();
+    mockedFindRowBySlug.mockResolvedValue(null);
+
+    // Second call: create route with same slug "anaconda" under topo_b
+    const formData2 = new FormData();
+    formData2.set("topoId", "topo_b");
+    formData2.set("name", "Route B");
+    formData2.set("slug", "anaconda");
+    formData2.set("grade", "V5");
+    formData2.set("gradeNum", "5");
+    formData2.set("fa", "");
+    formData2.set("description", "");
+    formData2.set("lineImageUrl", "");
+    formData2.set("isPublished", "on");
+    formData2.set("sortOrder", "1");
+
+    await saveRouteAction(formData2);
+
+    const call2 = mockedUpsertRoute.mock.calls[0];
+    const id2 = call2?.[0]?.id;
+
+    // Verify both ids match the prefix
+    expect(id1).toMatch(/^route_/);
+    expect(id2).toMatch(/^route_/);
+    // Verify they are different (UUID prevents collision)
+    expect(id1).not.toBe(id2);
+    // Verify upsertRoute was called twice total (once per call)
+    expect(mockedUpsertRoute).toHaveBeenCalledTimes(1); // This call's upserts
   });
 
   // -------------------------------------------------------------------------

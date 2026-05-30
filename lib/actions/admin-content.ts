@@ -191,7 +191,7 @@ export async function saveSectorAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const parsed = parseSectorForm(Object.fromEntries(formData));
   const cragSlug = formData.get("cragSlug")?.toString() || undefined;
-  let id = parsed.id ?? `sector_${parsed.slug}`;
+  let id = parsed.id ?? `sector_${randomUUID()}`;
 
   if (!parsed.id) {
     id = await resolveSlugConflict({
@@ -218,7 +218,7 @@ export async function saveBoulderAction(formData: FormData): Promise<void> {
   const parsed = parseBoulderForm(Object.fromEntries(formData));
   const cragSlug = formData.get("cragSlug")?.toString() || undefined;
   const sectorSlug = formData.get("sectorSlug")?.toString() || undefined;
-  let id = parsed.id ?? `boulder_${parsed.slug}`;
+  let id = parsed.id ?? `boulder_${randomUUID()}`;
 
   if (!parsed.id) {
     id = await resolveSlugConflict({
@@ -259,7 +259,7 @@ export async function saveRouteAction(formData: FormData): Promise<void> {
   const cragSlug = formData.get("cragSlug")?.toString() || undefined;
   const boulderId = formData.get("boulderId")?.toString() || undefined;
   // topoId is already in parsed (required schema field) — use it for path revalidation too.
-  let id = parsed.id ?? `route_${parsed.slug}`;
+  let id = parsed.id ?? `route_${randomUUID()}`;
 
   if (!parsed.id) {
     id = await resolveSlugConflict({
