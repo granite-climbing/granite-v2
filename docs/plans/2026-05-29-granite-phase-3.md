@@ -1394,7 +1394,7 @@ git commit -m "feat: align admin content validation with phase 2 schema"
 - Create: `lib/db/admin-content-queries.ts`
 - Create: `lib/db/admin-content-queries.test.ts`
 
-- [ ] **Step 1: Add tests for upsert, soft delete, and restore SQL**
+- [x] **Step 1: Add tests for upsert, soft delete, and restore SQL**
 
 Create `lib/db/admin-content-queries.test.ts`:
 
@@ -1469,7 +1469,7 @@ describe("admin content queries", () => {
 });
 ```
 
-- [ ] **Step 2: Run failing tests**
+- [x] **Step 2: Run failing tests**
 
 Run:
 
@@ -1479,7 +1479,7 @@ pnpm test lib/db/admin-content-queries.test.ts
 
 Expected: fail because file is missing.
 
-- [ ] **Step 3: Implement query functions**
+- [x] **Step 3: Implement query functions**
 
 Create `lib/db/admin-content-queries.ts` with explicit upsert functions and constrained table helpers for soft delete/restore:
 
@@ -1597,7 +1597,7 @@ Use the same pattern: explicit SQL, parameter binding, `updated_at = datetime('n
 >
 > Add a test in `admin-content-queries.test.ts` covering "create with a slug that belongs to a soft-deleted row".
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run:
 
@@ -1607,7 +1607,7 @@ pnpm test lib/db/admin-content-queries.test.ts
 
 Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/db/admin-content-queries.ts lib/db/admin-content-queries.test.ts
@@ -1622,7 +1622,7 @@ git commit -m "feat: add admin content mutation queries"
 - Modify: `lib/actions/admin-content.ts`
 - Modify: `lib/actions/admin-content.test.ts`
 
-- [ ] **Step 1: Add action behavior tests**
+- [x] **Step 1: Add action behavior tests**
 
 Add tests that mock:
 
@@ -1676,7 +1676,7 @@ it("saveCragAction requires admin, upserts crag, audits, and revalidates", async
 });
 ```
 
-- [ ] **Step 2: Run failing tests**
+- [x] **Step 2: Run failing tests**
 
 Run:
 
@@ -1686,7 +1686,7 @@ pnpm test lib/actions/admin-content.test.ts
 
 Expected: fail until actions are rewritten.
 
-- [ ] **Step 3: Rewrite actions**
+- [x] **Step 3: Rewrite actions**
 
 Implement actions with this pattern:
 
@@ -1750,7 +1750,7 @@ Delete actions are soft deletes: set `deleted_at = datetime('now')`, write audit
 
 > **Atomicity note.** The mutation and `insertAdminAuditLog` are two separate `executeD1` calls; the D1 HTTP path used here has no multi-statement transaction, so they can diverge if the audit insert fails after the mutation succeeds. Order them so the **mutation runs first, the audit log second** (as shown). Treat a failed audit insert as non-fatal to the data change: let the mutation stand, but log the audit failure server-side (e.g., `console.error`) so it can be reconciled — do not roll back or retry the content write. Never let an audit failure surface as a content-save failure to the operator. If true atomicity becomes a requirement later, revisit `batchD1` (see Task 2) once the deployed D1 endpoint's batch support is confirmed.
 
-- [ ] **Step 4: Run action tests**
+- [x] **Step 4: Run action tests**
 
 Run:
 
@@ -1760,7 +1760,7 @@ pnpm test lib/actions/admin-content.test.ts
 
 Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/admin-content.ts lib/actions/admin-content.test.ts
@@ -1775,7 +1775,7 @@ git commit -m "feat: implement admin content actions"
 - Create: `lib/db/admin-read-queries.ts`
 - Create: `lib/db/admin-read-queries.test.ts`
 
-- [ ] **Step 1: Define admin list/detail read models**
+- [x] **Step 1: Define admin list/detail read models**
 
 Admin read models must include unpublished rows. Do not reuse public read functions that filter `is_published = 1`.
 
@@ -1790,7 +1790,7 @@ Create functions:
 - `getAdminRoutes(topoId?)`
 - `getAdminAnnouncements()`
 
-- [ ] **Step 2: Write tests**
+- [x] **Step 2: Write tests**
 
 Test that:
 
@@ -1799,7 +1799,7 @@ Test that:
 - `getAdminContentOverview()` returns counts for published and draft rows.
 - `getAdminContentOverview()` returns deleted counts separately.
 
-- [ ] **Step 2A: Update public query tests for soft delete**
+- [x] **Step 2A: Update public query tests for soft delete**
 
 Modify `lib/db/queries.test.ts` so public SQL assertions require `deleted_at IS NULL` for every content table and announcement query. Required coverage:
 
@@ -1809,7 +1809,7 @@ Modify `lib/db/queries.test.ts` so public SQL assertions require `deleted_at IS 
 - topo and route detail queries exclude deleted ancestors;
 - announcements exclude deleted rows.
 
-- [ ] **Step 3: Implement queries**
+- [x] **Step 3: Implement queries**
 
 Use `queryD1` and explicit SQL. Example:
 
@@ -1832,18 +1832,19 @@ export async function getAdminCrags(): Promise<AdminCragRow[]> {
        c.sort_order AS sortOrder
      FROM crags c
      JOIN areas a ON a.id = c.area_id
-     WHERE c.deleted_at IS NULL
-       AND a.deleted_at IS NULL
+     -- Admin reads INCLUDE deleted crags (so the UI can show + restore them);
+     -- only filter out orphans whose parent area is deleted.
+     WHERE a.deleted_at IS NULL
      ORDER BY a.sort_order ASC, c.sort_order ASC, c.name ASC`,
   );
 }
 ```
 
-- [ ] **Step 3A: Update public queries for soft delete**
+- [x] **Step 3A: Update public queries for soft delete**
 
 Modify `lib/db/queries.ts` to add `deleted_at IS NULL` checks to every public read. Public pages must behave as if soft-deleted rows do not exist. Do not add soft-delete filters only in repository row shaping; keep the filtering in SQL.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run:
 
@@ -1853,7 +1854,7 @@ pnpm test lib/db/admin-read-queries.test.ts
 
 Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/db/admin-read-queries.ts lib/db/admin-read-queries.test.ts
@@ -1864,8 +1865,15 @@ git commit -m "feat: add admin content read models"
 
 ## Task 10: Desktop Admin Component System And Entity Pages
 
+> **Cache-revalidation wiring (required).** The save/softDelete/restore actions for sector/boulder/topo/route read OPTIONAL parent-context fields from `FormData` to fire the right `crag:<slug>`/`sector:<slug>`/`boulder:<id>`/`/topos/<id>`/`/c/<slug>` tags and paths. Each entity form MUST include these as hidden inputs alongside the persisted fields, otherwise the public crag/topo pages will go stale until TTL:
+> - Sector form: `<input type="hidden" name="cragSlug" value={crag.slug} />`
+> - Boulder form: `<input type="hidden" name="cragSlug" value={crag.slug} />` and `<input type="hidden" name="sectorSlug" value={sector.slug} />`
+> - Topo form: `<input type="hidden" name="cragSlug" value={crag.slug} />`
+> - Route form: `<input type="hidden" name="cragSlug" value={crag.slug} />` and `<input type="hidden" name="boulderId" value={boulder.id} />` (the route's `topoId` is already a schema field)
+> - The matching soft-delete and restore button forms for boulder/route/topo must include the same hidden inputs as the save form so cache invalidation is symmetric.
+
 **Files:**
-- Replace: `app/admin/content/page.tsx`
+- Replace: `app/admin/(protected)/content/page.tsx`
 - Create: `components/admin/admin-shell.tsx`
 - Create: `components/admin/admin-card.tsx`
 - Create: `components/admin/admin-table.tsx`
