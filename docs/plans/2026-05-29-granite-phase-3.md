@@ -3094,7 +3094,7 @@ git commit -m "fix: derive cache-invalidation context from D1 (authoritative anc
 
 **Problem:** When the admin edits an existing row and changes its parent (`cragId` for sector, `sectorId` for boulder, `boulderId` for topo, `topoId` for route), the action upserts FIRST and only resolves ancestry from the now-new parent. The old crag/sector/boulder/topo page tag (`crag:<oldSlug>` etc.) never fires; public pages can keep listing the moved child until an unrelated mutation invalidates them.
 
-- [ ] **Step 1: Snapshot ancestry before upsert (only when editing)**
+- [x] **Step 1: Snapshot ancestry before upsert (only when editing)**
 
 In each of the four save actions, when `parsed.id` is present (edit, not create):
 1. Fetch ancestry for the existing row id with the appropriate helper BEFORE calling `upsert*`:
@@ -3109,7 +3109,7 @@ In each of the four save actions, when `parsed.id` is present (edit, not create)
 
 This is the cheapest correct fix: 1 extra D1 read per edit save, no extra reads on create.
 
-- [ ] **Step 2: Tests**
+- [x] **Step 2: Tests**
 
 In `lib/actions/admin-content.test.ts`, mocking the ancestry helpers and `revalidateTag`/`revalidatePath`:
 - "saveSectorAction (edit, parent move): invalidates old AND new crag tags" — `parsed.id` set, mock `getSectorAncestry` to return OLD `{ cragSlug: "anyang", sectorSlug: "old_sector" }`; the form's `cragId` resolves to NEW `{ cragSlug: "samsung", sectorSlug: "new_sector_slug" }`. Assert `revalidateTag("crag:samsung")` AND `revalidateTag("crag:anyang")` both fire.
