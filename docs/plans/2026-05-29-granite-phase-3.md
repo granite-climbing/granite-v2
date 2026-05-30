@@ -3079,3 +3079,56 @@ git commit -m "fix: derive cache-invalidation context from D1 (authoritative anc
 ### Task 17 completion criteria
 - Phase 3 cannot ship until 17.1 and 17.2 are both committed.
 - Re-run `/codex:adversarial-review` and confirm no remaining ship-blockers.
+
+---
+
+## Task 18: Invalidate both OLD and NEW ancestry on parent moves (post-4th-review)
+
+> Added after Codex's 4th pass. Task 17 made ancestry DB-driven, but only for the AFTER state. Moving a sector/boulder/topo/route to a different parent leaves the OLD parent's public page cache stale until something unrelated flushes it.
+
+**Files:**
+- Modify: `lib/actions/admin-content.ts` — `saveSectorAction`, `saveBoulderAction`, `saveTopoAction`, `saveRouteAction`
+- Modify: `lib/actions/admin-content.test.ts` — add parent-move regression tests
+
+### Task 18.1 — Capture pre-upsert ancestry and revalidate both sides
+
+**Problem:** When the admin edits an existing row and changes its parent (`cragId` for sector, `sectorId` for boulder, `boulderId` for topo, `topoId` for route), the action upserts FIRST and only resolves ancestry from the now-new parent. The old crag/sector/boulder/topo page tag (`crag:<oldSlug>` etc.) never fires; public pages can keep listing the moved child until an unrelated mutation invalidates them.
+
+- [ ] **Step 1: Snapshot ancestry before upsert (only when editing)**
+
+In each of the four save actions, when `parsed.id` is present (edit, not create):
+1. Fetch ancestry for the existing row id with the appropriate helper BEFORE calling `upsert*`:
+   - sector: `getSectorAncestry(parsed.id)` → old `{ cragSlug, sectorSlug }`
+   - boulder: `getBoulderAncestry(parsed.id)` → old `{ cragSlug, sectorSlug }`
+   - topo: `getTopoAncestry(parsed.id)` → old `{ cragSlug, boulderId }`
+   - route: `getRouteAncestry(parsed.id)` → old `{ cragSlug, boulderId, topoId }`
+2. Call `upsert*` as today.
+3. Fetch ancestry for the (possibly new) parent the same way the action already does.
+4. Call `revalidate*Surface` for the NEW ancestry first.
+5. If OLD ancestry exists AND any of the relevant fields differ from NEW (the parent changed), call `revalidate*Surface` again for the OLD ancestry.
+
+This is the cheapest correct fix: 1 extra D1 read per edit save, no extra reads on create.
+
+- [ ] **Step 2: Tests**
+
+In `lib/actions/admin-content.test.ts`, mocking the ancestry helpers and `revalidateTag`/`revalidatePath`:
+- "saveSectorAction (edit, parent move): invalidates old AND new crag tags" — `parsed.id` set, mock `getSectorAncestry` to return OLD `{ cragSlug: "anyang", sectorSlug: "old_sector" }`; the form's `cragId` resolves to NEW `{ cragSlug: "samsung", sectorSlug: "new_sector_slug" }`. Assert `revalidateTag("crag:samsung")` AND `revalidateTag("crag:anyang")` both fire.
+- Same shape for boulder, topo, route. For route, OLD and NEW will differ on `topoId` (`/topos/<id>` path) and via `cragSlug`/`boulderId`.
+
+The existing "save without hidden context" tests (create-path) still pass — no OLD ancestry to fetch.
+
+### Task 18 — Verify + commit
+```bash
+pnpm test
+pnpm typecheck
+pnpm build
+```
+Then:
+```bash
+git add lib/actions/admin-content.ts lib/actions/admin-content.test.ts
+git commit -m "fix: revalidate old AND new ancestry when admin moves content between parents"
+```
+
+### Task 18 completion criteria
+- 18.1 committed; full suite + typecheck + build green.
+- Re-run `/codex:adversarial-review` and confirm no remaining ship-blockers.
