@@ -4,6 +4,14 @@ import { AdminCard } from "@/components/admin/admin-card";
 
 export const dynamic = "force-dynamic";
 
+function formatMetadata(raw: string): string {
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch {
+    return raw;
+  }
+}
+
 export default async function AdminAuditPage() {
   const logs = await getRecentAdminAuditLogs(100);
 
@@ -24,7 +32,7 @@ export default async function AdminAuditPage() {
                 </p>
                 {log.metadata && log.metadata !== "{}" && (
                   <pre className="mt-2 max-h-32 overflow-auto rounded bg-[#F7F8F8] p-3 text-xs font-mono text-[#111827]">
-                    {JSON.stringify(JSON.parse(log.metadata), null, 2)}
+                    {formatMetadata(log.metadata)}
                   </pre>
                 )}
               </li>
