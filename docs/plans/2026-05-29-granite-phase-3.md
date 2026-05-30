@@ -3203,3 +3203,37 @@ git commit -m "fix: invalidate descendant detail caches when admin moves a secto
 ### Task 19 completion criteria
 - 19.1 / 19.2 / 19.3 committed; full suite + typecheck + build green.
 - Re-run `/codex:adversarial-review` (6th pass) and confirm no remaining ship-blockers.
+
+---
+
+## Phase 3.5 — Deferred follow-ups
+
+Codex's 6th adversarial review found a structurally similar cache class still present after Task 19 was fixed. Rather than continue an open-ended series of patches inside Phase 3 (each round was finding one more mutation path that should also invalidate descendants), the project has explicitly deferred the remaining work to a Phase 3.5 patch with a cleaner shared abstraction.
+
+### Deferred items (to be tracked in a GitHub Issue after this branch lands)
+
+1. **Ancestor publish toggle does not flush descendant caches.**
+   `togglePublishAction` on a crag/sector/boulder/topo only invalidates the toggled entity's own surface. Boulder/topo/route detail caches that embed ancestor `is_published` continue to serve their cached row until the underlying `unstable_cache` TTL expires.
+2. **Soft-delete and restore of an ancestor have the same gap.**
+   `softDelete*Action` and `restore*Action` for crag/sector/boulder/topo do not enumerate descendants either.
+
+### Why deferred (impact bound)
+- All affected public detail routes are `force-dynamic`. Only the data-layer `unstable_cache` is involved; the SQL still enforces ancestor `is_published`/`deleted_at` filters on every cache refresh.
+- The user-visible stale window is bounded by `unstable_cache` TTL, not unbounded.
+- An admin operational workaround exists (touch a descendant to force its tag to flush) — documented in `docs/admin-operations.md`.
+
+### Planned Phase 3.5 shape
+Replace the ad-hoc `revalidate*Surface` calls scattered across save / softDelete / restore / togglePublish with a single helper:
+```ts
+invalidateEntityAndDescendants({ table, id, oldAncestry?, newAncestry? });
+```
+that owns:
+- the entity's own surface invalidation (current `revalidate*Surface`),
+- OLD/NEW ancestry diff (current Task 18 logic),
+- descendant enumeration + per-id detail invalidation (current Task 19 logic).
+
+Every mutation path then calls one helper and cannot accidentally skip a step. Add a test that asserts every save / softDelete / restore / togglePublish action calls this single entry point.
+
+### Phase 3.5 trigger
+- After this Phase 3 branch is merged and a preview/prod cycle has shipped without regressions.
+- Open a GitHub Issue titled "Phase 3.5: unify admin cache invalidation (descendant flush on ancestor mutations)" linking to this section and to Codex review pass 6.

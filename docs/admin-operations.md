@@ -88,3 +88,16 @@ The following steps must be completed by a human operator before the admin syste
 5. **Public cache isolation** — confirm that soft-deleted content does not appear on public-facing pages (`/`, `/c/[cragSlug]`, etc.) after revalidation.
 
 6. **Session expiry** — confirm that an expired or tampered `granite_admin` JWT cookie results in redirect to `/admin/login` rather than an error page.
+
+## Known operational caveats (Phase 3.5 follow-up)
+
+The Phase 3 cache-invalidation logic explicitly handles parent moves: `saveSector`/`Boulder`/`TopoAction` flushes both OLD and NEW ancestry surfaces and enumerates immediate descendants. However the following two cases were intentionally deferred to a Phase 3.5 follow-up patch and are tracked here as a known caveat:
+
+- **Unpublishing a crag/sector/boulder/topo** via `togglePublishAction` invalidates the toggled entity's own surface but does NOT enumerate descendant detail caches (`boulder:<id>`, `route:<id>`, `/topos/<id>`, `/r/<id>`). A boulder/topo/route detail page cached just before an ancestor was unpublished can continue serving until its `unstable_cache` TTL or until another mutation invalidates it.
+- **Soft-deleting or restoring** a crag/sector/boulder/topo has the same descendant-cache gap.
+
+**Public exposure bound:** all public detail pages are `force-dynamic`, so only `unstable_cache`-wrapped data fetchers are affected — the actual page render runs every request and the underlying SQL still enforces ancestor `is_published`/`deleted_at` filters. The user-visible stale window is therefore bounded by the cache TTL of `findBoulderById`/`findRouteById`/etc., not unbounded.
+
+**Operational workaround until the patch lands:** after unpublishing or soft-deleting any non-leaf content, an admin can either (a) wait out the cache TTL, or (b) trigger any small change on a descendant (e.g. toggle then re-toggle its own publish state) to force its cache to flush.
+
+**Planned follow-up:** consolidate descendant invalidation into a shared `invalidateEntityAndDescendants` helper called from save / soft-delete / restore / publish-toggle paths uniformly. Tracked as a Phase 3.5 GitHub Issue (see plan: "Phase 3.5 — Deferred follow-ups").
