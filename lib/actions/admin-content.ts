@@ -204,6 +204,9 @@ export async function saveSectorAction(formData: FormData): Promise<void> {
   const parsed = parseSectorForm(Object.fromEntries(formData));
   let id = parsed.id ?? `sector_${randomUUID()}`;
 
+  // Snapshot OLD ancestry before the upsert overwrites the parent column.
+  const oldAncestry = parsed.id ? await getSectorAncestry(parsed.id) : null;
+
   if (!parsed.id) {
     const resolved = await resolveSlugConflict({
       generatedId: id,
@@ -227,12 +230,23 @@ export async function saveSectorAction(formData: FormData): Promise<void> {
   const cragSlug = await getCragSlugByCragId(parsed.cragId);
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "sector", targetId: id, metadata: { slug: parsed.slug } });
   revalidateSectorSurface(cragSlug ?? undefined, parsed.slug);
+
+  // If parent changed, also invalidate the OLD ancestry surface.
+  if (
+    oldAncestry !== null &&
+    (oldAncestry.cragSlug !== (cragSlug ?? undefined) || oldAncestry.sectorSlug !== parsed.slug)
+  ) {
+    revalidateSectorSurface(oldAncestry.cragSlug, oldAncestry.sectorSlug);
+  }
 }
 
 export async function saveBoulderAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const parsed = parseBoulderForm(Object.fromEntries(formData));
   let id = parsed.id ?? `boulder_${randomUUID()}`;
+
+  // Snapshot OLD ancestry before the upsert overwrites the parent column.
+  const oldAncestry = parsed.id ? await getBoulderAncestry(parsed.id) : null;
 
   if (!parsed.id) {
     const resolved = await resolveSlugConflict({
@@ -257,6 +271,14 @@ export async function saveBoulderAction(formData: FormData): Promise<void> {
   const sectorAncestry = await getSectorAncestry(parsed.sectorId);
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "boulder", targetId: id, metadata: { slug: parsed.slug } });
   revalidateBoulderSurface(id, sectorAncestry?.cragSlug, sectorAncestry?.sectorSlug);
+
+  // If parent changed, also invalidate the OLD ancestry surface.
+  if (
+    oldAncestry !== null &&
+    (oldAncestry.cragSlug !== sectorAncestry?.cragSlug || oldAncestry.sectorSlug !== sectorAncestry?.sectorSlug)
+  ) {
+    revalidateBoulderSurface(id, oldAncestry.cragSlug, oldAncestry.sectorSlug);
+  }
 }
 
 export async function saveTopoAction(formData: FormData): Promise<void> {
@@ -265,12 +287,23 @@ export async function saveTopoAction(formData: FormData): Promise<void> {
   // Topos have no slug — use provided id or generate a UUID-based one.
   const id = parsed.id ?? `topo_${randomUUID()}`;
 
+  // Snapshot OLD ancestry before the upsert overwrites the parent column.
+  const oldAncestry = parsed.id ? await getTopoAncestry(parsed.id) : null;
+
   await upsertTopo({ ...parsed, id });
 
   // Resolve ancestry from DB — authoritative regardless of hidden form fields.
   const boulderAncestry = await getBoulderAncestry(parsed.boulderId);
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "topo", targetId: id, metadata: { boulderId: parsed.boulderId } });
   revalidateTopoSurface(parsed.boulderId, id, boulderAncestry?.cragSlug);
+
+  // If parent changed, also invalidate the OLD ancestry surface.
+  if (
+    oldAncestry !== null &&
+    (oldAncestry.cragSlug !== boulderAncestry?.cragSlug || oldAncestry.boulderId !== parsed.boulderId)
+  ) {
+    revalidateTopoSurface(oldAncestry.boulderId, id, oldAncestry.cragSlug);
+  }
 }
 
 export async function saveRouteAction(formData: FormData): Promise<void> {
@@ -278,6 +311,9 @@ export async function saveRouteAction(formData: FormData): Promise<void> {
   const parsed = parseRouteForm(Object.fromEntries(formData));
   // topoId is already in parsed (required schema field) — use it for path revalidation too.
   let id = parsed.id ?? `route_${randomUUID()}`;
+
+  // Snapshot OLD ancestry before the upsert overwrites the parent column.
+  const oldAncestry = parsed.id ? await getRouteAncestry(parsed.id) : null;
 
   if (!parsed.id) {
     const resolved = await resolveSlugConflict({
@@ -302,6 +338,16 @@ export async function saveRouteAction(formData: FormData): Promise<void> {
   const topoAncestry = await getTopoAncestry(parsed.topoId);
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "route", targetId: id, metadata: { slug: parsed.slug } });
   revalidateRouteSurface(id, topoAncestry?.boulderId, topoAncestry?.cragSlug, parsed.topoId);
+
+  // If parent changed, also invalidate the OLD ancestry surface.
+  if (
+    oldAncestry !== null &&
+    (oldAncestry.cragSlug !== topoAncestry?.cragSlug ||
+      oldAncestry.boulderId !== topoAncestry?.boulderId ||
+      oldAncestry.topoId !== parsed.topoId)
+  ) {
+    revalidateRouteSurface(id, oldAncestry.boulderId, oldAncestry.cragSlug, oldAncestry.topoId);
+  }
 }
 
 // ---------------------------------------------------------------------------

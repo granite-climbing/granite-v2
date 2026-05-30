@@ -1226,4 +1226,150 @@ describe("admin content actions", () => {
     expect(mockedRevalidateTag).toHaveBeenCalledWith("sector:anyang_antique");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/c/anyang");
   });
+
+  // -------------------------------------------------------------------------
+  // Task 18 regression tests: invalidate OLD AND NEW ancestry when parent moves
+  // -------------------------------------------------------------------------
+
+  it("saveSectorAction (edit, parent move): invalidates old AND new crag tags", async () => {
+    // OLD ancestry: sector lives under "anyang" crag
+    mockedGetSectorAncestry.mockResolvedValueOnce({ cragSlug: "anyang", sectorSlug: "old_sector" });
+    // NEW ancestry: sector being moved to "samsung" crag
+    mockedGetCragSlugByCragId.mockResolvedValue("samsung");
+
+    const formData = new FormData();
+    formData.set("id", "sector_x");
+    formData.set("cragId", "crag_samsung");
+    formData.set("name", "새 구역");
+    formData.set("slug", "new_sector");
+    formData.set("coverImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+
+    await saveSectorAction(formData);
+
+    // OLD ancestry fetched before upsert
+    expect(mockedGetSectorAncestry).toHaveBeenCalledWith("sector_x");
+    // Both old and new crag surfaces invalidated
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:samsung");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:anyang");
+    // Old sector slug tag also fires
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("sector:old_sector");
+  });
+
+  it("saveBoulderAction (edit, parent move): invalidates old AND new crag/sector tags", async () => {
+    // OLD ancestry: boulder lives under anyang/anyang_antique
+    mockedGetBoulderAncestry.mockResolvedValueOnce({ cragSlug: "anyang", sectorSlug: "anyang_antique" });
+    // NEW ancestry: boulder being moved to samsung/samsung_east sector
+    mockedGetSectorAncestry.mockResolvedValue({ cragSlug: "samsung", sectorSlug: "samsung_east" });
+
+    const formData = new FormData();
+    formData.set("id", "boulder_x");
+    formData.set("sectorId", "sector_samsung_east");
+    formData.set("name", "볼더 X");
+    formData.set("slug", "boulder_x_slug");
+    formData.set("lat", "37.42");
+    formData.set("lng", "126.92");
+    formData.set("hashtags", "");
+    formData.set("coverImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+
+    await saveBoulderAction(formData);
+
+    // OLD ancestry fetched before upsert
+    expect(mockedGetBoulderAncestry).toHaveBeenCalledWith("boulder_x");
+    // NEW surface
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:samsung");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("sector:samsung_east");
+    // OLD surface
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:anyang");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("sector:anyang_antique");
+  });
+
+  it("saveTopoAction (edit, parent move): invalidates old AND new boulder/crag paths", async () => {
+    // OLD ancestry: topo lives under boulder_old in anyang
+    mockedGetTopoAncestry.mockResolvedValueOnce({ cragSlug: "anyang", boulderId: "boulder_old" });
+    // NEW ancestry: topo being moved to boulder_new in samsung
+    mockedGetBoulderAncestry.mockResolvedValue({ cragSlug: "samsung", sectorSlug: "samsung_east" });
+
+    const formData = new FormData();
+    formData.set("id", "topo_x");
+    formData.set("boulderId", "boulder_new");
+    formData.set("name", "새 토포");
+    formData.set("baseImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+
+    await saveTopoAction(formData);
+
+    // OLD ancestry fetched before upsert
+    expect(mockedGetTopoAncestry).toHaveBeenCalledWith("topo_x");
+    // NEW surface
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_new");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/c/samsung");
+    // OLD surface
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_old");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/c/anyang");
+    // topo path fires for both (same topo id)
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/topo_x");
+  });
+
+  it("saveRouteAction (edit, parent move): invalidates old AND new topo path and crag/boulder tags", async () => {
+    // OLD ancestry: route lives under topo_old / boulder_old_b / anyang
+    mockedGetRouteAncestry.mockResolvedValueOnce({ cragSlug: "anyang", boulderId: "boulder_old_b", topoId: "topo_old" });
+    // NEW ancestry: route being moved to topo_new / boulder_new_b / samsung
+    mockedGetTopoAncestry.mockResolvedValue({ cragSlug: "samsung", boulderId: "boulder_new_b" });
+
+    const formData = new FormData();
+    formData.set("id", "route_z");
+    formData.set("topoId", "topo_new");
+    formData.set("name", "새 루트");
+    formData.set("slug", "new_route");
+    formData.set("grade", "V5");
+    formData.set("gradeNum", "5");
+    formData.set("fa", "");
+    formData.set("description", "");
+    formData.set("lineImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "1");
+
+    await saveRouteAction(formData);
+
+    // OLD ancestry fetched before upsert
+    expect(mockedGetRouteAncestry).toHaveBeenCalledWith("route_z");
+    // NEW surface
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:samsung");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_new_b");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/topo_new");
+    // OLD surface — topo path and crag/boulder tags fire for old parent
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/topo_old");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:anyang");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_old_b");
+  });
+
+  it("saveSectorAction (no-op edit, same parent): revalidates surface exactly once, no crash", async () => {
+    // OLD and NEW ancestry both resolve to same crag
+    mockedGetSectorAncestry.mockResolvedValueOnce({ cragSlug: "anyang", sectorSlug: "anyang_antique" });
+    mockedGetCragSlugByCragId.mockResolvedValue("anyang");
+
+    const formData = new FormData();
+    formData.set("id", "sector_anyang_antique");
+    formData.set("cragId", "crag_anyang");
+    formData.set("name", "앤틱 구역 (수정)");
+    formData.set("slug", "anyang_antique");
+    formData.set("coverImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+
+    await expect(saveSectorAction(formData)).resolves.toBeUndefined();
+
+    // crag:anyang fires from the NEW-side revalidation
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:anyang");
+    // sector:anyang_antique fires from the NEW-side revalidation
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("sector:anyang_antique");
+    // No second revalidation for old side (same parent — OLD == NEW, so no extra call)
+    const cragCalls = mockedRevalidateTag.mock.calls.filter((c) => c[0] === "crag:anyang");
+    expect(cragCalls).toHaveLength(1);
+  });
 });
