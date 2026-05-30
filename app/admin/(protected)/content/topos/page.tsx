@@ -50,10 +50,10 @@ export default async function AdminToposPage({ searchParams }: Props) {
       <AdminCard title="Create Topo">
         <form action={saveTopoAction} className="space-y-2">
           <AdminField label="Boulder">
-            <select name="boulderId" required className={selectCls}>
+            <select name="boulderId" required defaultValue={boulderId ?? ""} className={selectCls}>
               <option value="">— select boulder —</option>
               {liveBoulders.map((b) => (
-                <option key={b.id} value={b.id} selected={b.id === boulderId}>
+                <option key={b.id} value={b.id}>
                   {b.cragName} / {b.sectorName} / {b.name}
                 </option>
               ))}

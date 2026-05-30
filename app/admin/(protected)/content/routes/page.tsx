@@ -50,10 +50,10 @@ export default async function AdminRoutesPage({ searchParams }: Props) {
       <AdminCard title="Create Route">
         <form action={saveRouteAction} className="space-y-2">
           <AdminField label="Topo">
-            <select name="topoId" required className={selectCls}>
+            <select name="topoId" required defaultValue={topoId ?? ""} className={selectCls}>
               <option value="">— select topo —</option>
               {liveTopos.map((t) => (
-                <option key={t.id} value={t.id} selected={t.id === topoId}>
+                <option key={t.id} value={t.id}>
                   {t.boulderName} / {t.name}
                 </option>
               ))}

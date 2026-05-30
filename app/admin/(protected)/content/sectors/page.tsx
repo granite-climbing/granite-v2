@@ -50,10 +50,10 @@ export default async function AdminSectorsPage({ searchParams }: Props) {
       <AdminCard title="Create Sector">
         <form action={saveSectorAction} className="space-y-2">
           <AdminField label="Crag">
-            <select name="cragId" required className={selectCls}>
+            <select name="cragId" required defaultValue={cragId ?? ""} className={selectCls}>
               <option value="">— select crag —</option>
               {liveCrags.map((c) => (
-                <option key={c.id} value={c.id} selected={c.id === cragId}>{c.name}</option>
+                <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
           </AdminField>

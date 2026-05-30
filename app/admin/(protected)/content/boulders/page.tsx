@@ -50,10 +50,10 @@ export default async function AdminBouldersPage({ searchParams }: Props) {
       <AdminCard title="Create Boulder">
         <form action={saveBoulderAction} className="space-y-2">
           <AdminField label="Sector">
-            <select name="sectorId" required className={selectCls}>
+            <select name="sectorId" required defaultValue={sectorId ?? ""} className={selectCls}>
               <option value="">— select sector —</option>
               {liveSectors.map((s) => (
-                <option key={s.id} value={s.id} selected={s.id === sectorId}>
+                <option key={s.id} value={s.id}>
                   {s.cragName} / {s.name}
                 </option>
               ))}

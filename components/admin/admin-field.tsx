@@ -7,10 +7,10 @@ export function AdminField({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-2">
-      <label className="w-32 shrink-0 pt-2 text-xs font-semibold text-[#57606A]">{label}</label>
+    <label className="flex items-start gap-3">
+      <span className="w-40 shrink-0 pt-2 text-sm font-bold text-[#374151]">{label}</span>
       <div className="flex-1">{children}</div>
-    </div>
+    </label>
   );
 }
 

@@ -296,8 +296,8 @@ function assertDeleteConfirm(formData: FormData): void {
 // ---------------------------------------------------------------------------
 
 export async function softDeleteAreaAction(formData: FormData): Promise<void> {
-  assertDeleteConfirm(formData);
   const admin = await requireAdmin();
+  assertDeleteConfirm(formData);
   const id = String(formData.get("id") ?? "");
 
   await softDeleteContent({ table: "areas", id });
@@ -306,8 +306,8 @@ export async function softDeleteAreaAction(formData: FormData): Promise<void> {
 }
 
 export async function softDeleteCragAction(formData: FormData): Promise<void> {
-  assertDeleteConfirm(formData);
   const admin = await requireAdmin();
+  assertDeleteConfirm(formData);
   const id = String(formData.get("id") ?? "");
   const slug = String(formData.get("slug") ?? "") || undefined;
 
@@ -317,8 +317,8 @@ export async function softDeleteCragAction(formData: FormData): Promise<void> {
 }
 
 export async function softDeleteSectorAction(formData: FormData): Promise<void> {
-  assertDeleteConfirm(formData);
   const admin = await requireAdmin();
+  assertDeleteConfirm(formData);
   const id = String(formData.get("id") ?? "");
   const cragSlug = String(formData.get("cragSlug") ?? "") || undefined;
   const sectorSlug = String(formData.get("slug") ?? "") || undefined;
@@ -329,8 +329,8 @@ export async function softDeleteSectorAction(formData: FormData): Promise<void> 
 }
 
 export async function softDeleteBoulderAction(formData: FormData): Promise<void> {
-  assertDeleteConfirm(formData);
   const admin = await requireAdmin();
+  assertDeleteConfirm(formData);
   const id = String(formData.get("id") ?? "");
   const cragSlug = formData.get("cragSlug")?.toString() || undefined;
   const sectorSlug = formData.get("sectorSlug")?.toString() || undefined;
@@ -341,8 +341,8 @@ export async function softDeleteBoulderAction(formData: FormData): Promise<void>
 }
 
 export async function softDeleteTopoAction(formData: FormData): Promise<void> {
-  assertDeleteConfirm(formData);
   const admin = await requireAdmin();
+  assertDeleteConfirm(formData);
   const id = String(formData.get("id") ?? "");
   const boulderId = String(formData.get("boulderId") ?? "") || undefined;
   const cragSlug = formData.get("cragSlug")?.toString() || undefined;
@@ -353,8 +353,8 @@ export async function softDeleteTopoAction(formData: FormData): Promise<void> {
 }
 
 export async function softDeleteRouteAction(formData: FormData): Promise<void> {
-  assertDeleteConfirm(formData);
   const admin = await requireAdmin();
+  assertDeleteConfirm(formData);
   const id = String(formData.get("id") ?? "");
   const cragSlug = formData.get("cragSlug")?.toString() || undefined;
   const boulderId = formData.get("boulderId")?.toString() || undefined;

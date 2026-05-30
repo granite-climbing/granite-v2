@@ -652,6 +652,26 @@ describe("admin content actions", () => {
     expect(mockedSoftDeleteContent).not.toHaveBeenCalled();
   });
 
+  it("softDeleteCragAction: auth error fires before confirm guard — malformed confirm does NOT reveal the confirm error message when requireAdmin throws", async () => {
+    mockedRequireAdmin.mockRejectedValueOnce(new Error("Unauthorized"));
+
+    const formData = new FormData();
+    formData.set("id", "crag_anyang");
+    // Deliberately malformed confirm — should never reach the confirm guard
+    formData.set("confirm", "not-DELETE");
+
+    let caughtError: Error | undefined;
+    try {
+      await softDeleteCragAction(formData);
+    } catch (e) {
+      caughtError = e as Error;
+    }
+    expect(caughtError).toBeDefined();
+    expect(caughtError!.message).toBe("Unauthorized");
+    expect(caughtError!.message).not.toMatch(/"DELETE"/);
+    expect(mockedSoftDeleteContent).not.toHaveBeenCalled();
+  });
+
   // -------------------------------------------------------------------------
   // Cache-revalidation context: saveSectorAction reads cragSlug from formData
   // -------------------------------------------------------------------------
