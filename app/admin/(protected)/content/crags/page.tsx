@@ -11,6 +11,7 @@ import { AdminTable, AdminTableRow, AdminTableCell } from "@/components/admin/ad
 import { AdminField, inputCls, selectCls, textareaCls, btnPrimaryCls } from "@/components/admin/admin-field";
 import { PublishBadge } from "@/components/admin/publish-badge";
 import { DeleteControls, RestoreControls } from "@/components/admin/delete-restore-controls";
+import { ImageUploadField } from "@/components/admin/image-upload-field";
 
 export const dynamic = "force-dynamic";
 
@@ -112,7 +113,7 @@ export default async function AdminCragsPage() {
                       <input name="lng" type="number" step="any" defaultValue={crag.lng ?? ""} className={`${inputCls} w-20`} placeholder="lng" />
                       <input name="season" defaultValue={crag.season} className={`${inputCls} w-28`} placeholder="season" />
                       <input name="description" defaultValue={crag.description} className={`${inputCls} w-40`} placeholder="description" />
-                      <input name="coverImageUrl" defaultValue={crag.coverImageUrl} className={`${inputCls} w-40`} placeholder="coverImageUrl" />
+                      <ImageUploadField name="coverImageUrl" defaultValue={crag.coverImageUrl ?? ""} entityType="crags" entityId={crag.id} purpose="cover" />
                       <input name="sortOrder" type="number" defaultValue={crag.sortOrder} className={`${inputCls} w-14`} />
                       <label className="flex items-center gap-1 text-xs">
                         <input name="isPublished" type="checkbox" defaultChecked={crag.isPublished} />

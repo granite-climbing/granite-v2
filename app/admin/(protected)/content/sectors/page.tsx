@@ -11,6 +11,7 @@ import { AdminTable, AdminTableRow, AdminTableCell } from "@/components/admin/ad
 import { AdminField, inputCls, selectCls, textareaCls, btnPrimaryCls } from "@/components/admin/admin-field";
 import { PublishBadge } from "@/components/admin/publish-badge";
 import { DeleteControls, RestoreControls } from "@/components/admin/delete-restore-controls";
+import { ImageUploadField } from "@/components/admin/image-upload-field";
 
 export const dynamic = "force-dynamic";
 
@@ -134,7 +135,7 @@ export default async function AdminSectorsPage({ searchParams }: Props) {
                       <input name="lng" type="number" step="any" defaultValue={sector.lng ?? ""} className={`${inputCls} w-20`} placeholder="lng" />
                       <input name="season" defaultValue={sector.season} className={`${inputCls} w-24`} placeholder="season" />
                       <input name="description" defaultValue={sector.description} className={`${inputCls} w-36`} placeholder="desc" />
-                      <input name="coverImageUrl" defaultValue={sector.coverImageUrl} className={`${inputCls} w-36`} placeholder="coverImageUrl" />
+                      <ImageUploadField name="coverImageUrl" defaultValue={sector.coverImageUrl ?? ""} entityType="sectors" entityId={sector.id} purpose="cover" />
                       <input name="sortOrder" type="number" defaultValue={sector.sortOrder} className={`${inputCls} w-14`} />
                       <label className="flex items-center gap-1 text-xs">
                         <input name="isPublished" type="checkbox" defaultChecked={sector.isPublished} />

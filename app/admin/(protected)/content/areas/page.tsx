@@ -11,6 +11,7 @@ import { AdminTable, AdminTableRow, AdminTableCell } from "@/components/admin/ad
 import { AdminField, inputCls, btnPrimaryCls } from "@/components/admin/admin-field";
 import { PublishBadge } from "@/components/admin/publish-badge";
 import { DeleteControls, RestoreControls } from "@/components/admin/delete-restore-controls";
+import { ImageUploadField } from "@/components/admin/image-upload-field";
 
 export const dynamic = "force-dynamic";
 
@@ -82,7 +83,7 @@ export default async function AdminAreasPage() {
                       <input name="nameEn" defaultValue={area.nameEn ?? ""} className={`${inputCls} w-28`} placeholder="nameEn" />
                       <input name="slug" defaultValue={area.slug} className={`${inputCls} w-28`} />
                       <input name="sortOrder" type="number" defaultValue={area.sortOrder} className={`${inputCls} w-14`} />
-                      <input name="coverImageUrl" defaultValue={area.coverImageUrl} className={`${inputCls} w-40`} placeholder="coverImageUrl" />
+                      <ImageUploadField name="coverImageUrl" defaultValue={area.coverImageUrl ?? ""} entityType="areas" entityId={area.id} purpose="cover" />
                       <label className="flex items-center gap-1 text-xs">
                         <input name="isPublished" type="checkbox" defaultChecked={area.isPublished} />
                         Pub

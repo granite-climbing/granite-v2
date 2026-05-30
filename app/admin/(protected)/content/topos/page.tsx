@@ -11,6 +11,7 @@ import { AdminTable, AdminTableRow, AdminTableCell } from "@/components/admin/ad
 import { AdminField, inputCls, selectCls, btnPrimaryCls } from "@/components/admin/admin-field";
 import { PublishBadge } from "@/components/admin/publish-badge";
 import { DeleteControls, RestoreControls } from "@/components/admin/delete-restore-controls";
+import { ImageUploadField } from "@/components/admin/image-upload-field";
 
 export const dynamic = "force-dynamic";
 
@@ -113,7 +114,7 @@ export default async function AdminToposPage({ searchParams }: Props) {
                         ))}
                       </select>
                       <input name="name" defaultValue={topo.name} className={`${inputCls} w-28`} />
-                      <input name="baseImageUrl" defaultValue={topo.baseImageUrl} className={`${inputCls} w-40`} placeholder="baseImageUrl" />
+                      <ImageUploadField name="baseImageUrl" defaultValue={topo.baseImageUrl ?? ""} entityType="topos" entityId={topo.id} purpose="base" />
                       <input name="sortOrder" type="number" defaultValue={topo.sortOrder} className={`${inputCls} w-14`} />
                       <label className="flex items-center gap-1 text-xs">
                         <input name="isPublished" type="checkbox" defaultChecked={topo.isPublished} />

@@ -11,6 +11,7 @@ import { AdminTable, AdminTableRow, AdminTableCell } from "@/components/admin/ad
 import { AdminField, inputCls, selectCls, textareaCls, btnPrimaryCls } from "@/components/admin/admin-field";
 import { PublishBadge } from "@/components/admin/publish-badge";
 import { DeleteControls, RestoreControls } from "@/components/admin/delete-restore-controls";
+import { ImageUploadField } from "@/components/admin/image-upload-field";
 
 export const dynamic = "force-dynamic";
 
@@ -135,7 +136,7 @@ export default async function AdminRoutesPage({ searchParams }: Props) {
                       <input name="gradeNum" type="number" defaultValue={route.gradeNum} className={`${inputCls} w-14`} />
                       <input name="fa" defaultValue={route.fa} className={`${inputCls} w-20`} placeholder="FA" />
                       <input name="description" defaultValue={route.description} className={`${inputCls} w-36`} placeholder="desc" />
-                      <input name="lineImageUrl" defaultValue={route.lineImageUrl} className={`${inputCls} w-36`} placeholder="lineImageUrl" />
+                      <ImageUploadField name="lineImageUrl" defaultValue={route.lineImageUrl ?? ""} entityType="routes" entityId={route.id} purpose="line" />
                       <input name="sortOrder" type="number" defaultValue={route.sortOrder} className={`${inputCls} w-14`} />
                       <label className="flex items-center gap-1 text-xs">
                         <input name="isPublished" type="checkbox" defaultChecked={route.isPublished} />

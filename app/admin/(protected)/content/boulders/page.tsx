@@ -11,6 +11,7 @@ import { AdminTable, AdminTableRow, AdminTableCell } from "@/components/admin/ad
 import { AdminField, inputCls, selectCls, btnPrimaryCls } from "@/components/admin/admin-field";
 import { PublishBadge } from "@/components/admin/publish-badge";
 import { DeleteControls, RestoreControls } from "@/components/admin/delete-restore-controls";
+import { ImageUploadField } from "@/components/admin/image-upload-field";
 
 export const dynamic = "force-dynamic";
 
@@ -147,7 +148,7 @@ export default async function AdminBouldersPage({ searchParams }: Props) {
                           }
                         })()
                       } className={`${inputCls} w-32`} placeholder="hashtags" />
-                      <input name="coverImageUrl" defaultValue={boulder.coverImageUrl} className={`${inputCls} w-36`} placeholder="coverImageUrl" />
+                      <ImageUploadField name="coverImageUrl" defaultValue={boulder.coverImageUrl ?? ""} entityType="boulders" entityId={boulder.id} purpose="cover" />
                       <input name="sortOrder" type="number" defaultValue={boulder.sortOrder} className={`${inputCls} w-14`} />
                       <label className="flex items-center gap-1 text-xs">
                         <input name="isPublished" type="checkbox" defaultChecked={boulder.isPublished} />

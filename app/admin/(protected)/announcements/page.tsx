@@ -11,6 +11,7 @@ import { AdminTable, AdminTableRow, AdminTableCell } from "@/components/admin/ad
 import { AdminField, inputCls, textareaCls, btnPrimaryCls } from "@/components/admin/admin-field";
 import { PublishBadge } from "@/components/admin/publish-badge";
 import { DeleteControls, RestoreControls } from "@/components/admin/delete-restore-controls";
+import { ImageUploadField } from "@/components/admin/image-upload-field";
 
 export const dynamic = "force-dynamic";
 
@@ -97,12 +98,7 @@ export default async function AdminAnnouncementsPage() {
                         className={`${textareaCls} w-48`}
                         placeholder="body"
                       />
-                      <input
-                        name="coverImageUrl"
-                        defaultValue={ann.coverImageUrl}
-                        className={`${inputCls} w-40`}
-                        placeholder="coverImageUrl"
-                      />
+                      <ImageUploadField name="coverImageUrl" defaultValue={ann.coverImageUrl ?? ""} entityType="announcements" entityId={ann.id} purpose="cover" />
                       <input
                         name="cragId"
                         defaultValue={ann.cragId ?? ""}
