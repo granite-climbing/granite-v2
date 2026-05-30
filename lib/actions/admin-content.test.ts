@@ -32,6 +32,11 @@ vi.mock("@/lib/db/admin-content-queries", () => ({
   softDeleteContent: vi.fn(),
   restoreContent: vi.fn(),
   findRowBySlug: vi.fn(),
+  getCragSlugByCragId: vi.fn(),
+  getSectorAncestry: vi.fn(),
+  getBoulderAncestry: vi.fn(),
+  getTopoAncestry: vi.fn(),
+  getRouteAncestry: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({
@@ -56,6 +61,11 @@ import {
   softDeleteContent,
   restoreContent,
   findRowBySlug,
+  getCragSlugByCragId,
+  getSectorAncestry,
+  getBoulderAncestry,
+  getTopoAncestry,
+  getRouteAncestry,
 } from "@/lib/db/admin-content-queries";
 import { revalidatePath, revalidateTag } from "next/cache";
 import {
@@ -68,6 +78,7 @@ import {
   softDeleteCragAction,
   softDeleteBoulderAction,
   softDeleteRouteAction,
+  softDeleteSectorAction,
   restoreAreaAction,
   restoreCragAction,
   togglePublishAction,
@@ -85,6 +96,11 @@ const mockedUpdatePublishState = vi.mocked(updatePublishState);
 const mockedSoftDeleteContent = vi.mocked(softDeleteContent);
 const mockedRestoreContent = vi.mocked(restoreContent);
 const mockedFindRowBySlug = vi.mocked(findRowBySlug);
+const mockedGetCragSlugByCragId = vi.mocked(getCragSlugByCragId);
+const mockedGetSectorAncestry = vi.mocked(getSectorAncestry);
+const mockedGetBoulderAncestry = vi.mocked(getBoulderAncestry);
+const mockedGetTopoAncestry = vi.mocked(getTopoAncestry);
+const mockedGetRouteAncestry = vi.mocked(getRouteAncestry);
 const mockedRevalidatePath = vi.mocked(revalidatePath);
 const mockedRevalidateTag = vi.mocked(revalidateTag);
 
@@ -278,6 +294,12 @@ describe("admin content actions", () => {
     mockedSoftDeleteContent.mockResolvedValue(undefined);
     mockedRestoreContent.mockResolvedValue(undefined);
     mockedInsertAdminAuditLog.mockResolvedValue(undefined);
+    // Default: ancestry helpers return null (actions gracefully skip optional tags)
+    mockedGetCragSlugByCragId.mockResolvedValue(null);
+    mockedGetSectorAncestry.mockResolvedValue(null);
+    mockedGetBoulderAncestry.mockResolvedValue(null);
+    mockedGetTopoAncestry.mockResolvedValue(null);
+    mockedGetRouteAncestry.mockResolvedValue(null);
   });
 
   // -------------------------------------------------------------------------
@@ -781,6 +803,9 @@ describe("admin content actions", () => {
   // -------------------------------------------------------------------------
 
   it("togglePublishAction: calls updatePublishState, audits content.publish_toggle with singular targetType, revalidates", async () => {
+    // Action uses DB to resolve cragSlug for crags table
+    mockedGetCragSlugByCragId.mockResolvedValue("anyang");
+
     const formData = new FormData();
     formData.set("table", "crags");
     formData.set("id", "crag_anyang");
@@ -799,8 +824,11 @@ describe("admin content actions", () => {
         targetId: "crag_anyang",
       }),
     );
+    // crag toggle now fires crag-surface tags
     expect(mockedRevalidateTag).toHaveBeenCalledWith("home");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:anyang");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/c/anyang");
   });
 
   it("togglePublishAction: throws 'Unsupported table' when table not in allowlist", async () => {
@@ -897,7 +925,10 @@ describe("admin content actions", () => {
   // Cache-revalidation context: saveSectorAction reads cragSlug from formData
   // -------------------------------------------------------------------------
 
-  it("saveSectorAction: revalidates crag:<cragSlug> and sector:<sectorSlug> when cragSlug in formData", async () => {
+  it("saveSectorAction: revalidates crag:<cragSlug> and sector:<sectorSlug> when DB resolves ancestry", async () => {
+    // Action resolves cragSlug from DB, not from hidden form field
+    mockedGetCragSlugByCragId.mockResolvedValue("anyang");
+
     const formData = new FormData();
     formData.set("id", "sector_anyang_antique");
     formData.set("cragId", "crag_anyang");
@@ -906,7 +937,7 @@ describe("admin content actions", () => {
     formData.set("coverImageUrl", "");
     formData.set("isPublished", "on");
     formData.set("sortOrder", "0");
-    // Revalidation context hint (hidden field supplied by admin form)
+    // hidden cragSlug field is now ignored by the action (DB is authoritative)
     formData.set("cragSlug", "anyang");
 
     await saveSectorAction(formData);
@@ -916,7 +947,8 @@ describe("admin content actions", () => {
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/c/anyang");
   });
 
-  it("saveSectorAction: skips crag tag when cragSlug not in formData", async () => {
+  it("saveSectorAction: skips crag tag when DB returns null for getCragSlugByCragId", async () => {
+    // Default mock returns null — crag tag should not fire
     const formData = new FormData();
     formData.set("id", "sector_anyang_antique");
     formData.set("cragId", "crag_anyang");
@@ -925,7 +957,6 @@ describe("admin content actions", () => {
     formData.set("coverImageUrl", "");
     formData.set("isPublished", "on");
     formData.set("sortOrder", "0");
-    // No cragSlug field
 
     await saveSectorAction(formData);
 
@@ -938,7 +969,10 @@ describe("admin content actions", () => {
   // Cache-revalidation context: saveRouteAction reads cragSlug/boulderId/topoId
   // -------------------------------------------------------------------------
 
-  it("saveRouteAction: revalidates route, boulder, crag tags and paths when context in formData", async () => {
+  it("saveRouteAction: revalidates route, boulder, crag tags and paths via DB-resolved ancestry", async () => {
+    // Action resolves ancestry from DB, not from hidden form fields
+    mockedGetTopoAncestry.mockResolvedValue({ cragSlug: "anyang", boulderId: "boulder_gomul_boulder" });
+
     const formData = new FormData();
     formData.set("id", "route_anaconda");
     formData.set("topoId", "topo_gomul_front");
@@ -951,10 +985,9 @@ describe("admin content actions", () => {
     formData.set("lineImageUrl", "");
     formData.set("isPublished", "on");
     formData.set("sortOrder", "1");
-    // Revalidation context hints (hidden fields supplied by admin form)
+    // hidden fields are now ignored; DB ancestry is authoritative
     formData.set("cragSlug", "anyang");
     formData.set("boulderId", "boulder_gomul_boulder");
-    // topoId is already in parsed schema (topo_gomul_front)
 
     await saveRouteAction(formData);
 
@@ -971,6 +1004,9 @@ describe("admin content actions", () => {
   // -------------------------------------------------------------------------
 
   it("saveTopoAction: calls requireAdmin, upserts topo, audits content.upsert, revalidates boulder and topo path", async () => {
+    // Action resolves cragSlug from DB via getBoulderAncestry
+    mockedGetBoulderAncestry.mockResolvedValue({ cragSlug: "anyang", sectorSlug: "anyang_antique" });
+
     const formData = new FormData();
     formData.set("id", "topo_gomul_front");
     formData.set("boulderId", "boulder_gomul_boulder");
@@ -978,6 +1014,7 @@ describe("admin content actions", () => {
     formData.set("baseImageUrl", "");
     formData.set("isPublished", "on");
     formData.set("sortOrder", "0");
+    // cragSlug hidden field is now ignored; DB ancestry is authoritative
     formData.set("cragSlug", "anyang");
 
     await saveTopoAction(formData);
@@ -1049,9 +1086,13 @@ describe("admin content actions", () => {
   // softDeleteRouteAction: previously untested
   // -------------------------------------------------------------------------
 
-  it("softDeleteRouteAction: calls softDeleteContent, audits, revalidates route+boulder+crag tags and paths", async () => {
+  it("softDeleteRouteAction: calls softDeleteContent, audits, revalidates route+boulder+crag tags and paths via DB ancestry", async () => {
+    // Action resolves ancestry from DB, not from hidden form fields
+    mockedGetRouteAncestry.mockResolvedValue({ cragSlug: "anyang", boulderId: "boulder_gomul_boulder", topoId: "topo_gomul_front" });
+
     const formData = new FormData();
     formData.set("id", "route_anaconda");
+    // hidden fields are now ignored; DB ancestry is authoritative
     formData.set("cragSlug", "anyang");
     formData.set("boulderId", "boulder_gomul_boulder");
     formData.set("topoId", "topo_gomul_front");
@@ -1077,18 +1118,112 @@ describe("admin content actions", () => {
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/c/anyang");
   });
 
-  it("softDeleteRouteAction: still revalidates route tag when context fields absent", async () => {
+  it("softDeleteRouteAction: still revalidates route tag when DB ancestry returns null", async () => {
+    // Default mock returns null for ancestry — boulder/crag tags should not fire
     const formData = new FormData();
     formData.set("id", "route_anaconda");
     formData.set("confirm", "DELETE");
-    // No cragSlug / boulderId / topoId
 
     await softDeleteRouteAction(formData);
 
     expect(mockedSoftDeleteContent).toHaveBeenCalledWith({ table: "routes", id: "route_anaconda" });
     expect(mockedRevalidateTag).toHaveBeenCalledWith("route:route_anaconda");
-    // boulder/crag tags must NOT fire when missing
+    // boulder/crag tags must NOT fire when ancestry returns null
     expect(mockedRevalidateTag).not.toHaveBeenCalledWith(expect.stringMatching(/^boulder:/));
     expect(mockedRevalidateTag).not.toHaveBeenCalledWith(expect.stringMatching(/^crag:/));
+  });
+
+  // -------------------------------------------------------------------------
+  // Task 17 regression tests: authoritative ancestry from D1
+  // -------------------------------------------------------------------------
+
+  it("togglePublishAction (routes): revalidates route+boulder+crag surfaces via DB ancestry", async () => {
+    mockedGetRouteAncestry.mockResolvedValue({ cragSlug: "anyang", boulderId: "boulder_x", topoId: "topo_y" });
+
+    const formData = new FormData();
+    formData.set("table", "routes");
+    formData.set("id", "route_z");
+    formData.set("isPublished", "off");
+
+    await togglePublishAction(formData);
+
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("route:route_z");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_x");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:anyang");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/r/route_z");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/topo_y");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/c/anyang");
+  });
+
+  it("togglePublishAction (topos): revalidates topo+boulder surfaces via DB ancestry", async () => {
+    mockedGetTopoAncestry.mockResolvedValue({ cragSlug: "anyang", boulderId: "boulder_x" });
+
+    const formData = new FormData();
+    formData.set("table", "topos");
+    formData.set("id", "topo_y");
+    formData.set("isPublished", "off");
+
+    await togglePublishAction(formData);
+
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_x");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/topo_y");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/c/anyang");
+  });
+
+  it("saveSectorAction (no hidden cragSlug): resolves cragSlug from DB and fires crag tag", async () => {
+    mockedGetCragSlugByCragId.mockResolvedValue("anyang");
+
+    const formData = new FormData();
+    // No cragSlug hidden field — would have silently degraded before this fix
+    formData.set("cragId", "crag_anyang");
+    formData.set("name", "앤틱 구역");
+    formData.set("slug", "anyang_antique");
+    formData.set("coverImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+
+    await saveSectorAction(formData);
+
+    expect(mockedGetCragSlugByCragId).toHaveBeenCalledWith("crag_anyang");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:anyang");
+  });
+
+  it("saveRouteAction (no hidden context): resolves ancestry from DB and fires crag+boulder tags", async () => {
+    mockedGetTopoAncestry.mockResolvedValue({ cragSlug: "anyang", boulderId: "boulder_gomul_boulder" });
+
+    const formData = new FormData();
+    // No cragSlug / boulderId hidden fields — would have silently degraded before this fix
+    formData.set("topoId", "topo_gomul_front");
+    formData.set("name", "아나콘다");
+    formData.set("slug", "anaconda");
+    formData.set("grade", "V5");
+    formData.set("gradeNum", "5");
+    formData.set("fa", "");
+    formData.set("description", "");
+    formData.set("lineImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "1");
+
+    await saveRouteAction(formData);
+
+    expect(mockedGetTopoAncestry).toHaveBeenCalledWith("topo_gomul_front");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:anyang");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_gomul_boulder");
+  });
+
+  it("softDeleteSectorAction (no hidden cragSlug): resolves ancestry from DB and fires parent tags", async () => {
+    mockedGetSectorAncestry.mockResolvedValue({ cragSlug: "anyang", sectorSlug: "anyang_antique" });
+
+    const formData = new FormData();
+    formData.set("id", "sector_anyang_antique");
+    // No cragSlug / slug hidden fields — would have silently degraded before this fix
+    formData.set("confirm", "DELETE");
+
+    await softDeleteSectorAction(formData);
+
+    expect(mockedGetSectorAncestry).toHaveBeenCalledWith("sector_anyang_antique");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:anyang");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("sector:anyang_antique");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/c/anyang");
   });
 });

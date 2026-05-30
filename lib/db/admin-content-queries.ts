@@ -402,6 +402,92 @@ export async function upsertAnnouncement(input: {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Ancestry helpers — resolve parent slugs/ids server-side for cache invalidation.
+// These do NOT filter deleted_at so admin can invalidate after soft-deletes.
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the slug of a crag by its id, or null if not found.
+ */
+export async function getCragSlugByCragId(id: string): Promise<string | null> {
+  const row = await queryD1First<{ slug: string }>(
+    "SELECT slug FROM crags WHERE id = ?",
+    [id],
+  );
+  return row?.slug ?? null;
+}
+
+/**
+ * Returns { cragSlug, sectorSlug } for a sector, or null if not found.
+ */
+export async function getSectorAncestry(
+  id: string,
+): Promise<{ cragSlug: string; sectorSlug: string } | null> {
+  const row = await queryD1First<{ cragSlug: string; sectorSlug: string }>(
+    `SELECT c.slug AS cragSlug, s.slug AS sectorSlug
+     FROM sectors s
+     JOIN crags c ON c.id = s.crag_id
+     WHERE s.id = ?`,
+    [id],
+  );
+  return row ?? null;
+}
+
+/**
+ * Returns { cragSlug, sectorSlug } for a boulder (via its parent sector), or null if not found.
+ */
+export async function getBoulderAncestry(
+  id: string,
+): Promise<{ cragSlug: string; sectorSlug: string } | null> {
+  const row = await queryD1First<{ cragSlug: string; sectorSlug: string }>(
+    `SELECT c.slug AS cragSlug, s.slug AS sectorSlug
+     FROM boulders b
+     JOIN sectors s ON s.id = b.sector_id
+     JOIN crags c ON c.id = s.crag_id
+     WHERE b.id = ?`,
+    [id],
+  );
+  return row ?? null;
+}
+
+/**
+ * Returns { cragSlug, boulderId } for a topo, or null if not found.
+ */
+export async function getTopoAncestry(
+  id: string,
+): Promise<{ cragSlug: string; boulderId: string } | null> {
+  const row = await queryD1First<{ cragSlug: string; boulderId: string }>(
+    `SELECT c.slug AS cragSlug, b.id AS boulderId
+     FROM topos t
+     JOIN boulders b ON b.id = t.boulder_id
+     JOIN sectors s ON s.id = b.sector_id
+     JOIN crags c ON c.id = s.crag_id
+     WHERE t.id = ?`,
+    [id],
+  );
+  return row ?? null;
+}
+
+/**
+ * Returns { cragSlug, boulderId, topoId } for a route, or null if not found.
+ */
+export async function getRouteAncestry(
+  id: string,
+): Promise<{ cragSlug: string; boulderId: string; topoId: string } | null> {
+  const row = await queryD1First<{ cragSlug: string; boulderId: string; topoId: string }>(
+    `SELECT c.slug AS cragSlug, b.id AS boulderId, t.id AS topoId
+     FROM routes r
+     JOIN topos t ON t.id = r.topo_id
+     JOIN boulders b ON b.id = t.boulder_id
+     JOIN sectors s ON s.id = b.sector_id
+     JOIN crags c ON c.id = s.crag_id
+     WHERE r.id = ?`,
+    [id],
+  );
+  return row ?? null;
+}
+
 // routes: id, topo_id, name, slug, grade, grade_num, fa, description,
 //         line_image_url, is_published, sort_order
 // NOTE: routes has NO boulder_id column. Parent is topo_id only.

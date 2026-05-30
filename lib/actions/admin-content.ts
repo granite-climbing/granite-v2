@@ -15,6 +15,11 @@ import {
   softDeleteContent,
   restoreContent,
   findRowBySlug,
+  getCragSlugByCragId,
+  getSectorAncestry,
+  getBoulderAncestry,
+  getTopoAncestry,
+  getRouteAncestry,
 } from "@/lib/db/admin-content-queries";
 import {
   parseAreaForm,
@@ -197,7 +202,6 @@ export async function saveCragAction(formData: FormData): Promise<void> {
 export async function saveSectorAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const parsed = parseSectorForm(Object.fromEntries(formData));
-  const cragSlug = formData.get("cragSlug")?.toString() || undefined;
   let id = parsed.id ?? `sector_${randomUUID()}`;
 
   if (!parsed.id) {
@@ -219,15 +223,15 @@ export async function saveSectorAction(formData: FormData): Promise<void> {
     await upsertSector({ ...parsed, id });
   }
 
+  // Resolve cragSlug from DB — authoritative regardless of hidden form fields.
+  const cragSlug = await getCragSlugByCragId(parsed.cragId);
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "sector", targetId: id, metadata: { slug: parsed.slug } });
-  revalidateSectorSurface(cragSlug, parsed.slug);
+  revalidateSectorSurface(cragSlug ?? undefined, parsed.slug);
 }
 
 export async function saveBoulderAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const parsed = parseBoulderForm(Object.fromEntries(formData));
-  const cragSlug = formData.get("cragSlug")?.toString() || undefined;
-  const sectorSlug = formData.get("sectorSlug")?.toString() || undefined;
   let id = parsed.id ?? `boulder_${randomUUID()}`;
 
   if (!parsed.id) {
@@ -249,28 +253,29 @@ export async function saveBoulderAction(formData: FormData): Promise<void> {
     await upsertBoulder({ ...parsed, id });
   }
 
+  // Resolve ancestry from DB — authoritative regardless of hidden form fields.
+  const sectorAncestry = await getSectorAncestry(parsed.sectorId);
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "boulder", targetId: id, metadata: { slug: parsed.slug } });
-  revalidateBoulderSurface(id, cragSlug, sectorSlug);
+  revalidateBoulderSurface(id, sectorAncestry?.cragSlug, sectorAncestry?.sectorSlug);
 }
 
 export async function saveTopoAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const parsed = parseTopoForm(Object.fromEntries(formData));
-  const cragSlug = formData.get("cragSlug")?.toString() || undefined;
   // Topos have no slug — use provided id or generate a UUID-based one.
   const id = parsed.id ?? `topo_${randomUUID()}`;
 
   await upsertTopo({ ...parsed, id });
 
+  // Resolve ancestry from DB — authoritative regardless of hidden form fields.
+  const boulderAncestry = await getBoulderAncestry(parsed.boulderId);
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "topo", targetId: id, metadata: { boulderId: parsed.boulderId } });
-  revalidateTopoSurface(parsed.boulderId, id, cragSlug);
+  revalidateTopoSurface(parsed.boulderId, id, boulderAncestry?.cragSlug);
 }
 
 export async function saveRouteAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const parsed = parseRouteForm(Object.fromEntries(formData));
-  const cragSlug = formData.get("cragSlug")?.toString() || undefined;
-  const boulderId = formData.get("boulderId")?.toString() || undefined;
   // topoId is already in parsed (required schema field) — use it for path revalidation too.
   let id = parsed.id ?? `route_${randomUUID()}`;
 
@@ -293,8 +298,10 @@ export async function saveRouteAction(formData: FormData): Promise<void> {
     await upsertRoute({ ...parsed, id });
   }
 
+  // Resolve ancestry from DB — authoritative regardless of hidden form fields.
+  const topoAncestry = await getTopoAncestry(parsed.topoId);
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "route", targetId: id, metadata: { slug: parsed.slug } });
-  revalidateRouteSurface(id, boulderId, cragSlug, parsed.topoId);
+  revalidateRouteSurface(id, topoAncestry?.boulderId, topoAncestry?.cragSlug, parsed.topoId);
 }
 
 // ---------------------------------------------------------------------------
@@ -336,49 +343,52 @@ export async function softDeleteSectorAction(formData: FormData): Promise<void> 
   const admin = await requireAdmin();
   assertDeleteConfirm(formData);
   const id = String(formData.get("id") ?? "");
-  const cragSlug = String(formData.get("cragSlug") ?? "") || undefined;
-  const sectorSlug = String(formData.get("slug") ?? "") || undefined;
 
   await softDeleteContent({ table: "sectors", id });
+
+  // Resolve ancestry from DB — authoritative regardless of hidden form fields.
+  const ancestry = await getSectorAncestry(id);
   await auditLog({ adminId: admin.adminId, action: "content.soft_delete", targetType: "sector", targetId: id });
-  revalidateSectorSurface(cragSlug, sectorSlug);
+  revalidateSectorSurface(ancestry?.cragSlug, ancestry?.sectorSlug);
 }
 
 export async function softDeleteBoulderAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   assertDeleteConfirm(formData);
   const id = String(formData.get("id") ?? "");
-  const cragSlug = formData.get("cragSlug")?.toString() || undefined;
-  const sectorSlug = formData.get("sectorSlug")?.toString() || undefined;
 
   await softDeleteContent({ table: "boulders", id });
+
+  // Resolve ancestry from DB — authoritative regardless of hidden form fields.
+  const ancestry = await getBoulderAncestry(id);
   await auditLog({ adminId: admin.adminId, action: "content.soft_delete", targetType: "boulder", targetId: id });
-  revalidateBoulderSurface(id, cragSlug, sectorSlug);
+  revalidateBoulderSurface(id, ancestry?.cragSlug, ancestry?.sectorSlug);
 }
 
 export async function softDeleteTopoAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   assertDeleteConfirm(formData);
   const id = String(formData.get("id") ?? "");
-  const boulderId = String(formData.get("boulderId") ?? "") || undefined;
-  const cragSlug = formData.get("cragSlug")?.toString() || undefined;
 
   await softDeleteContent({ table: "topos", id });
+
+  // Resolve ancestry from DB — authoritative regardless of hidden form fields.
+  const ancestry = await getTopoAncestry(id);
   await auditLog({ adminId: admin.adminId, action: "content.soft_delete", targetType: "topo", targetId: id });
-  revalidateTopoSurface(boulderId, id, cragSlug);
+  revalidateTopoSurface(ancestry?.boulderId, id, ancestry?.cragSlug);
 }
 
 export async function softDeleteRouteAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   assertDeleteConfirm(formData);
   const id = String(formData.get("id") ?? "");
-  const cragSlug = formData.get("cragSlug")?.toString() || undefined;
-  const boulderId = formData.get("boulderId")?.toString() || undefined;
-  const topoId = formData.get("topoId")?.toString() || undefined;
 
   await softDeleteContent({ table: "routes", id });
+
+  // Resolve ancestry from DB — authoritative regardless of hidden form fields.
+  const ancestry = await getRouteAncestry(id);
   await auditLog({ adminId: admin.adminId, action: "content.soft_delete", targetType: "route", targetId: id });
-  revalidateRouteSurface(id, boulderId, cragSlug, topoId);
+  revalidateRouteSurface(id, ancestry?.boulderId, ancestry?.cragSlug, ancestry?.topoId);
 }
 
 // ---------------------------------------------------------------------------
@@ -407,46 +417,49 @@ export async function restoreCragAction(formData: FormData): Promise<void> {
 export async function restoreSectorAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const id = String(formData.get("id") ?? "");
-  const cragSlug = String(formData.get("cragSlug") ?? "") || undefined;
-  const sectorSlug = String(formData.get("slug") ?? "") || undefined;
 
   await restoreContent({ table: "sectors", id });
+
+  // Resolve ancestry from DB — authoritative regardless of hidden form fields.
+  const ancestry = await getSectorAncestry(id);
   await auditLog({ adminId: admin.adminId, action: "content.restore", targetType: "sector", targetId: id });
-  revalidateSectorSurface(cragSlug, sectorSlug);
+  revalidateSectorSurface(ancestry?.cragSlug, ancestry?.sectorSlug);
 }
 
 export async function restoreBoulderAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const id = String(formData.get("id") ?? "");
-  const cragSlug = formData.get("cragSlug")?.toString() || undefined;
-  const sectorSlug = formData.get("sectorSlug")?.toString() || undefined;
 
   await restoreContent({ table: "boulders", id });
+
+  // Resolve ancestry from DB — authoritative regardless of hidden form fields.
+  const ancestry = await getBoulderAncestry(id);
   await auditLog({ adminId: admin.adminId, action: "content.restore", targetType: "boulder", targetId: id });
-  revalidateBoulderSurface(id, cragSlug, sectorSlug);
+  revalidateBoulderSurface(id, ancestry?.cragSlug, ancestry?.sectorSlug);
 }
 
 export async function restoreTopoAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const id = String(formData.get("id") ?? "");
-  const boulderId = String(formData.get("boulderId") ?? "") || undefined;
-  const cragSlug = formData.get("cragSlug")?.toString() || undefined;
 
   await restoreContent({ table: "topos", id });
+
+  // Resolve ancestry from DB — authoritative regardless of hidden form fields.
+  const ancestry = await getTopoAncestry(id);
   await auditLog({ adminId: admin.adminId, action: "content.restore", targetType: "topo", targetId: id });
-  revalidateTopoSurface(boulderId, id, cragSlug);
+  revalidateTopoSurface(ancestry?.boulderId, id, ancestry?.cragSlug);
 }
 
 export async function restoreRouteAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const id = String(formData.get("id") ?? "");
-  const cragSlug = formData.get("cragSlug")?.toString() || undefined;
-  const boulderId = formData.get("boulderId")?.toString() || undefined;
-  const topoId = formData.get("topoId")?.toString() || undefined;
 
   await restoreContent({ table: "routes", id });
+
+  // Resolve ancestry from DB — authoritative regardless of hidden form fields.
+  const ancestry = await getRouteAncestry(id);
   await auditLog({ adminId: admin.adminId, action: "content.restore", targetType: "route", targetId: id });
-  revalidateRouteSurface(id, boulderId, cragSlug, topoId);
+  revalidateRouteSurface(id, ancestry?.boulderId, ancestry?.cragSlug, ancestry?.topoId);
 }
 
 // ---------------------------------------------------------------------------
@@ -479,8 +492,38 @@ export async function togglePublishAction(formData: FormData): Promise<void> {
     metadata: { isPublished },
   });
 
-  // Over-invalidate safe surfaces — we only know table+id here, not slugs.
-  revalidateTag("home");
-  revalidateTag("areas:list");
-  revalidatePath("/");
+  // Invalidate the authoritative surface for the affected entity, resolved from D1.
+  switch (validTable) {
+    case "areas":
+      revalidateAreaSurface();
+      break;
+    case "crags": {
+      const slug = await getCragSlugByCragId(id);
+      revalidateCragSurface(slug ?? undefined);
+      break;
+    }
+    case "sectors": {
+      const a = await getSectorAncestry(id);
+      revalidateSectorSurface(a?.cragSlug, a?.sectorSlug);
+      break;
+    }
+    case "boulders": {
+      const a = await getBoulderAncestry(id);
+      revalidateBoulderSurface(id, a?.cragSlug, a?.sectorSlug);
+      break;
+    }
+    case "topos": {
+      const a = await getTopoAncestry(id);
+      revalidateTopoSurface(a?.boulderId, id, a?.cragSlug);
+      break;
+    }
+    case "routes": {
+      const a = await getRouteAncestry(id);
+      revalidateRouteSurface(id, a?.boulderId, a?.cragSlug, a?.topoId);
+      break;
+    }
+    case "announcements":
+      revalidateAreaSurface(); // home + areas:list + /
+      break;
+  }
 }

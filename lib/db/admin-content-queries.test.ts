@@ -11,6 +11,11 @@ import {
   upsertRoute,
   upsertAnnouncement,
   findRowBySlug,
+  getCragSlugByCragId,
+  getSectorAncestry,
+  getBoulderAncestry,
+  getTopoAncestry,
+  getRouteAncestry,
 } from "./admin-content-queries";
 import { executeD1, queryD1First } from "./d1-http";
 
@@ -358,5 +363,85 @@ describe("admin content queries", () => {
     // cragId (index 4) should be null, isPublished (index 6) should be 0
     expect(call[1]![4]).toBeNull();
     expect(call[1]![6]).toBe(0);
+  });
+
+  // -------------------------------------------------------------------------
+  // Ancestry helpers (Task 17)
+  // -------------------------------------------------------------------------
+
+  it("getCragSlugByCragId: issues SELECT slug FROM crags WHERE id = ? with [id] params", async () => {
+    const { queryD1First: mockQueryD1First } = await import("./d1-http");
+    const mockedQuery = vi.mocked(mockQueryD1First);
+    mockedQuery.mockResolvedValueOnce({ slug: "anyang" });
+
+    const result = await getCragSlugByCragId("crag_anyang");
+
+    expect(mockedQuery).toHaveBeenCalledWith(
+      "SELECT slug FROM crags WHERE id = ?",
+      ["crag_anyang"],
+    );
+    expect(result).toBe("anyang");
+  });
+
+  it("getSectorAncestry: query JOINs sectors→crags and uses params [id]", async () => {
+    const { queryD1First: mockQueryD1First } = await import("./d1-http");
+    const mockedQuery = vi.mocked(mockQueryD1First);
+    mockedQuery.mockResolvedValueOnce({ cragSlug: "anyang", sectorSlug: "anyang_antique" });
+
+    const result = await getSectorAncestry("sector_anyang_antique");
+
+    const [sql, params] = mockedQuery.mock.calls[mockedQuery.mock.calls.length - 1] as [string, unknown[]];
+    expect(sql).toContain("JOIN crags");
+    expect(sql).toContain("sectors");
+    expect(params).toEqual(["sector_anyang_antique"]);
+    expect(result).toEqual({ cragSlug: "anyang", sectorSlug: "anyang_antique" });
+  });
+
+  it("getBoulderAncestry: query JOINs boulders→sectors→crags and uses params [id]", async () => {
+    const { queryD1First: mockQueryD1First } = await import("./d1-http");
+    const mockedQuery = vi.mocked(mockQueryD1First);
+    mockedQuery.mockResolvedValueOnce({ cragSlug: "anyang", sectorSlug: "anyang_antique" });
+
+    const result = await getBoulderAncestry("boulder_gomul_boulder");
+
+    const [sql, params] = mockedQuery.mock.calls[mockedQuery.mock.calls.length - 1] as [string, unknown[]];
+    expect(sql).toContain("boulders");
+    expect(sql).toContain("JOIN sectors");
+    expect(sql).toContain("JOIN crags");
+    expect(params).toEqual(["boulder_gomul_boulder"]);
+    expect(result).toEqual({ cragSlug: "anyang", sectorSlug: "anyang_antique" });
+  });
+
+  it("getTopoAncestry: query JOINs topos→boulders→sectors→crags and uses params [id]", async () => {
+    const { queryD1First: mockQueryD1First } = await import("./d1-http");
+    const mockedQuery = vi.mocked(mockQueryD1First);
+    mockedQuery.mockResolvedValueOnce({ cragSlug: "anyang", boulderId: "boulder_gomul_boulder" });
+
+    const result = await getTopoAncestry("topo_gomul_front");
+
+    const [sql, params] = mockedQuery.mock.calls[mockedQuery.mock.calls.length - 1] as [string, unknown[]];
+    expect(sql).toContain("topos");
+    expect(sql).toContain("JOIN boulders");
+    expect(sql).toContain("JOIN sectors");
+    expect(sql).toContain("JOIN crags");
+    expect(params).toEqual(["topo_gomul_front"]);
+    expect(result).toEqual({ cragSlug: "anyang", boulderId: "boulder_gomul_boulder" });
+  });
+
+  it("getRouteAncestry: query JOINs routes→topos→boulders→sectors→crags and uses params [id]", async () => {
+    const { queryD1First: mockQueryD1First } = await import("./d1-http");
+    const mockedQuery = vi.mocked(mockQueryD1First);
+    mockedQuery.mockResolvedValueOnce({ cragSlug: "anyang", boulderId: "boulder_gomul_boulder", topoId: "topo_gomul_front" });
+
+    const result = await getRouteAncestry("route_anaconda");
+
+    const [sql, params] = mockedQuery.mock.calls[mockedQuery.mock.calls.length - 1] as [string, unknown[]];
+    expect(sql).toContain("routes");
+    expect(sql).toContain("JOIN topos");
+    expect(sql).toContain("JOIN boulders");
+    expect(sql).toContain("JOIN sectors");
+    expect(sql).toContain("JOIN crags");
+    expect(params).toEqual(["route_anaconda"]);
+    expect(result).toEqual({ cragSlug: "anyang", boulderId: "boulder_gomul_boulder", topoId: "topo_gomul_front" });
   });
 });
