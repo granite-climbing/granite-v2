@@ -1,31 +1,71 @@
 # Granite Admin Operations
 
-## Initial Admin
+## Initial Admin (recommended path)
 
-Generate a password hash locally:
+Use `scripts/seed-admin.ts`. It pulls D1 env from `.env.local` (or the current shell), prompts for the password with hidden input + confirmation, shows the target D1 database id tail so you can confirm the environment before any write, and either INSERTs a new row or UPDATEs the existing row keyed by email.
 
 ```bash
-pnpm dlx tsx scripts/create-admin-hash.ts '<strong-password>'
+# 1) Pull the target environment's env vars locally (preview or production)
+vercel env pull .env.local --environment preview     # or: --environment production
+
+# 2) Run the seeder (email + display name are positional; password is prompted)
+pnpm dlx tsx scripts/seed-admin.ts ops@granite.kr "Granite Ops"
+
+#   Optional: pin a stable id for the first admin
+pnpm dlx tsx scripts/seed-admin.ts ops@granite.kr "Granite Ops" --id admin_primary
 ```
 
-The script will output a bcrypt hash. Insert the first admin through D1 migration or one-time D1 console execution:
+The script will:
+
+1. Print the **target D1 database id's last 6 chars** and ask for confirmation. Use this to make sure you're not seeding prod from a preview shell (or vice versa).
+2. Prompt for the password (hidden) and a confirmation. Enforces ≥ 12 chars.
+3. Look up any existing row with this email. If found, asks to UPDATE password + display name + reactivate. Otherwise INSERTs a new row with `id = admin_<uuid>` (or the `--id` you provided).
+4. Hash with bcrypt cost = 12 and write to D1. Never prints the password or hash.
+
+Delete `.env.local` after seeding production:
+
+```bash
+rm .env.local
+```
+
+## Hash-only fallback
+
+If you can only reach D1 through its web console and need to compose the SQL manually, generate just the hash:
+
+```bash
+pnpm dlx tsx scripts/create-admin-hash.ts '<strong-password-12-chars-or-more>'
+```
+
+Then run in the D1 console:
 
 ```sql
 INSERT INTO admins (id, email, password_hash, display_name, is_active)
 VALUES ('admin_primary', 'ops@granite.kr', '<bcrypt-hash>', 'Granite Ops', 1);
 ```
 
-Do not commit real password hashes for production admins unless the repository is private and the operational risk is accepted. Prefer a one-time D1 console insert for production.
+Do not commit production password hashes to git. Prefer the seeder or a one-time D1 console insert.
 
 ## Password Rotation
 
-1. Generate a new hash with `pnpm dlx tsx scripts/create-admin-hash.ts '<new-password>'`.
-2. Update `admins.password_hash` for the target admin:
-   ```sql
-   UPDATE admins SET password_hash = '<new-hash>' WHERE id = '<admin-id>';
-   ```
-3. Rotate `ADMIN_JWT_SECRET` if session compromise is suspected.
-4. Confirm old sessions no longer access `/admin/content`.
+Use the same seeder — it detects the existing email and updates the password:
+
+```bash
+vercel env pull .env.local --environment production
+pnpm dlx tsx scripts/seed-admin.ts ops@granite.kr "Granite Ops"
+# Answers "yes" to "Update password + display_name + reactivate?"
+```
+
+Or, if rotating from the D1 console with the hash-only fallback:
+
+```sql
+UPDATE admins
+SET password_hash = '<new-hash>', updated_at = datetime('now')
+WHERE id = '<admin-id>';
+```
+
+If you suspect session compromise, also rotate `ADMIN_JWT_SECRET` in Vercel; this immediately invalidates every existing admin session.
+
+Confirm old sessions no longer access `/admin/content` after either change.
 
 ## Image Policy
 
