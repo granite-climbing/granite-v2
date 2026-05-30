@@ -378,6 +378,74 @@ describe("admin content actions", () => {
   });
 
   // -------------------------------------------------------------------------
+  // Fresh create regression tests: restoreContent should NOT be called
+  // -------------------------------------------------------------------------
+
+  it("saveSectorAction: fresh create does NOT call restoreContent", async () => {
+    mockedFindRowBySlug.mockResolvedValue(null);
+
+    const formData = new FormData();
+    formData.set("cragId", "crag_anyang");
+    formData.set("name", "앤틱 구역");
+    formData.set("slug", "anyang_antique");
+    formData.set("coverImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+
+    await saveSectorAction(formData);
+
+    // Upsert must be called
+    expect(mockedUpsertSector).toHaveBeenCalled();
+    // restoreContent should NOT be called for fresh create
+    expect(mockedRestoreContent).not.toHaveBeenCalled();
+  });
+
+  it("saveBoulderAction: fresh create does NOT call restoreContent", async () => {
+    mockedFindRowBySlug.mockResolvedValue(null);
+
+    const formData = new FormData();
+    formData.set("sectorId", "sector_anyang_antique");
+    formData.set("name", "고물 볼더");
+    formData.set("slug", "gomul_boulder");
+    formData.set("lat", "37.42");
+    formData.set("lng", "126.92");
+    formData.set("hashtags", "");
+    formData.set("coverImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+
+    await saveBoulderAction(formData);
+
+    // Upsert must be called
+    expect(mockedUpsertBoulder).toHaveBeenCalled();
+    // restoreContent should NOT be called for fresh create
+    expect(mockedRestoreContent).not.toHaveBeenCalled();
+  });
+
+  it("saveRouteAction: fresh create does NOT call restoreContent", async () => {
+    mockedFindRowBySlug.mockResolvedValue(null);
+
+    const formData = new FormData();
+    formData.set("topoId", "topo_gomul_front");
+    formData.set("name", "아나콘다");
+    formData.set("slug", "anaconda");
+    formData.set("grade", "V5");
+    formData.set("gradeNum", "5");
+    formData.set("fa", "");
+    formData.set("description", "");
+    formData.set("lineImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "1");
+
+    await saveRouteAction(formData);
+
+    // Upsert must be called
+    expect(mockedUpsertRoute).toHaveBeenCalled();
+    // restoreContent should NOT be called for fresh create
+    expect(mockedRestoreContent).not.toHaveBeenCalled();
+  });
+
+  // -------------------------------------------------------------------------
   // saveAreaAction
   // -------------------------------------------------------------------------
 

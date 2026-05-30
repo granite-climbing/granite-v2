@@ -63,8 +63,9 @@ async function auditLog(input: {
 // ---------------------------------------------------------------------------
 // Slug-collision resolution for save actions
 // Applies to: area, crag, sector, boulder, route (NOT topo — no slug).
-// Returns the resolved id to use for the upsert.
-// If a soft-deleted row is found, returns its id; the CALLER must call restoreContent on it.
+// Returns both the resolved id and a flag indicating whether a soft-deleted row was reused.
+// reusedDeletedRow is true ONLY when an existing soft-deleted row's id is returned;
+// false when no row was found (i.e., the caller's generated id is used).
 // ---------------------------------------------------------------------------
 
 async function resolveSlugConflict(input: {
@@ -73,7 +74,7 @@ async function resolveSlugConflict(input: {
   slug: string;
   parentColumn?: string;
   parentId?: string;
-}): Promise<string> {
+}): Promise<{ id: string; reusedDeletedRow: boolean }> {
   const existing = await findRowBySlug({
     table: input.table,
     slug: input.slug,
@@ -82,13 +83,13 @@ async function resolveSlugConflict(input: {
   });
 
   if (!existing) {
-    return input.generatedId;
+    return { id: input.generatedId, reusedDeletedRow: false };
   }
 
   if (existing.deleted_at !== null) {
     // Soft-deleted row: reuse its id so the upsert updates it.
-    // The caller must invoke restoreContent after the upsert.
-    return existing.id;
+    // Signal reusedDeletedRow=true so the caller invokes restoreContent.
+    return { id: existing.id, reusedDeletedRow: true };
   }
 
   // Live row with the same slug — refuse to overwrite silently.
@@ -151,14 +152,17 @@ export async function saveAreaAction(formData: FormData): Promise<void> {
   let id = parsed.id ?? `area_${parsed.slug}`;
 
   if (!parsed.id) {
-    id = await resolveSlugConflict({ generatedId: id, table: "areas", slug: parsed.slug });
-  }
+    const resolved = await resolveSlugConflict({ generatedId: id, table: "areas", slug: parsed.slug });
+    id = resolved.id;
 
-  await upsertArea({ ...parsed, id });
+    await upsertArea({ ...parsed, id });
 
-  // If we reused a soft-deleted row id, clear its deleted_at.
-  if (!parsed.id && id !== `area_${parsed.slug}`) {
-    await restoreContent({ table: "areas", id });
+    // If we reused a soft-deleted row id, clear its deleted_at.
+    if (resolved.reusedDeletedRow) {
+      await restoreContent({ table: "areas", id });
+    }
+  } else {
+    await upsertArea({ ...parsed, id });
   }
 
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "area", targetId: id, metadata: { slug: parsed.slug } });
@@ -171,16 +175,19 @@ export async function saveCragAction(formData: FormData): Promise<void> {
   let id = parsed.id ?? `crag_${parsed.slug}`;
 
   if (!parsed.id) {
-    id = await resolveSlugConflict({ generatedId: id, table: "crags", slug: parsed.slug });
-  }
+    const resolved = await resolveSlugConflict({ generatedId: id, table: "crags", slug: parsed.slug });
+    id = resolved.id;
 
-  await upsertCrag({ ...parsed, id });
+    await upsertCrag({ ...parsed, id });
 
-  // Non-atomic: D1 HTTP has no transaction support, so upsert and restore are separate calls.
-  // This is acceptable for the admin path because the upsert is the source of truth; a crash
-  // between upsert and restore would leave the row updated-but-soft-deleted, which a re-save resolves.
-  if (!parsed.id && id !== `crag_${parsed.slug}`) {
-    await restoreContent({ table: "crags", id });
+    // Non-atomic: D1 HTTP has no transaction support, so upsert and restore are separate calls.
+    // This is acceptable for the admin path because the upsert is the source of truth; a crash
+    // between upsert and restore would leave the row updated-but-soft-deleted, which a re-save resolves.
+    if (resolved.reusedDeletedRow) {
+      await restoreContent({ table: "crags", id });
+    }
+  } else {
+    await upsertCrag({ ...parsed, id });
   }
 
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "crag", targetId: id, metadata: { slug: parsed.slug } });
@@ -194,19 +201,22 @@ export async function saveSectorAction(formData: FormData): Promise<void> {
   let id = parsed.id ?? `sector_${randomUUID()}`;
 
   if (!parsed.id) {
-    id = await resolveSlugConflict({
+    const resolved = await resolveSlugConflict({
       generatedId: id,
       table: "sectors",
       slug: parsed.slug,
       parentColumn: "crag_id",
       parentId: parsed.cragId,
     });
-  }
+    id = resolved.id;
 
-  await upsertSector({ ...parsed, id });
+    await upsertSector({ ...parsed, id });
 
-  if (!parsed.id && id !== `sector_${parsed.slug}`) {
-    await restoreContent({ table: "sectors", id });
+    if (resolved.reusedDeletedRow) {
+      await restoreContent({ table: "sectors", id });
+    }
+  } else {
+    await upsertSector({ ...parsed, id });
   }
 
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "sector", targetId: id, metadata: { slug: parsed.slug } });
@@ -221,19 +231,22 @@ export async function saveBoulderAction(formData: FormData): Promise<void> {
   let id = parsed.id ?? `boulder_${randomUUID()}`;
 
   if (!parsed.id) {
-    id = await resolveSlugConflict({
+    const resolved = await resolveSlugConflict({
       generatedId: id,
       table: "boulders",
       slug: parsed.slug,
       parentColumn: "sector_id",
       parentId: parsed.sectorId,
     });
-  }
+    id = resolved.id;
 
-  await upsertBoulder({ ...parsed, id });
+    await upsertBoulder({ ...parsed, id });
 
-  if (!parsed.id && id !== `boulder_${parsed.slug}`) {
-    await restoreContent({ table: "boulders", id });
+    if (resolved.reusedDeletedRow) {
+      await restoreContent({ table: "boulders", id });
+    }
+  } else {
+    await upsertBoulder({ ...parsed, id });
   }
 
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "boulder", targetId: id, metadata: { slug: parsed.slug } });
@@ -262,19 +275,22 @@ export async function saveRouteAction(formData: FormData): Promise<void> {
   let id = parsed.id ?? `route_${randomUUID()}`;
 
   if (!parsed.id) {
-    id = await resolveSlugConflict({
+    const resolved = await resolveSlugConflict({
       generatedId: id,
       table: "routes",
       slug: parsed.slug,
       parentColumn: "topo_id",
       parentId: parsed.topoId,
     });
-  }
+    id = resolved.id;
 
-  await upsertRoute({ ...parsed, id });
+    await upsertRoute({ ...parsed, id });
 
-  if (!parsed.id && id !== `route_${parsed.slug}`) {
-    await restoreContent({ table: "routes", id });
+    if (resolved.reusedDeletedRow) {
+      await restoreContent({ table: "routes", id });
+    }
+  } else {
+    await upsertRoute({ ...parsed, id });
   }
 
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "route", targetId: id, metadata: { slug: parsed.slug } });
