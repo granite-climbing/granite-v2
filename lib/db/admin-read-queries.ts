@@ -147,6 +147,17 @@ export type AdminAnnouncementRow = {
   deletedAt: string | null;
 };
 
+export type AdminAuditLog = {
+  id: string;
+  adminId: string;
+  adminEmail: string;
+  action: string;
+  targetType: string;
+  targetId: string;
+  metadata: string;
+  createdAt: string;
+};
+
 // ---------------------------------------------------------------------------
 // SQL-layer row types (is_published as 0|1)
 // ---------------------------------------------------------------------------
@@ -283,6 +294,17 @@ interface AdminAnnouncementSqlRow {
   publishedAt: string;
   sortOrder: number;
   deletedAt: string | null;
+}
+
+interface AdminAuditLogSqlRow {
+  id: string;
+  adminId: string;
+  adminEmail: string;
+  action: string;
+  targetType: string;
+  targetId: string;
+  metadata: string;
+  createdAt: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -605,4 +627,32 @@ export async function getAdminAnnouncements(): Promise<AdminAnnouncementRow[]> {
      ORDER BY sort_order ASC, id ASC`
   );
   return rows.map((r) => ({ ...r, isPublished: r.isPublished === 1 }));
+}
+
+// ---------------------------------------------------------------------------
+// 9. Audit logs
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns recent admin audit logs, ordered by creation time descending.
+ * Includes admin email via JOIN with admins table.
+ */
+export async function getRecentAdminAuditLogs(limit = 100): Promise<AdminAuditLog[]> {
+  const rows = await queryD1<AdminAuditLogSqlRow>(
+    `SELECT
+       l.id,
+       l.admin_id        AS adminId,
+       a.email           AS adminEmail,
+       l.action,
+       l.target_type     AS targetType,
+       l.target_id       AS targetId,
+       l.metadata,
+       l.created_at      AS createdAt
+     FROM admin_audit_logs l
+     JOIN admins a ON a.id = l.admin_id
+     ORDER BY l.created_at DESC
+     LIMIT ?`,
+    [limit]
+  );
+  return rows;
 }

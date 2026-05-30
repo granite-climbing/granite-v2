@@ -22,6 +22,7 @@ import {
   getAdminTopos,
   getAdminRoutes,
   getAdminAnnouncements,
+  getRecentAdminAuditLogs,
 } from "./admin-read-queries";
 
 beforeEach(() => {
@@ -504,5 +505,75 @@ describe("getAdminAnnouncements", () => {
     const [sql] = mockQueryD1.mock.calls[0] as [string, unknown];
     expect(sql).toMatch(/ORDER BY/);
     expect(sql).toMatch(/sort_order/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getRecentAdminAuditLogs
+// ---------------------------------------------------------------------------
+
+describe("getRecentAdminAuditLogs", () => {
+  it("returns recent audit logs ordered by created_at DESC", async () => {
+    mockQueryD1.mockResolvedValueOnce([
+      {
+        id: "log-1",
+        adminId: "admin-1",
+        adminEmail: "admin@example.com",
+        action: "create_area",
+        targetType: "area",
+        targetId: "area-1",
+        metadata: '{"name":"New Area"}',
+        createdAt: "2025-03-01T12:00:00",
+      },
+      {
+        id: "log-2",
+        adminId: "admin-2",
+        adminEmail: "admin2@example.com",
+        action: "publish_crag",
+        targetType: "crag",
+        targetId: "crag-1",
+        metadata: "{}",
+        createdAt: "2025-03-01T11:00:00",
+      },
+    ]);
+
+    const logs = await getRecentAdminAuditLogs();
+    expect(logs).toHaveLength(2);
+    expect(logs[0].adminEmail).toBe("admin@example.com");
+    expect(logs[0].action).toBe("create_area");
+    expect(logs[1].createdAt).toBe("2025-03-01T11:00:00");
+  });
+
+  it("SQL queries from admin_audit_logs with JOIN admins", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getRecentAdminAuditLogs();
+
+    const [sql] = mockQueryD1.mock.calls[0] as [string, unknown];
+    expect(sql).toMatch(/FROM admin_audit_logs/);
+    expect(sql).toMatch(/JOIN admins/);
+  });
+
+  it("SQL orders by created_at DESC", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getRecentAdminAuditLogs();
+
+    const [sql] = mockQueryD1.mock.calls[0] as [string, unknown];
+    expect(sql).toMatch(/ORDER BY l\.created_at DESC/);
+  });
+
+  it("uses default limit of 100 when not provided", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getRecentAdminAuditLogs();
+
+    const [, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(params).toEqual([100]);
+  });
+
+  it("uses custom limit when provided", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getRecentAdminAuditLogs(50);
+
+    const [, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(params).toEqual([50]);
   });
 });
