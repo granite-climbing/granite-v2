@@ -1888,7 +1888,7 @@ git commit -m "feat: add admin content read models"
 - Create: `app/admin/content/topos/page.tsx`
 - Create: `app/admin/content/routes/page.tsx`
 
-- [ ] **Step 1: Add desktop-only admin UI components**
+- [x] **Step 1: Add desktop-only admin UI components**
 
 Admin pages are not required to support mobile. Use a desktop utility layout with fixed minimum width and dense tables:
 
@@ -1922,7 +1922,7 @@ All admin pages should use:
 <main className="min-h-screen min-w-[1024px] bg-[#F7F8F8] text-[#111827]">
 ```
 
-- [ ] **Step 2: Replace stale page fields**
+- [x] **Step 2: Replace stale page fields**
 
 Remove old Phase 1 fields from `app/admin/content/page.tsx`:
 
@@ -1941,7 +1941,7 @@ Use Phase 2 fields:
 - `isPublished`
 - `topoId` for routes
 
-- [ ] **Step 3: Build overview page**
+- [x] **Step 3: Build overview page**
 
 `app/admin/content/page.tsx` should render:
 
@@ -1951,7 +1951,7 @@ Use Phase 2 fields:
 
 Use dense admin styling, not marketing cards. Cards are acceptable for repeated entity rows only.
 
-- [ ] **Step 4: Create one page per entity**
+- [x] **Step 4: Create one page per entity**
 
 Build required pages:
 
@@ -1971,7 +1971,7 @@ Each page must:
 - include publish toggle;
 - include soft delete and restore controls.
 
-- [ ] **Step 5: Add entity forms**
+- [x] **Step 5: Add entity forms**
 
 For each entity, include:
 
@@ -1990,7 +1990,7 @@ For delete, require a confirmation field:
 
 The Server Action must reject delete unless `confirm === "DELETE"`.
 
-- [ ] **Step 6: Use server actions directly**
+- [x] **Step 6: Use server actions directly**
 
 Forms should use direct action imports:
 
@@ -2002,7 +2002,7 @@ Forms should use direct action imports:
 </form>
 ```
 
-- [ ] **Step 7: Run verification**
+- [x] **Step 7: Run verification**
 
 Run:
 
@@ -2013,7 +2013,7 @@ pnpm build
 
 Expected: both pass.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add app/admin/content components/admin
@@ -2030,7 +2030,7 @@ git commit -m "feat: build desktop admin content pages"
 - Add functions in: `lib/db/admin-content-queries.ts`
 - Modify: `app/admin/announcements/page.tsx`
 
-- [ ] **Step 1: Add announcement validation**
+- [x] **Step 1: Add announcement validation**
 
 Either place in `admin-content-schema.ts` or new `admin-announcement-schema.ts`:
 
@@ -2048,7 +2048,7 @@ export const announcementFormSchema = z.object({
 });
 ```
 
-- [ ] **Step 2: Add SQL functions**
+- [x] **Step 2: Add SQL functions**
 
 Add:
 
@@ -2058,7 +2058,7 @@ Add:
 
 Use `announcements` columns from `migrations/0001_init.sql`.
 
-- [ ] **Step 3: Add Server Actions**
+- [x] **Step 3: Add Server Actions**
 
 Pattern:
 
@@ -2082,7 +2082,7 @@ export async function saveAnnouncementAction(formData: FormData): Promise<void> 
 }
 ```
 
-- [ ] **Step 4: Replace read-only page**
+- [x] **Step 4: Replace read-only page**
 
 `app/admin/announcements/page.tsx` should:
 
@@ -2091,7 +2091,7 @@ export async function saveAnnouncementAction(formData: FormData): Promise<void> 
 - Render edit forms for existing announcements.
 - Render publish toggles and delete controls.
 
-- [ ] **Step 5: Run tests and build**
+- [x] **Step 5: Run tests and build**
 
 Run:
 
@@ -2103,7 +2103,7 @@ pnpm build
 
 Expected: all pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app/admin/announcements lib/actions lib/db/admin-content-queries.ts lib/db/admin-content-queries.test.ts
@@ -2135,7 +2135,7 @@ Because R2/CDN public serving is already complete, Phase 3 does not configure th
 - Upload key uses `buildR2ImageKey`.
 - Persisted URL uses `buildCdnImageUrl`.
 
-- [ ] **Step 1: Add R2 file validation tests**
+- [x] **Step 1: Add R2 file validation tests**
 
 Create `lib/actions/admin-images.test.ts`:
 
@@ -2161,7 +2161,7 @@ describe("admin image uploads", () => {
 });
 ```
 
-- [ ] **Step 1A: Raise the Server Action body size limit**
+- [x] **Step 1A: Raise the Server Action body size limit**
 
 Server Actions receive `FormData` over the same request body as the action invocation, and Next.js caps that at **1MB by default**. A 10MB image upload will fail at the framework boundary before the action runs. Raise it in `next.config.ts`:
 
@@ -2185,7 +2185,7 @@ export default nextConfig;
 
 Keep the limit aligned with `MAX_IMAGE_BYTES` (10MB) in the upload action. After editing, run `pnpm build` to confirm the config still parses.
 
-- [ ] **Step 2: Implement upload action**
+- [x] **Step 2: Implement upload action**
 
 Create `lib/actions/admin-images.ts`:
 
@@ -2267,7 +2267,7 @@ export async function uploadAdminImageAction(formData: FormData): Promise<{ cdnU
 }
 ```
 
-- [ ] **Step 3: Add image preview and upload controls to forms**
+- [x] **Step 3: Add image preview and upload controls to forms**
 
 The rest of the admin is plain server-action forms, but image upload needs a client component: `uploadAdminImageAction` returns `{ cdnUrl }`, and that value must be written back into the entity form's `coverImageUrl`/`baseImageUrl`/`lineImageUrl` field before the entity is saved. A bare `<input type="file">` inside the save form does nothing — `saveCragAction` does not read the file. Build one small client component and reuse it for every image field.
 
@@ -2338,7 +2338,7 @@ Notes:
 - Keep the field name matching the schema (`coverImageUrl`, `baseImageUrl`, or `lineImageUrl`).
 - Because `uploadAdminImageAction` returns a value, it is invoked from the client component (not via `<form action={...}>`), which is why this glue is required.
 
-- [ ] **Step 4: Confirm validation blocks private URLs**
+- [x] **Step 4: Confirm validation blocks private URLs**
 
 Add validation tests:
 
@@ -2353,7 +2353,7 @@ expect(() =>
 ).toThrow("Image URL");
 ```
 
-- [ ] **Step 5: Run image tests**
+- [x] **Step 5: Run image tests**
 
 Run:
 
@@ -2363,7 +2363,7 @@ pnpm test lib/actions/admin-images.test.ts lib/r2/images.test.ts
 
 Expected: pass.
 
-- [ ] **Step 6: Commit direct upload**
+- [x] **Step 6: Commit direct upload**
 
 ```bash
 git add next.config.ts app/admin components/admin/image-upload-field.tsx lib/actions/admin-images.ts lib/actions/admin-images.test.ts lib/actions/admin-content-schema.ts lib/actions/admin-content.test.ts lib/r2
@@ -2379,7 +2379,7 @@ git commit -m "feat: add direct admin image upload"
 - Modify: `app/admin/layout.tsx`
 - Add read query to: `lib/db/admin-read-queries.ts`
 
-- [ ] **Step 1: Add audit read query**
+- [x] **Step 1: Add audit read query**
 
 Add:
 
@@ -2404,7 +2404,7 @@ export async function getRecentAdminAuditLogs(limit = 100): Promise<AdminAuditLo
 }
 ```
 
-- [ ] **Step 2: Build audit page**
+- [x] **Step 2: Build audit page**
 
 Create `app/admin/audit/page.tsx`:
 
@@ -2437,11 +2437,11 @@ export default async function AdminAuditPage() {
 }
 ```
 
-- [ ] **Step 3: Add nav link**
+- [x] **Step 3: Add nav link**
 
 Add `/admin/audit` to `app/admin/layout.tsx`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add app/admin/audit app/admin/layout.tsx lib/db/admin-read-queries.ts
