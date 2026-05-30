@@ -18,7 +18,7 @@ pnpm dlx tsx scripts/seed-admin.ts ops@granite.kr "Granite Ops" --id admin_prima
 The script will:
 
 1. Print the **target D1 database id's last 6 chars** and ask for confirmation. Use this to make sure you're not seeding prod from a preview shell (or vice versa).
-2. Prompt for the password (hidden) and a confirmation. Enforces ≥ 12 chars.
+2. Prompt for the password (hidden) and a confirmation. Enforces ≥ 6 chars.
 3. Look up any existing row with this email. If found, asks to UPDATE password + display name + reactivate. Otherwise INSERTs a new row with `id = admin_<uuid>` (or the `--id` you provided).
 4. Hash with bcrypt cost = 12 and write to D1. Never prints the password or hash.
 
@@ -86,7 +86,7 @@ For local development and testing, you may optionally create a local-only seed f
 
 ### Credentials Management
 
-- Passwords must be at least 12 characters long (enforced by `create-admin-hash.ts`).
+- Passwords must be at least 6 characters long (enforced by `seed-admin.ts`, `create-admin-hash.ts`, and the login Zod schema). Consider raising this if your operational policy allows.
 - Store rotated hashes only in D1; never log plaintext passwords.
 - Use a password manager or secure credential store for operational secrets.
 

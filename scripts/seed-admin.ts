@@ -242,9 +242,9 @@ async function main(): Promise<void> {
   console.log("");
 
   // Password (hidden, with confirmation)
-  const password = await askPassword("Password (min 12 chars, hidden): ");
-  if (password.length < 12) {
-    console.error("✗ Password must be at least 12 characters.");
+  const password = await askPassword("Password (min 6 chars, hidden): ");
+  if (password.length < 6) {
+    console.error("✗ Password must be at least 6 characters.");
     process.exit(1);
   }
   const confirmPassword = await askPassword("Confirm password:                ");
