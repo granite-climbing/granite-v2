@@ -127,16 +127,16 @@ These decisions apply across multiple tasks. Reference them when implementing.
 - Modify: `components/public/crag-card.tsx`
 - Modify: `components/public/stat-bar.tsx` — accept real `gradeDistribution` prop (existing usages on Crag detail also migrated)
 
-- [ ] Implement `/a/<area-slug>` using `findAreaDetailBySlug`.
-- [ ] Call `notFound()` when the repository returns `null`.
-- [ ] Include `AppHeader` consistent with other site pages.
-- [ ] Render Area hero (cover image, name, name_en), aggregate stats line (`{crags} Crags · {sectors} Sectors · {boulders} Boulders · {routes} Routes`), `StatBar` with real grade distribution, `SearchField` (from Task 5, links to `/c/<crag-slug>?q=...` or page-local Crag filter — see decision below), and a list of Crag cards.
-- [ ] Search on the Area page filters the Crag list via URL `?q=...` (server-side substring match against Crag name/name_en, case-insensitive).
-- [ ] Link Crag cards to `/c/<crag-slug>`.
-- [ ] Add `generateMetadata({ params })` returning `{ title: '<Area Name> · Granite', description: <Area description or fallback> }`.
-- [ ] Keep the page mobile-first with max-width behavior inherited from `app/(site)/layout.tsx`.
-- [ ] Run: `pnpm typecheck`
-- [ ] Manually verify: `/a/<known-area-slug>` renders and `/a/not-real` returns 404.
+- [x] Implement `/a/<area-slug>` using `findAreaDetailBySlug`.
+- [x] Call `notFound()` when the repository returns `null`.
+- [x] Include `AppHeader` consistent with other site pages.
+- [x] Render Area hero (cover image, name, name_en), aggregate stats line (`{crags} Crags · {sectors} Sectors · {boulders} Boulders · {routes} Routes`), `StatBar` with real grade distribution, `SearchField` (from Task 5, links to `/c/<crag-slug>?q=...` or page-local Crag filter — see decision below), and a list of Crag cards.
+- [x] Search on the Area page filters the Crag list via URL `?q=...` (server-side substring match against Crag name/name_en, case-insensitive).
+- [x] Link Crag cards to `/c/<crag-slug>`.
+- [x] Add `generateMetadata({ params })` returning `{ title: '<Area Name> · Granite', description: <Area description or fallback> }`.
+- [x] Keep the page mobile-first with max-width behavior inherited from `app/(site)/layout.tsx`.
+- [x] Run: `pnpm typecheck`
+- [ ] Manually verify: `/a/<known-area-slug>` renders and `/a/not-real` returns 404. _(deferred to Task 12 final verification)_
 
 ### Task 4: Home Area and Crag Sliders
 
