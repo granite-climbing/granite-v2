@@ -88,16 +88,16 @@ These decisions apply across multiple tasks. Reference them when implementing.
 - Modify: `lib/actions/admin-content.ts`
 - Test: `lib/actions/admin-content.test.ts`
 
-- [ ] Replace all user-facing Topo links from `/topos/${topoId}` to `/t/${topoId}`.
-- [ ] Update route share redirect from `/topos/${route.topoId}?route=${route.id}` to `/t/${route.topoId}?route=${route.id}`.
-- [ ] Update admin revalidation paths from `/topos/<id>` to `/t/<id>`.
-- [ ] Update tests that assert `revalidatePath("/topos/...")` to assert `revalidatePath("/t/...")`.
-- [ ] Delete `app/(site)/topos/` directory after content is moved (no redirect — clean removal per [Cross-cutting Decisions](#cross-cutting-decisions)).
-- [ ] Update doc-style references in code comments (`app/(site)/layout.tsx:8`, `lib/db/queries.ts:216`).
-- [ ] Update test fixture URLs (e.g. `https://cdn.granite.kr/topos/topo_a.webp` is a CDN path for image storage — keep as-is since it refers to R2 key, not the public route).
-- [ ] grep -r `"/topos/"` and `"/topos\$"` across the repo and confirm only R2 key paths remain.
-- [ ] Run: `pnpm test lib/actions/admin-content.test.ts`
-- [ ] Run: `pnpm typecheck`
+- [x] Replace all user-facing Topo links from `/topos/${topoId}` to `/t/${topoId}`.
+- [x] Update route share redirect from `/topos/${route.topoId}?route=${route.id}` to `/t/${route.topoId}?route=${route.id}`.
+- [x] Update admin revalidation paths from `/topos/<id>` to `/t/<id>`.
+- [x] Update tests that assert `revalidatePath("/topos/...")` to assert `revalidatePath("/t/...")`.
+- [x] Delete `app/(site)/topos/` directory after content is moved (no redirect — clean removal per [Cross-cutting Decisions](#cross-cutting-decisions)).
+- [x] Update doc-style references in code comments (`app/(site)/layout.tsx:8`, `lib/db/queries.ts:216`).
+- [x] Update test fixture URLs (e.g. `https://cdn.granite.kr/topos/topo_a.webp` is a CDN path for image storage — keep as-is since it refers to R2 key, not the public route).
+- [x] grep -r `"/topos/"` and `"/topos\$"` across the repo and confirm only R2 key paths remain.
+- [x] Run: `pnpm test lib/actions/admin-content.test.ts`
+- [x] Run: `pnpm typecheck`
 
 ### Task 2: Area Detail Read Model
 
