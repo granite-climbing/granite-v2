@@ -30,10 +30,21 @@ export default async function TopoPage({ params, searchParams }: TopoPageProps) 
       >
         <Link
           href={`/c/${topo.crag.slug}?tab=route`}
-          className="absolute bottom-4 right-4 grid size-10 place-items-center rounded-full bg-[#2A2A2A] text-[22px] text-white"
+          className="absolute bottom-4 right-4 grid size-11 place-items-center rounded-full bg-[#2A2A2A] text-white"
           aria-label="로드맵 보기"
         >
-          ◒
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+            className="size-5"
+          >
+            <path
+              d="M14.9497 9.9497C16.7347 8.1648 17.3542 5.65558 16.8081 3.36796L19.303 2.2987C19.5569 2.18992 19.8508 2.30749 19.9596 2.56131C19.9862 2.62355 20 2.69056 20 2.75827V17L13 20L7 17L0.69696 19.7013C0.44314 19.8101 0.14921 19.6925 0.0404301 19.4387C0.0137501 19.3765 0 19.3094 0 19.2417V5L3.12892 3.65904C2.70023 5.86632 3.34067 8.2402 5.05025 9.9497L10 14.8995L14.9497 9.9497ZM13.5355 8.5355L10 12.0711L6.46447 8.5355C4.51184 6.58291 4.51184 3.41709 6.46447 1.46447C8.4171 -0.488158 11.5829 -0.488158 13.5355 1.46447C15.4882 3.41709 15.4882 6.58291 13.5355 8.5355Z"
+              fill="currentColor"
+            />
+          </svg>
         </Link>
       </section>
       <TopoRouteSheet topo={topo} selectedRoute={selectedRoute} />
@@ -91,7 +102,19 @@ function TopoRouteSheet({ topo, selectedRoute }: { topo: TopoDetail; selectedRou
               <span className="flex flex-col items-end gap-2">
                 <span className="text-[18px] font-medium leading-6 text-[#2A2A2A]">{route.grade}</span>
                 <span className="flex h-6 w-[72px] items-center justify-center gap-1 rounded-full bg-[#E8E8E8] text-[12px] font-medium leading-4 text-[#3A3A3A]">
-                  ▪ beta
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 15 11"
+                    fill="none"
+                    aria-hidden="true"
+                    className="size-[11px] shrink-0 text-[#5A5A5A]"
+                  >
+                    <path
+                      d="M10.6667 3.46667L14.1422 1.03381C14.293 0.928233 14.5009 0.964913 14.6064 1.11573C14.6456 1.17176 14.6667 1.23849 14.6667 1.30689V9.3598C14.6667 9.54387 14.5174 9.69313 14.3333 9.69313C14.2649 9.69313 14.1982 9.67207 14.1422 9.63287L10.6667 7.2V10C10.6667 10.3682 10.3682 10.6667 10 10.6667H0.666667C0.29848 10.6667 0 10.3682 0 10V0.666667C0 0.29848 0.29848 0 0.666667 0H10C10.3682 0 10.6667 0.29848 10.6667 0.666667V3.46667Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  beta
                 </span>
               </span>
             </Link>
