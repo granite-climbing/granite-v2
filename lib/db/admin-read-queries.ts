@@ -408,16 +408,33 @@ export async function getAdminAreas(): Promise<AdminAreaRow[]> {
 }
 
 // ---------------------------------------------------------------------------
+// Filter option types
+// ---------------------------------------------------------------------------
+
+export type ParentOption = { id: string; name: string };
+
+// ---------------------------------------------------------------------------
 // 3. Crags
 // ---------------------------------------------------------------------------
+
+export type CragFilters = { areaId?: string };
 
 /**
  * All crags — including drafts and self-deleted.
  * Excludes crags whose parent area is deleted (orphaned data).
+ * Optionally scoped by areaId.
  */
-export async function getAdminCrags(): Promise<AdminCragRow[]> {
-  const rows = await queryD1<AdminCragSqlRow>(
-    `SELECT
+export async function getAdminCrags(filters?: CragFilters): Promise<AdminCragRow[]> {
+  const conditions: string[] = ["a.deleted_at IS NULL"];
+  const params: unknown[] = [];
+
+  if (filters?.areaId !== undefined) {
+    conditions.push("c.area_id = ?");
+    params.push(filters.areaId);
+  }
+
+  const where = conditions.join(" AND ");
+  const sql = `SELECT
        c.id,
        c.area_id        AS areaId,
        a.name           AS areaName,
@@ -434,9 +451,10 @@ export async function getAdminCrags(): Promise<AdminCragRow[]> {
        c.deleted_at      AS deletedAt
      FROM crags c
      JOIN areas a ON a.id = c.area_id
-     WHERE a.deleted_at IS NULL
-     ORDER BY a.sort_order ASC, c.sort_order ASC, c.name ASC`
-  );
+     WHERE ${where}
+     ORDER BY a.sort_order ASC, c.sort_order ASC, c.name ASC`;
+
+  const rows = await queryD1<AdminCragSqlRow>(sql, params.length > 0 ? params : undefined);
   return rows.map((r) => ({ ...r, isPublished: r.isPublished === 1 }));
 }
 
@@ -444,12 +462,31 @@ export async function getAdminCrags(): Promise<AdminCragRow[]> {
 // 4. Sectors
 // ---------------------------------------------------------------------------
 
+export type SectorFilters = { areaId?: string; cragId?: string };
+
 /**
  * All sectors — including drafts and self-deleted.
  * Excludes sectors whose parent crag or area is deleted.
- * Optionally scoped to a single crag by cragId.
+ * Optionally scoped by areaId and/or cragId (conjunctive AND).
  */
-export async function getAdminSectors(cragId?: string): Promise<AdminSectorRow[]> {
+export async function getAdminSectors(filters?: SectorFilters | string): Promise<AdminSectorRow[]> {
+  // Support legacy string signature (cragId positional arg) for backwards compat
+  const normalised: SectorFilters =
+    typeof filters === "string" ? { cragId: filters } : (filters ?? {});
+
+  const conditions: string[] = ["c.deleted_at IS NULL", "a.deleted_at IS NULL"];
+  const params: unknown[] = [];
+
+  if (normalised.areaId !== undefined) {
+    conditions.push("c.area_id = ?");
+    params.push(normalised.areaId);
+  }
+  if (normalised.cragId !== undefined) {
+    conditions.push("s.crag_id = ?");
+    params.push(normalised.cragId);
+  }
+
+  const where = conditions.join(" AND ");
   const sql = `SELECT
        s.id,
        s.crag_id        AS cragId,
@@ -469,12 +506,9 @@ export async function getAdminSectors(cragId?: string): Promise<AdminSectorRow[]
      FROM sectors s
      JOIN crags c ON c.id = s.crag_id
      JOIN areas a ON a.id = c.area_id
-     WHERE c.deleted_at IS NULL
-       AND a.deleted_at IS NULL
-       ${cragId !== undefined ? "AND s.crag_id = ?" : ""}
+     WHERE ${where}
      ORDER BY a.sort_order ASC, c.sort_order ASC, s.sort_order ASC, s.name ASC`;
 
-  const params: unknown[] = cragId !== undefined ? [cragId] : [];
   const rows = await queryD1<AdminSectorSqlRow>(sql, params.length > 0 ? params : undefined);
   return rows.map((r) => ({ ...r, isPublished: r.isPublished === 1 }));
 }
@@ -483,12 +517,39 @@ export async function getAdminSectors(cragId?: string): Promise<AdminSectorRow[]
 // 5. Boulders
 // ---------------------------------------------------------------------------
 
+export type BoulderFilters = { areaId?: string; cragId?: string; sectorId?: string };
+
 /**
  * All boulders — including drafts and self-deleted.
  * Excludes boulders whose parent sector, crag, or area is deleted.
- * Optionally scoped to a single sector by sectorId.
+ * Optionally scoped by areaId, cragId, and/or sectorId (conjunctive AND).
  */
-export async function getAdminBoulders(sectorId?: string): Promise<AdminBoulderRow[]> {
+export async function getAdminBoulders(filters?: BoulderFilters | string): Promise<AdminBoulderRow[]> {
+  // Support legacy string signature (sectorId positional arg) for backwards compat
+  const normalised: BoulderFilters =
+    typeof filters === "string" ? { sectorId: filters } : (filters ?? {});
+
+  const conditions: string[] = [
+    "s.deleted_at IS NULL",
+    "c.deleted_at IS NULL",
+    "a.deleted_at IS NULL",
+  ];
+  const params: unknown[] = [];
+
+  if (normalised.areaId !== undefined) {
+    conditions.push("c.area_id = ?");
+    params.push(normalised.areaId);
+  }
+  if (normalised.cragId !== undefined) {
+    conditions.push("s.crag_id = ?");
+    params.push(normalised.cragId);
+  }
+  if (normalised.sectorId !== undefined) {
+    conditions.push("b.sector_id = ?");
+    params.push(normalised.sectorId);
+  }
+
+  const where = conditions.join(" AND ");
   const sql = `SELECT
        b.id,
        b.sector_id       AS sectorId,
@@ -509,13 +570,9 @@ export async function getAdminBoulders(sectorId?: string): Promise<AdminBoulderR
      JOIN sectors s ON s.id = b.sector_id
      JOIN crags c ON c.id = s.crag_id
      JOIN areas a ON a.id = c.area_id
-     WHERE s.deleted_at IS NULL
-       AND c.deleted_at IS NULL
-       AND a.deleted_at IS NULL
-       ${sectorId !== undefined ? "AND b.sector_id = ?" : ""}
+     WHERE ${where}
      ORDER BY a.sort_order ASC, c.sort_order ASC, s.sort_order ASC, b.sort_order ASC, b.name ASC`;
 
-  const params: unknown[] = sectorId !== undefined ? [sectorId] : [];
   const rows = await queryD1<AdminBoulderSqlRow>(sql, params.length > 0 ? params : undefined);
   return rows.map((r) => ({ ...r, isPublished: r.isPublished === 1 }));
 }
@@ -524,12 +581,44 @@ export async function getAdminBoulders(sectorId?: string): Promise<AdminBoulderR
 // 6. Topos
 // ---------------------------------------------------------------------------
 
+export type TopoFilters = { areaId?: string; cragId?: string; sectorId?: string; boulderId?: string };
+
 /**
  * All topos — including drafts and self-deleted.
  * Excludes topos whose parent boulder, sector, crag, or area is deleted.
- * Optionally scoped to a single boulder by boulderId.
+ * Optionally scoped by areaId, cragId, sectorId, and/or boulderId (conjunctive AND).
  */
-export async function getAdminTopos(boulderId?: string): Promise<AdminTopoRow[]> {
+export async function getAdminTopos(filters?: TopoFilters | string): Promise<AdminTopoRow[]> {
+  // Support legacy string signature (boulderId positional arg) for backwards compat
+  const normalised: TopoFilters =
+    typeof filters === "string" ? { boulderId: filters } : (filters ?? {});
+
+  const conditions: string[] = [
+    "b.deleted_at IS NULL",
+    "s.deleted_at IS NULL",
+    "c.deleted_at IS NULL",
+    "a.deleted_at IS NULL",
+  ];
+  const params: unknown[] = [];
+
+  if (normalised.areaId !== undefined) {
+    conditions.push("c.area_id = ?");
+    params.push(normalised.areaId);
+  }
+  if (normalised.cragId !== undefined) {
+    conditions.push("s.crag_id = ?");
+    params.push(normalised.cragId);
+  }
+  if (normalised.sectorId !== undefined) {
+    conditions.push("b.sector_id = ?");
+    params.push(normalised.sectorId);
+  }
+  if (normalised.boulderId !== undefined) {
+    conditions.push("t.boulder_id = ?");
+    params.push(normalised.boulderId);
+  }
+
+  const where = conditions.join(" AND ");
   const sql = `SELECT
        t.id,
        t.boulder_id     AS boulderId,
@@ -546,14 +635,9 @@ export async function getAdminTopos(boulderId?: string): Promise<AdminTopoRow[]>
      JOIN sectors s ON s.id = b.sector_id
      JOIN crags c ON c.id = s.crag_id
      JOIN areas a ON a.id = c.area_id
-     WHERE b.deleted_at IS NULL
-       AND s.deleted_at IS NULL
-       AND c.deleted_at IS NULL
-       AND a.deleted_at IS NULL
-       ${boulderId !== undefined ? "AND t.boulder_id = ?" : ""}
+     WHERE ${where}
      ORDER BY a.sort_order ASC, c.sort_order ASC, s.sort_order ASC, b.sort_order ASC, t.sort_order ASC, t.name ASC`;
 
-  const params: unknown[] = boulderId !== undefined ? [boulderId] : [];
   const rows = await queryD1<AdminTopoSqlRow>(sql, params.length > 0 ? params : undefined);
   return rows.map((r) => ({ ...r, isPublished: r.isPublished === 1 }));
 }
@@ -562,12 +646,55 @@ export async function getAdminTopos(boulderId?: string): Promise<AdminTopoRow[]>
 // 7. Routes
 // ---------------------------------------------------------------------------
 
+export type RouteFilters = {
+  areaId?: string;
+  cragId?: string;
+  sectorId?: string;
+  boulderId?: string;
+  topoId?: string;
+};
+
 /**
  * All routes — including drafts and self-deleted.
  * Excludes routes whose parent topo, boulder, sector, crag, or area is deleted.
- * Optionally scoped to a single topo by topoId.
+ * Optionally scoped by any combination of parent IDs (conjunctive AND).
  */
-export async function getAdminRoutes(topoId?: string): Promise<AdminRouteRow[]> {
+export async function getAdminRoutes(filters?: RouteFilters | string): Promise<AdminRouteRow[]> {
+  // Support legacy string signature (topoId positional arg) for backwards compat
+  const normalised: RouteFilters =
+    typeof filters === "string" ? { topoId: filters } : (filters ?? {});
+
+  const conditions: string[] = [
+    "t.deleted_at IS NULL",
+    "b.deleted_at IS NULL",
+    "s.deleted_at IS NULL",
+    "c.deleted_at IS NULL",
+    "a.deleted_at IS NULL",
+  ];
+  const params: unknown[] = [];
+
+  if (normalised.areaId !== undefined) {
+    conditions.push("c.area_id = ?");
+    params.push(normalised.areaId);
+  }
+  if (normalised.cragId !== undefined) {
+    conditions.push("s.crag_id = ?");
+    params.push(normalised.cragId);
+  }
+  if (normalised.sectorId !== undefined) {
+    conditions.push("b.sector_id = ?");
+    params.push(normalised.sectorId);
+  }
+  if (normalised.boulderId !== undefined) {
+    conditions.push("t.boulder_id = ?");
+    params.push(normalised.boulderId);
+  }
+  if (normalised.topoId !== undefined) {
+    conditions.push("r.topo_id = ?");
+    params.push(normalised.topoId);
+  }
+
+  const where = conditions.join(" AND ");
   const sql = `SELECT
        r.id,
        r.topo_id        AS topoId,
@@ -592,17 +719,76 @@ export async function getAdminRoutes(topoId?: string): Promise<AdminRouteRow[]> 
      JOIN sectors s ON s.id = b.sector_id
      JOIN crags c ON c.id = s.crag_id
      JOIN areas a ON a.id = c.area_id
-     WHERE t.deleted_at IS NULL
-       AND b.deleted_at IS NULL
-       AND s.deleted_at IS NULL
-       AND c.deleted_at IS NULL
-       AND a.deleted_at IS NULL
-       ${topoId !== undefined ? "AND r.topo_id = ?" : ""}
+     WHERE ${where}
      ORDER BY a.sort_order ASC, c.sort_order ASC, s.sort_order ASC, b.sort_order ASC, t.sort_order ASC, r.sort_order ASC, r.name ASC`;
 
-  const params: unknown[] = topoId !== undefined ? [topoId] : [];
   const rows = await queryD1<AdminRouteSqlRow>(sql, params.length > 0 ? params : undefined);
   return rows.map((r) => ({ ...r, isPublished: r.isPublished === 1 }));
+}
+
+// ---------------------------------------------------------------------------
+// Option-list queries (for parent filter dropdowns)
+// Excludes soft-deleted rows. Returns { id, name }[] sorted by sort_order ASC, name ASC.
+// ---------------------------------------------------------------------------
+
+interface OptionSqlRow {
+  id: string;
+  name: string;
+}
+
+/** All non-deleted areas as select options. */
+export async function listAreaOptions(): Promise<ParentOption[]> {
+  return queryD1<OptionSqlRow>(
+    `SELECT id, name FROM areas WHERE deleted_at IS NULL ORDER BY sort_order ASC, name ASC`
+  );
+}
+
+/** Non-deleted crags belonging to a given area. */
+export async function listCragOptionsByArea(areaId: string): Promise<ParentOption[]> {
+  return queryD1<OptionSqlRow>(
+    `SELECT c.id, c.name
+     FROM crags c
+     JOIN areas a ON a.id = c.area_id
+     WHERE c.deleted_at IS NULL AND a.deleted_at IS NULL AND c.area_id = ?
+     ORDER BY c.sort_order ASC, c.name ASC`,
+    [areaId]
+  );
+}
+
+/** Non-deleted sectors belonging to a given crag. */
+export async function listSectorOptionsByCrag(cragId: string): Promise<ParentOption[]> {
+  return queryD1<OptionSqlRow>(
+    `SELECT s.id, s.name
+     FROM sectors s
+     JOIN crags c ON c.id = s.crag_id
+     WHERE s.deleted_at IS NULL AND c.deleted_at IS NULL AND s.crag_id = ?
+     ORDER BY s.sort_order ASC, s.name ASC`,
+    [cragId]
+  );
+}
+
+/** Non-deleted boulders belonging to a given sector. */
+export async function listBoulderOptionsBySector(sectorId: string): Promise<ParentOption[]> {
+  return queryD1<OptionSqlRow>(
+    `SELECT b.id, b.name
+     FROM boulders b
+     JOIN sectors s ON s.id = b.sector_id
+     WHERE b.deleted_at IS NULL AND s.deleted_at IS NULL AND b.sector_id = ?
+     ORDER BY b.sort_order ASC, b.name ASC`,
+    [sectorId]
+  );
+}
+
+/** Non-deleted topos belonging to a given boulder. */
+export async function listTopoOptionsByBoulder(boulderId: string): Promise<ParentOption[]> {
+  return queryD1<OptionSqlRow>(
+    `SELECT t.id, t.name
+     FROM topos t
+     JOIN boulders b ON b.id = t.boulder_id
+     WHERE t.deleted_at IS NULL AND b.deleted_at IS NULL AND t.boulder_id = ?
+     ORDER BY t.sort_order ASC, t.name ASC`,
+    [boulderId]
+  );
 }
 
 // ---------------------------------------------------------------------------

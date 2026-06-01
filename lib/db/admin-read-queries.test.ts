@@ -23,6 +23,11 @@ import {
   getAdminRoutes,
   getAdminAnnouncements,
   getRecentAdminAuditLogs,
+  listAreaOptions,
+  listCragOptionsByArea,
+  listSectorOptionsByCrag,
+  listBoulderOptionsBySector,
+  listTopoOptionsByBoulder,
 } from "./admin-read-queries";
 
 beforeEach(() => {
@@ -456,6 +461,322 @@ describe("getAdminRoutes", () => {
     const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
     expect(sql).toMatch(/\?/);
     expect(params).toContain("topo-7");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getAdminCrags — filter by areaId
+// ---------------------------------------------------------------------------
+
+describe("getAdminCrags — areaId filter", () => {
+  it("passes areaId as a query param when provided", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminCrags({ areaId: "area-1" });
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/c\.area_id = \?/);
+    expect(params).toContain("area-1");
+  });
+
+  it("passes no extra params when no filter provided", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminCrags();
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[] | undefined];
+    expect(sql).toMatch(/FROM crags/);
+    expect(!params || params.length === 0).toBe(true);
+  });
+
+  it("still excludes crags whose parent area is deleted (a.deleted_at IS NULL)", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminCrags({ areaId: "area-1" });
+
+    const [sql] = mockQueryD1.mock.calls[0] as [string, unknown];
+    expect(sql).toMatch(/a\.deleted_at IS NULL/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getAdminSectors — filter by areaId + cragId
+// ---------------------------------------------------------------------------
+
+describe("getAdminSectors — areaId + cragId filters", () => {
+  it("filters by areaId alone", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminSectors({ areaId: "area-1" });
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/c\.area_id = \?/);
+    expect(params).toContain("area-1");
+    expect(params).not.toContain("crag-1");
+  });
+
+  it("filters by cragId alone", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminSectors({ cragId: "crag-1" });
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/s\.crag_id = \?/);
+    expect(params).toContain("crag-1");
+  });
+
+  it("filters by both areaId AND cragId conjunctively", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminSectors({ areaId: "area-1", cragId: "crag-1" });
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/c\.area_id = \?/);
+    expect(sql).toMatch(/s\.crag_id = \?/);
+    expect(params).toEqual(expect.arrayContaining(["area-1", "crag-1"]));
+  });
+
+  it("legacy string arg (cragId) is still supported", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminSectors("crag-42");
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/s\.crag_id = \?/);
+    expect(params).toContain("crag-42");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getAdminBoulders — filter by areaId, cragId, sectorId
+// ---------------------------------------------------------------------------
+
+describe("getAdminBoulders — multi-level filters", () => {
+  it("filters by areaId only", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminBoulders({ areaId: "area-1" });
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/c\.area_id = \?/);
+    expect(params).toContain("area-1");
+  });
+
+  it("filters by cragId only", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminBoulders({ cragId: "crag-1" });
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/s\.crag_id = \?/);
+    expect(params).toContain("crag-1");
+  });
+
+  it("filters by sectorId only", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminBoulders({ sectorId: "sector-1" });
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/b\.sector_id = \?/);
+    expect(params).toContain("sector-1");
+  });
+
+  it("filters by all three combined", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminBoulders({ areaId: "area-1", cragId: "crag-1", sectorId: "sector-1" });
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/c\.area_id = \?/);
+    expect(sql).toMatch(/s\.crag_id = \?/);
+    expect(sql).toMatch(/b\.sector_id = \?/);
+    expect(params).toEqual(expect.arrayContaining(["area-1", "crag-1", "sector-1"]));
+  });
+
+  it("legacy string arg (sectorId) is still supported", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminBoulders("sector-99");
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/b\.sector_id = \?/);
+    expect(params).toContain("sector-99");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getAdminTopos — filter by areaId, cragId, sectorId, boulderId
+// ---------------------------------------------------------------------------
+
+describe("getAdminTopos — multi-level filters", () => {
+  it("filters by boulderId only", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminTopos({ boulderId: "boulder-1" });
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/t\.boulder_id = \?/);
+    expect(params).toContain("boulder-1");
+  });
+
+  it("filters by sectorId only", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminTopos({ sectorId: "sector-1" });
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/b\.sector_id = \?/);
+    expect(params).toContain("sector-1");
+  });
+
+  it("filters by all four combined", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminTopos({ areaId: "area-1", cragId: "crag-1", sectorId: "sector-1", boulderId: "boulder-1" });
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/c\.area_id = \?/);
+    expect(sql).toMatch(/s\.crag_id = \?/);
+    expect(sql).toMatch(/b\.sector_id = \?/);
+    expect(sql).toMatch(/t\.boulder_id = \?/);
+    expect(params).toEqual(expect.arrayContaining(["area-1", "crag-1", "sector-1", "boulder-1"]));
+  });
+
+  it("legacy string arg (boulderId) is still supported", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminTopos("boulder-5");
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/t\.boulder_id = \?/);
+    expect(params).toContain("boulder-5");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getAdminRoutes — filter by areaId, cragId, sectorId, boulderId, topoId
+// ---------------------------------------------------------------------------
+
+describe("getAdminRoutes — multi-level filters", () => {
+  it("filters by topoId only", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminRoutes({ topoId: "topo-1" });
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/r\.topo_id = \?/);
+    expect(params).toContain("topo-1");
+  });
+
+  it("filters by boulderId only", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminRoutes({ boulderId: "boulder-1" });
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/t\.boulder_id = \?/);
+    expect(params).toContain("boulder-1");
+  });
+
+  it("filters by all five combined", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminRoutes({
+      areaId: "area-1",
+      cragId: "crag-1",
+      sectorId: "sector-1",
+      boulderId: "boulder-1",
+      topoId: "topo-1",
+    });
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/c\.area_id = \?/);
+    expect(sql).toMatch(/s\.crag_id = \?/);
+    expect(sql).toMatch(/b\.sector_id = \?/);
+    expect(sql).toMatch(/t\.boulder_id = \?/);
+    expect(sql).toMatch(/r\.topo_id = \?/);
+    expect(params).toEqual(
+      expect.arrayContaining(["area-1", "crag-1", "sector-1", "boulder-1", "topo-1"])
+    );
+  });
+
+  it("legacy string arg (topoId) is still supported", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminRoutes("topo-7");
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/r\.topo_id = \?/);
+    expect(params).toContain("topo-7");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Option-list queries
+// ---------------------------------------------------------------------------
+
+describe("listAreaOptions", () => {
+  it("returns id+name, excludes soft-deleted, ordered by sort_order ASC, name ASC", async () => {
+    mockQueryD1.mockResolvedValueOnce([
+      { id: "area-1", name: "북한산" },
+      { id: "area-2", name: "수락산" },
+    ]);
+
+    const opts = await listAreaOptions();
+    expect(opts).toHaveLength(2);
+    expect(opts[0]).toEqual({ id: "area-1", name: "북한산" });
+  });
+
+  it("SQL excludes deleted rows and orders correctly", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await listAreaOptions();
+
+    const [sql] = mockQueryD1.mock.calls[0] as [string, unknown];
+    expect(sql).toMatch(/FROM areas/);
+    expect(sql).toMatch(/deleted_at IS NULL/);
+    expect(sql).toMatch(/sort_order ASC/);
+    expect(sql).toMatch(/name ASC/);
+  });
+});
+
+describe("listCragOptionsByArea", () => {
+  it("passes areaId as a param", async () => {
+    mockQueryD1.mockResolvedValueOnce([{ id: "crag-1", name: "인수봉" }]);
+    await listCragOptionsByArea("area-1");
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/FROM crags/);
+    expect(sql).toMatch(/deleted_at IS NULL/);
+    expect(params).toContain("area-1");
+  });
+
+  it("returns empty array when no crags match (soft-deleted excluded)", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    const result = await listCragOptionsByArea("area-deleted");
+    expect(result).toEqual([]);
+  });
+});
+
+describe("listSectorOptionsByCrag", () => {
+  it("passes cragId as a param and excludes deleted", async () => {
+    mockQueryD1.mockResolvedValueOnce([{ id: "sector-1", name: "섹터A" }]);
+    await listSectorOptionsByCrag("crag-1");
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/FROM sectors/);
+    expect(sql).toMatch(/deleted_at IS NULL/);
+    expect(params).toContain("crag-1");
+  });
+});
+
+describe("listBoulderOptionsBySector", () => {
+  it("passes sectorId as a param and excludes deleted", async () => {
+    mockQueryD1.mockResolvedValueOnce([{ id: "boulder-1", name: "바위1" }]);
+    await listBoulderOptionsBySector("sector-1");
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/FROM boulders/);
+    expect(sql).toMatch(/deleted_at IS NULL/);
+    expect(params).toContain("sector-1");
+  });
+});
+
+describe("listTopoOptionsByBoulder", () => {
+  it("passes boulderId as a param and excludes deleted", async () => {
+    mockQueryD1.mockResolvedValueOnce([{ id: "topo-1", name: "정면" }]);
+    await listTopoOptionsByBoulder("boulder-1");
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/FROM topos/);
+    expect(sql).toMatch(/deleted_at IS NULL/);
+    expect(params).toContain("boulder-1");
+  });
+
+  it("returns empty array when boulder has no topos or they are all deleted", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    const result = await listTopoOptionsByBoulder("empty-boulder");
+    expect(result).toEqual([]);
   });
 });
 
