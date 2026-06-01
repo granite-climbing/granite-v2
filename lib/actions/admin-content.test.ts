@@ -1008,7 +1008,7 @@ describe("admin content actions", () => {
     expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_gomul_boulder");
     expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:anyang");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/r/route_anaconda");
-    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/topo_gomul_front");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/t/topo_gomul_front");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/c/anyang");
   });
 
@@ -1046,7 +1046,7 @@ describe("admin content actions", () => {
     );
     // Revalidation surface
     expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_gomul_boulder");
-    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/topo_gomul_front");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/t/topo_gomul_front");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/c/anyang");
   });
 
@@ -1127,7 +1127,7 @@ describe("admin content actions", () => {
     expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_gomul_boulder");
     expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:anyang");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/r/route_anaconda");
-    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/topo_gomul_front");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/t/topo_gomul_front");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/c/anyang");
   });
 
@@ -1164,7 +1164,7 @@ describe("admin content actions", () => {
     expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_x");
     expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:anyang");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/r/route_z");
-    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/topo_y");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/t/topo_y");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/c/anyang");
   });
 
@@ -1179,7 +1179,7 @@ describe("admin content actions", () => {
     await togglePublishAction(formData);
 
     expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_x");
-    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/topo_y");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/t/topo_y");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/c/anyang");
   });
 
@@ -1325,7 +1325,7 @@ describe("admin content actions", () => {
     expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_old");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/c/anyang");
     // topo path fires for both (same topo id)
-    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/topo_x");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/t/topo_x");
   });
 
   it("saveRouteAction (edit, parent move): invalidates old AND new topo path and crag/boulder tags", async () => {
@@ -1354,9 +1354,9 @@ describe("admin content actions", () => {
     // NEW surface
     expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:samsung");
     expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_new_b");
-    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/topo_new");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/t/topo_new");
     // OLD surface — topo path and crag/boulder tags fire for old parent
-    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/topo_old");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/t/topo_old");
     expect(mockedRevalidateTag).toHaveBeenCalledWith("crag:anyang");
     expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:boulder_old_b");
   });
@@ -1417,7 +1417,7 @@ describe("admin content actions", () => {
     expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:b1");
     expect(mockedRevalidateTag).toHaveBeenCalledWith("boulder:b2");
     // Descendant topo path
-    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/t1");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/t/t1");
     // Descendant route tags and paths
     expect(mockedRevalidateTag).toHaveBeenCalledWith("route:r1");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/r/r1");
@@ -1474,7 +1474,7 @@ describe("admin content actions", () => {
     await saveBoulderAction(formData);
 
     // Descendant topo path
-    expect(mockedRevalidatePath).toHaveBeenCalledWith("/topos/t1");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/t/t1");
     // Descendant route tags and paths
     expect(mockedRevalidateTag).toHaveBeenCalledWith("route:r1");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/r/r1");

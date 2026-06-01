@@ -183,7 +183,7 @@ function RoutePanel({ routes }: { routes: RouteListItem[] }) {
           {routes.map((route) => (
             <Link
               key={route.id}
-              href={`/topos/${route.topoId}?route=${route.id}`}
+              href={`/t/${route.topoId}?route=${route.id}`}
               className="grid h-10 grid-cols-[159px_73px_80px] items-center border-t border-[#E8E8E8] px-2 text-[14px] font-normal leading-5 text-[#2A2A2A]"
             >
               <span className="truncate pr-2">{route.name}</span>

@@ -137,7 +137,7 @@ function revalidateBoulderSurface(boulderId?: string, cragSlug?: string, sectorS
 
 function revalidateTopoSurface(boulderId?: string, topoId?: string, cragSlug?: string): void {
   if (boulderId) revalidateTag(`boulder:${boulderId}`);
-  if (topoId) revalidatePath(`/topos/${topoId}`);
+  if (topoId) revalidatePath(`/t/${topoId}`);
   if (cragSlug) revalidatePath(`/c/${cragSlug}`);
 }
 
@@ -146,7 +146,7 @@ function revalidateRouteSurface(routeId?: string, boulderId?: string, cragSlug?:
   if (boulderId) revalidateTag(`boulder:${boulderId}`);
   if (cragSlug) revalidateTag(`crag:${cragSlug}`);
   if (routeId) revalidatePath(`/r/${routeId}`);
-  if (topoId) revalidatePath(`/topos/${topoId}`);
+  if (topoId) revalidatePath(`/t/${topoId}`);
   if (cragSlug) revalidatePath(`/c/${cragSlug}`);
 }
 
@@ -248,7 +248,7 @@ export async function saveSectorAction(formData: FormData): Promise<void> {
       revalidateTag(`boulder:${boulderId}`);
     }
     for (const topoId of descendants.topoIds) {
-      revalidatePath(`/topos/${topoId}`);
+      revalidatePath(`/t/${topoId}`);
     }
     for (const routeId of descendants.routeIds) {
       revalidateTag(`route:${routeId}`);
@@ -300,7 +300,7 @@ export async function saveBoulderAction(formData: FormData): Promise<void> {
     // Flush descendant detail caches — they carry stale ancestry.
     const descendants = await getBoulderDescendantIds(id);
     for (const topoId of descendants.topoIds) {
-      revalidatePath(`/topos/${topoId}`);
+      revalidatePath(`/t/${topoId}`);
     }
     for (const routeId of descendants.routeIds) {
       revalidateTag(`route:${routeId}`);

@@ -73,7 +73,7 @@ function TopoRouteSheet({ topo, selectedRoute }: { topo: TopoDetail; selectedRou
           return (
             <Link
               key={route.id}
-              href={selected ? `/topos/${topo.id}` : `/topos/${topo.id}?route=${route.id}`}
+              href={selected ? `/t/${topo.id}` : `/t/${topo.id}?route=${route.id}`}
               className={`grid min-h-[88px] grid-cols-[24px_1fr_auto] items-center gap-2 border-b border-[#E8E8E8] px-2 last:border-b-0 ${
                 selected ? "bg-[#F1F1F1]" : "bg-white"
               }`}
