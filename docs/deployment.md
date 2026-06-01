@@ -105,7 +105,7 @@ Open the preview deployment and verify these URLs load correctly:
 
 - `/` (home)
 - `/c/anyang` (crag detail, adjust slug as needed)
-- `/topos/<known-topo-id>` (topo detail)
+- `/t/<known-topo-id>` (topo detail)
 - `/r/<known-route-id>` (route detail)
 - `/healthz` (health check)
 
@@ -197,7 +197,7 @@ Open the production service URL and verify these routes load correctly:
 
 - `/` (home)
 - `/c/anyang` (crag detail, adjust slug as needed)
-- `/topos/<known-topo-id>` (topo detail, use production-approved IDs)
+- `/t/<known-topo-id>` (topo detail, use production-approved IDs)
 - `/r/<known-route-id>` (route detail, use production-approved IDs)
 - `/healthz` (health check)
 

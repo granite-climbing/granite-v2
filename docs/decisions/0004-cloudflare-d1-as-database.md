@@ -17,7 +17,7 @@ Cloudflare D1(SQLite)을 채택하고 HTTP API 경로로 접근한다. 공간 �
 
 - 운영 비용 낮음, R2와 동일 콘솔에서 관리.
 - 공간 인덱스 부재 → Map 탭의 Boulder 마커 조회는 `(lat, lng)` 복합 인덱스 + bounding box 1차 필터링 + 거리 계산 순서로 처리.
-- 검색은 Phase 2 DB-backed read path에서 `LIKE %query%`로 충분하다(전체 데이터 < 수천). FTS5는 Phase 4 이후 후보.
+- 검색은 Phase 2 DB-backed read path에서 `LIKE %query%`로 충분하다(전체 데이터 < 수천). FTS5는 Phase 5 이후 후보.
 - HTTP API는 원격 호출이므로 N+1 쿼리에 취약 → 캐싱과 batch 쿼리 설계 필수.
 - 백업: 일 1회 export → R2 backup bucket, 7일 보관.
 

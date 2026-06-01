@@ -203,7 +203,7 @@ Content tables and `announcements` use `deleted_at` for soft delete. Public read
 
 ### `users`, `user_oauth_identities`, `favorites`
 
-Phase 5 user identity and saved projects.
+Phase 6 user identity and saved projects.
 
 - `users`: profile and soft-delete fields.
 - `user_oauth_identities`: provider identity mapping.
@@ -211,7 +211,7 @@ Phase 5 user identity and saved projects.
 
 ### `betas` and `webhook_inbox`
 
-Phase 4 beta records and Instagram webhook processing.
+Phase 5 beta records and Instagram webhook processing.
 
 - `betas.source`: `manual` or `instagram_webhook`.
 - `betas.platform`: `instagram` or `youtube`.
