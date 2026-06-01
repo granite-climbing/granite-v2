@@ -208,15 +208,15 @@ These decisions apply across multiple tasks. Reference them when implementing.
 - Modify: `components/public/route-table.tsx` or the local Route/Topo action button component
 - Add assets under: `public/images/figma/icons/` — `icon-instagram.svg`, `icon-map.svg`, `icon-beta.svg`
 
-- [ ] Export icons from Figma using `mcp__Framelink_Figma_MCP__download_figma_images`, format SVG, target `public/images/figma/icons/`.
-- [ ] Replace Footer Instagram icon using Figma `1:186` → `icon-instagram.svg`.
-- [ ] Replace Route/Topo map icon using Figma `1:1420` → `icon-map.svg`.
-- [ ] Replace Route/Topo beta icon using Figma `1:1417` → `icon-beta.svg`.
-- [ ] Reference icons via `<Image>` or inline `<svg>` (prefer inline SVG for currentColor support if Figma export allows).
-- [ ] Ensure icon buttons have a 44px recommended touch target (button hit area, not necessarily icon size).
-- [ ] Align icons visually in their button containers at 1x and high-density displays.
-- [ ] Run: `pnpm typecheck`
-- [ ] Manually verify Footer, Topo page, and Route action buttons.
+- [x] Export icons from Figma using `mcp__Framelink_Figma_MCP__download_figma_images`, format SVG, target `public/images/figma/icons/`.
+- [x] Replace Footer Instagram icon using Figma `1:186` → `icon-instagram.svg`.
+- [x] Replace Route/Topo map icon using Figma `1:1420` → `icon-map.svg`.
+- [x] Replace Route/Topo beta icon using Figma `1:1417` → `icon-beta.svg`.
+- [x] Reference icons via `<Image>` or inline `<svg>` (prefer inline SVG for currentColor support if Figma export allows).
+- [x] Ensure icon buttons have a 44px recommended touch target (button hit area, not necessarily icon size).
+- [x] Align icons visually in their button containers at 1x and high-density displays.
+- [x] Run: `pnpm typecheck`
+- [ ] Manually verify Footer, Topo page, and Route action buttons. _(deferred to Task 12)_
 
 ### Task 8: Topo Previous/Next Navigation
 
