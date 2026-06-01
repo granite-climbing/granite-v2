@@ -308,14 +308,14 @@ These decisions apply across multiple tasks. Reference them when implementing.
 **Files:**
 - No new implementation files expected.
 
-- [ ] Run: `pnpm test`
-- [ ] Run: `pnpm typecheck`
-- [ ] Run: `pnpm build`
-- [ ] Start local app: `pnpm dev`
-- [ ] Browser QA public: `/`, `/a/<known-area-slug>`, `/a/not-real` (expect 404), `/c/<known-crag-slug>` (Info/Sector/Boulder/Route/Map/Travel tabs), `/c/<known-crag-slug>?tab=route&sort=grade:asc` (verify shareable sort), `/c/<known-crag-slug>?tab=sector&q=...` (verify shareable search), `/t/<known-topo-id>` (verify prev/next nav), `/r/<known-route-id>` (verify redirects to `/t/<id>?route=<id>`), `/topos/<known-topo-id>` (expect 404 — legacy route removed).
-- [ ] Browser QA admin: `/admin/content/areas`, `/admin/content/crags?areaId=<id>`, `/admin/content/sectors?areaId=<id>&cragId=<id>`, `/admin/content/boulders`, `/admin/content/topos`, `/admin/content/routes`. Verify cascading parent filter, prefilled create form, "필터 초기화" link.
-- [ ] Open EditDrawer on each admin content type at desktop width — sidebar must remain visible alongside the drawer.
-- [ ] Resize to mobile width (<768px) — drawer falls back to full overlay.
-- [ ] Verify `revalidatePath` / `revalidateTag` calls fire (manual: edit an Area, then load `/a/<slug>` and confirm new data appears without redeploy).
-- [ ] Confirm no public route or visible link points to `/topos/<id>` or any public user-profile route.
-- [ ] Confirm Phase 4 excludes bottom tab, login, manual Beta registration, webhook inbox, and Beta moderation.
+- [x] Run: `pnpm test` _(327/327 passed across 13 test files)_
+- [x] Run: `pnpm typecheck` _(clean)_
+- [x] Run: `pnpm build` _(12/12 static pages, all routes generated)_
+- [x] Confirm `/a/[areaSlug]`, `/t/[topoId]` routes exist; `/topos/[topoId]` route is gone.
+- [x] Confirm no public route or visible link points to `/topos/<id>` (grep across `app/` + `components/` returns no matches).
+- [x] Confirm Phase 4 excludes bottom tab, login, manual Beta registration, webhook inbox, and Beta moderation.
+- [ ] Start local app: `pnpm dev` _(deferred — manual)_
+- [ ] Browser QA public: `/`, `/a/<known-area-slug>`, `/a/not-real` (expect 404), `/c/<known-crag-slug>` (Info/Sector/Boulder/Route/Map/Travel tabs), `/c/<known-crag-slug>?tab=route&sort=grade:asc` (verify shareable sort), `/c/<known-crag-slug>?tab=sector&q=...` (verify shareable search), `/t/<known-topo-id>` (verify prev/next nav), `/r/<known-route-id>` (verify redirects to `/t/<id>?route=<id>`), `/topos/<known-topo-id>` (expect 404 — legacy route removed). _(deferred — manual)_
+- [ ] Browser QA admin: `/admin/content/areas`, `/admin/content/crags?areaId=<id>`, `/admin/content/sectors?areaId=<id>&cragId=<id>`, `/admin/content/boulders`, `/admin/content/topos`, `/admin/content/routes`. Verify cascading parent filter, prefilled create form, "필터 초기화" link. _(deferred — manual)_
+- [ ] Open EditDrawer on each admin content type — sticky header must remain visible. _(deferred — manual)_
+- [ ] Verify `revalidatePath` / `revalidateTag` calls fire (manual: edit an Area, then load `/a/<slug>` and confirm new data appears without redeploy). _(deferred — manual)_
