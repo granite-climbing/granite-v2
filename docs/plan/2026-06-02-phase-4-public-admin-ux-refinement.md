@@ -150,17 +150,17 @@ These decisions apply across multiple tasks. Reference them when implementing.
 - Modify: `components/public/crag-card.tsx`
 - Test: `lib/db/queries.test.ts`, `lib/db/repository.test.ts`
 
-- [ ] Change `getHomeModel` to return all published Crags as a flat top-level list (sorted by `sortOrder ASC`, then `name ASC`), independent of Area selection. Areas remain in the model as a separate top-level list for the Area slider.
-- [ ] Remove the Area chip/filter UI from the home page (no per-area selection, no embedded Crag list under a selected Area).
-- [ ] Render Area cards in a horizontal snap slider using the Figma `30:734` reference.
-- [ ] Link each Area card to `/a/<area-slug>`.
-- [ ] Add the requested Crag section margin before the Crag slider (extract spec from Figma).
-- [ ] Ensure Crag cards remain horizontally scrollable and link to `/c/<crag-slug>`.
-- [ ] Keep slider dimensions stable so card text and image loading do not shift layout.
-- [ ] Update the existing `home` cache tag/key if the model shape changes; invalidate on any Crag/Area mutation already covered by admin actions.
-- [ ] Run: `pnpm test lib/db/queries.test.ts lib/db/repository.test.ts`
-- [ ] Run: `pnpm typecheck`
-- [ ] Manually verify mobile viewport horizontal scrolling for Area and Crag sliders.
+- [x] Change `getHomeModel` to return all published Crags as a flat top-level list (sorted by `sortOrder ASC`, then `name ASC`), independent of Area selection. Areas remain in the model as a separate top-level list for the Area slider.
+- [x] Remove the Area chip/filter UI from the home page (no per-area selection, no embedded Crag list under a selected Area).
+- [x] Render Area cards in a horizontal snap slider using the Figma `30:734` reference.
+- [x] Link each Area card to `/a/<area-slug>`.
+- [x] Add the requested Crag section margin before the Crag slider (extract spec from Figma).
+- [x] Ensure Crag cards remain horizontally scrollable and link to `/c/<crag-slug>`.
+- [x] Keep slider dimensions stable so card text and image loading do not shift layout.
+- [x] Update the existing `home` cache tag/key if the model shape changes; invalidate on any Crag/Area mutation already covered by admin actions.
+- [x] Run: `pnpm test lib/db/queries.test.ts lib/db/repository.test.ts`
+- [x] Run: `pnpm typecheck`
+- [ ] Manually verify mobile viewport horizontal scrolling for Area and Crag sliders. _(deferred to Task 12)_
 
 ### Task 5: Crag Info/Sector/Boulder Tab Refinement
 
