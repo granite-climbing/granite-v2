@@ -110,14 +110,14 @@ These decisions apply across multiple tasks. Reference them when implementing.
 - Test: `lib/db/repository.test.ts`
 - Test: `lib/actions/admin-content.test.ts` — assert new revalidation calls
 
-- [ ] Add an Area detail query by slug that returns published Area metadata, aggregate counts, grade distribution, and published Crags.
-- [ ] Grade distribution shape: `{ band: string; min: number; max: number; count: number }[]`. Bands: `V0-V2`, `V3-V5`, `V6-V8`, `V9-V11`, `V12+`. Compute via SQL `GROUP BY CASE WHEN gradeNum ...` over all Routes whose ancestor chain (Topo→Boulder→Sector→Crag→Area) is published and not soft-deleted.
-- [ ] Ensure the query filters `is_published = 1` and `deleted_at IS NULL` for Area and descendant public rows.
-- [ ] Return `null` when Area slug does not exist, is unpublished, or is soft-deleted.
-- [ ] Add repository wrapper `findAreaDetailBySlug(areaSlug)` with `unstable_cache` keyed by slug and tag `area:<slug>`.
-- [ ] Add `area:<slug>` revalidation in `lib/actions/admin-content.ts` for: `saveArea` (both create + update; on slug change, revalidate both old and new slug), `togglePublishArea`, `softDeleteArea`, `restoreArea`. Also call `revalidatePath('/a/<slug>')`.
-- [ ] Add tests for published Area, unpublished Area, soft-deleted Area, Crag filtering, grade distribution bucketing (empty area → all zero counts; mixed grades → correct counts), and admin revalidation calls.
-- [ ] Run: `pnpm test lib/db/queries.test.ts lib/db/repository.test.ts lib/actions/admin-content.test.ts`
+- [x] Add an Area detail query by slug that returns published Area metadata, aggregate counts, grade distribution, and published Crags.
+- [x] Grade distribution shape: `{ band: string; min: number; max: number; count: number }[]`. Bands: `V0-V2`, `V3-V5`, `V6-V8`, `V9-V11`, `V12+`. Compute via SQL `GROUP BY CASE WHEN gradeNum ...` over all Routes whose ancestor chain (Topo→Boulder→Sector→Crag→Area) is published and not soft-deleted.
+- [x] Ensure the query filters `is_published = 1` and `deleted_at IS NULL` for Area and descendant public rows.
+- [x] Return `null` when Area slug does not exist, is unpublished, or is soft-deleted.
+- [x] Add repository wrapper `findAreaDetailBySlug(areaSlug)` with `unstable_cache` keyed by slug and tag `area:<slug>`.
+- [x] Add `area:<slug>` revalidation in `lib/actions/admin-content.ts` for: `saveArea` (both create + update; on slug change, revalidate both old and new slug), `togglePublishArea`, `softDeleteArea`, `restoreArea`. Also call `revalidatePath('/a/<slug>')`.
+- [x] Add tests for published Area, unpublished Area, soft-deleted Area, Crag filtering, grade distribution bucketing (empty area → all zero counts; mixed grades → correct counts), and admin revalidation calls.
+- [x] Run: `pnpm test lib/db/queries.test.ts lib/db/repository.test.ts lib/actions/admin-content.test.ts`
 
 ### Task 3: Area Detail Page
 
