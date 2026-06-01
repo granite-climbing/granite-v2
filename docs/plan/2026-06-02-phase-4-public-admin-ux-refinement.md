@@ -267,20 +267,20 @@ These decisions apply across multiple tasks. Reference them when implementing.
 - Modify: `lib/db/admin-read-queries.ts` — add filter args + dropdown-option queries
 - Test: `lib/db/admin-read-queries.test.ts`
 
-- [ ] Implement URL search param filters using camelCase IDs: `?areaId=...`, `?cragId=...`, `?sectorId=...`, `?boulderId=...`, `?topoId=...`. (See [Cross-cutting Decisions](#cross-cutting-decisions).)
-- [ ] Crag list filters by `areaId`.
-- [ ] Sector list filters by `areaId` and `cragId`.
-- [ ] Boulder list filters by `areaId`, `cragId`, and `sectorId`.
-- [ ] Topo list filters by `areaId`, `cragId`, `sectorId`, and `boulderId`.
-- [ ] Route list filters by `areaId`, `cragId`, `sectorId`, `boulderId`, and `topoId`.
-- [ ] When parent params disagree (e.g. `cragId` doesn't belong to `areaId`), apply both filters as conjunctive AND — result will simply be empty rather than redirecting; do not silently drop a filter.
-- [ ] `ParentFilter` is a server component that takes the current params + a list of `{ label, value }` option groups (Area/Crag/Sector/Boulder/Topo as applicable) and renders cascading `<select>` elements wrapped in a `<form method="get">`. Submitting the form updates URL params. No client JS required.
-- [ ] Dropdown option queries: add `listAreaOptions()`, `listCragOptionsByArea(areaId)`, `listSectorOptionsByCrag(cragId)`, `listBoulderOptionsBySector(sectorId)`, `listTopoOptionsByBoulder(boulderId)` to `lib/db/admin-read-queries.ts`. Each returns `{ id, name }[]`, sorted by `sort_order ASC, name ASC`, including soft-deleted? — **no, exclude soft-deleted** options; admin list rows still show soft-deleted entries via the existing toggle.
-- [ ] When a parent filter is selected, prefill the EditDrawer create form's hidden parent ID field with the filter value. Implementation: pass current search params through to the drawer's create form `defaultValue`.
-- [ ] Add a "필터 초기화" link that returns to the unfiltered list (link to the same page with no params).
-- [ ] Add query tests for each filtered read path (param presence / absence / multi-param combinations) and for the option-list queries.
-- [ ] Run: `pnpm test lib/db/admin-read-queries.test.ts`
-- [ ] Run: `pnpm typecheck`
+- [x] Implement URL search param filters using camelCase IDs: `?areaId=...`, `?cragId=...`, `?sectorId=...`, `?boulderId=...`, `?topoId=...`. (See [Cross-cutting Decisions](#cross-cutting-decisions).)
+- [x] Crag list filters by `areaId`.
+- [x] Sector list filters by `areaId` and `cragId`.
+- [x] Boulder list filters by `areaId`, `cragId`, and `sectorId`.
+- [x] Topo list filters by `areaId`, `cragId`, `sectorId`, and `boulderId`.
+- [x] Route list filters by `areaId`, `cragId`, `sectorId`, `boulderId`, and `topoId`.
+- [x] When parent params disagree (e.g. `cragId` doesn't belong to `areaId`), apply both filters as conjunctive AND — result will simply be empty rather than redirecting; do not silently drop a filter.
+- [x] `ParentFilter` is a server component that takes the current params + a list of `{ label, value }` option groups (Area/Crag/Sector/Boulder/Topo as applicable) and renders cascading `<select>` elements wrapped in a `<form method="get">`. Submitting the form updates URL params. No client JS required.
+- [x] Dropdown option queries: add `listAreaOptions()`, `listCragOptionsByArea(areaId)`, `listSectorOptionsByCrag(cragId)`, `listBoulderOptionsBySector(sectorId)`, `listTopoOptionsByBoulder(boulderId)` to `lib/db/admin-read-queries.ts`. Each returns `{ id, name }[]`, sorted by `sort_order ASC, name ASC`, excludes soft-deleted.
+- [x] When a parent filter is selected, prefill the EditDrawer create form's hidden parent ID field with the filter value. Implementation: pass current search params through to the drawer's create form `defaultValue`.
+- [x] Add a "필터 초기화" link that returns to the unfiltered list (link to the same page with no params).
+- [x] Add query tests for each filtered read path (param presence / absence / multi-param combinations) and for the option-list queries.
+- [x] Run: `pnpm test lib/db/admin-read-queries.test.ts`
+- [x] Run: `pnpm typecheck`
 
 ### Task 11: Crag Map/Travel Tabs with Kakao Map
 
