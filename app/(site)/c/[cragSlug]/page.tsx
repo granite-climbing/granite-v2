@@ -8,6 +8,13 @@ import type { CragDetail, RouteListItem, TabName } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
 
+// Allowed grade sort values for the Route tab. "" means "no sort, repo order".
+type GradeSort = "grade:asc" | "grade:desc" | "";
+
+function parseGradeSort(raw: string | undefined): GradeSort {
+  return raw === "grade:asc" || raw === "grade:desc" ? raw : "";
+}
+
 type CragPageProps = {
   params: Promise<{ cragSlug: string }>;
   searchParams?: Promise<{ tab?: string; q?: string; sort?: string }>;
@@ -27,7 +34,7 @@ export default async function CragPage({ params, searchParams }: CragPageProps) 
     ) ?? "Info";
 
   const query = resolvedSearchParams?.q?.trim() ?? "";
-  const sort = resolvedSearchParams?.sort ?? "";
+  const sort = parseGradeSort(resolvedSearchParams?.sort);
   const basePath = `/c/${crag.slug}`;
 
   return (
@@ -64,7 +71,7 @@ function CragTabs({
   crag: CragDetail;
   activeTab: TabName;
   query: string;
-  sort: string;
+  sort: GradeSort;
 }) {
   return (
     <nav className="flex h-14 justify-center gap-4 pt-3" aria-label="Crag 상세 탭">
@@ -111,7 +118,7 @@ function CragTabPanel({
   crag: CragDetail;
   activeTab: TabName;
   query: string;
-  sort: string;
+  sort: GradeSort;
   basePath: string;
 }) {
   if (activeTab === "Info") {
@@ -464,7 +471,7 @@ function nextGradeSortHref(currentSort: string, basePath: string, query: string)
   return `${basePath}?${params.toString()}`;
 }
 
-function GradeSortIcon({ sort }: { sort: string }) {
+function GradeSortIcon({ sort }: { sort: GradeSort }) {
   if (sort === "grade:asc") {
     // Filled up-arrow
     return (
@@ -512,7 +519,7 @@ function RouteTable({
   basePath,
 }: {
   routes: RouteListItem[];
-  sort: string;
+  sort: GradeSort;
   query: string;
   basePath: string;
 }) {
