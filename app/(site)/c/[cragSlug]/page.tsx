@@ -2,6 +2,7 @@ import type React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/layout/app-header";
+import { KakaoMap } from "@/components/public/kakao-map";
 import { SearchField } from "@/components/public/search-field";
 import { findCragBySlug } from "@/lib/db/repository";
 import type { CragDetail, RouteListItem, TabName } from "@/lib/db/schema";
@@ -237,7 +238,18 @@ function CragTabPanel({
   if (activeTab === "Map") {
     return (
       <section className="px-4 pt-2">
-        <MapPreview crag={crag} variant="large" />
+        {crag.lat !== null && crag.lng !== null ? (
+          <KakaoMap
+            lat={crag.lat}
+            lng={crag.lng}
+            name={crag.name}
+            className="h-[240px] w-full overflow-hidden rounded-lg md:h-[400px]"
+          />
+        ) : (
+          <div className="flex h-[240px] items-center justify-center rounded-lg bg-[#F7F8F8] text-[14px] font-normal leading-5 text-[#7A7A7A] md:h-[400px]">
+            위치 정보가 등록되지 않았습니다.
+          </div>
+        )}
       </section>
     );
   }

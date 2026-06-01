@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -37,9 +38,18 @@ export const viewport: Viewport = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const kakaoKey = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
   return (
     <html lang="ko">
-      <body>{children}</body>
+      <body>
+        {children}
+        {kakaoKey ? (
+          <Script
+            src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoKey}&libraries=services&autoload=false`}
+            strategy="afterInteractive"
+          />
+        ) : null}
+      </body>
     </html>
   );
 }
