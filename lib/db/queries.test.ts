@@ -18,6 +18,7 @@ import {
   parseHashtags,
   getStats,
   getPublishedAreas,
+  getAllPublishedCrags,
   getCragsByAreaId,
   getCragStats,
   getPublishedAnnouncements,
@@ -224,6 +225,105 @@ describe("getCragsByAreaId", () => {
 
     const crags = await getCragsByAreaId("area-1");
     expect(crags[0].isPublished).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getAllPublishedCrags — flat list across areas, sorting and filtering
+// ---------------------------------------------------------------------------
+
+describe("getAllPublishedCrags", () => {
+  it("returns crags with camelCase fields and boolean isPublished", async () => {
+    mockQueryD1.mockResolvedValueOnce([
+      {
+        id: "crag-1",
+        areaId: "area-1",
+        name: "모락산",
+        nameEn: "Moraksan",
+        slug: "moraksan",
+        lat: 37.4,
+        lng: 127.0,
+        description: "좋은 암장",
+        season: "봄/가을",
+        coverImageUrl: "https://cdn/moraksan.jpg",
+        isPublished: 1,
+        sortOrder: 0,
+      },
+    ]);
+
+    const crags = await getAllPublishedCrags();
+
+    expect(crags).toHaveLength(1);
+    expect(crags[0]!.isPublished).toBe(true);
+    expect(crags[0]!.nameEn).toBe("Moraksan");
+    expect(crags[0]!.areaId).toBe("area-1");
+  });
+
+  it("SQL uses ? placeholders (no dynamic params), JOINs areas, filters published and soft-deleted", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAllPublishedCrags();
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown];
+    // No dynamic params — the WHERE uses only literal constants
+    expect(params).toBeUndefined();
+    expect(sql).toMatch(/FROM crags c/);
+    expect(sql).toMatch(/JOIN areas a/);
+    expect(sql).toMatch(/c\.is_published = 1/);
+    expect(sql).toMatch(/a\.is_published = 1/);
+    expect(sql).toMatch(/c\.deleted_at IS NULL/);
+    expect(sql).toMatch(/a\.deleted_at IS NULL/);
+  });
+
+  it("SQL orders by c.sort_order ASC then c.name ASC", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAllPublishedCrags();
+
+    const [sql] = mockQueryD1.mock.calls[0] as [string, unknown];
+    expect(sql).toMatch(/ORDER BY c\.sort_order ASC, c\.name ASC/);
+  });
+
+  it("returns empty array when no crags match", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    const crags = await getAllPublishedCrags();
+    expect(crags).toEqual([]);
+  });
+
+  it("returns crags from multiple areas in a single flat list", async () => {
+    mockQueryD1.mockResolvedValueOnce([
+      {
+        id: "crag-1",
+        areaId: "area-1",
+        name: "암장A",
+        nameEn: null,
+        slug: "amjang-a",
+        lat: null,
+        lng: null,
+        description: "",
+        season: "",
+        coverImageUrl: "",
+        isPublished: 1,
+        sortOrder: 1,
+      },
+      {
+        id: "crag-2",
+        areaId: "area-2",
+        name: "암장B",
+        nameEn: null,
+        slug: "amjang-b",
+        lat: null,
+        lng: null,
+        description: "",
+        season: "",
+        coverImageUrl: "",
+        isPublished: 1,
+        sortOrder: 2,
+      },
+    ]);
+
+    const crags = await getAllPublishedCrags();
+    expect(crags).toHaveLength(2);
+    expect(crags[0]!.areaId).toBe("area-1");
+    expect(crags[1]!.areaId).toBe("area-2");
   });
 });
 

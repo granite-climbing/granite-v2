@@ -17,6 +17,7 @@ vi.mock("./queries", () => ({
   getStats: vi.fn(),
   // Areas / crags
   getPublishedAreas: vi.fn(),
+  getAllPublishedCrags: vi.fn(),
   getCragsByAreaId: vi.fn(),
   getCragStats: vi.fn(),
   // Area detail
@@ -206,7 +207,7 @@ beforeEach(() => {
 // getHomeModel
 // ---------------------------------------------------------------------------
 describe("getHomeModel", () => {
-  it("composes totals, area stats, and crag stats from mocked queries", async () => {
+  it("composes totals, area stats, allCrags, and crag stats from mocked queries", async () => {
     vi.mocked(queries.getStats).mockResolvedValue({
       crags: 2,
       sectors: 3,
@@ -214,7 +215,7 @@ describe("getHomeModel", () => {
       routes: 7,
     });
     vi.mocked(queries.getPublishedAreas).mockResolvedValue([AREA_1]);
-    vi.mocked(queries.getCragsByAreaId).mockResolvedValue([CRAG_1, CRAG_2]);
+    vi.mocked(queries.getAllPublishedCrags).mockResolvedValue([CRAG_1, CRAG_2]);
     vi.mocked(queries.getCragStats)
       .mockResolvedValueOnce({ sectors: 2, boulders: 3, routes: 5 }) // crag-1
       .mockResolvedValueOnce({ sectors: 1, boulders: 1, routes: 2 }); // crag-2
@@ -225,10 +226,11 @@ describe("getHomeModel", () => {
     // Global totals come directly from getStats()
     expect(model.totals).toEqual({ crags: 2, sectors: 3, boulders: 4, routes: 7 });
 
-    // One area
+    // One area — no nested crags field
     expect(model.areas).toHaveLength(1);
     const area = model.areas[0]!;
     expect(area.name).toBe("수도권");
+    expect("crags" in area).toBe(false);
 
     // Area stats = aggregate of both crags
     expect(area.stats).toEqual({
@@ -238,21 +240,65 @@ describe("getHomeModel", () => {
       routes: 7,      // 5 + 2
     });
 
-    // Per-crag stats attached correctly
-    expect(area.crags[0]!.stats).toEqual({ sectors: 2, boulders: 3, routes: 5 });
-    expect(area.crags[1]!.stats).toEqual({ sectors: 1, boulders: 1, routes: 2 });
-    expect(area.crags.map((c) => c.slug)).toEqual(["moraksan", "anyang"]);
+    // Flat allCrags list at top level
+    expect(model.allCrags).toHaveLength(2);
+    expect(model.allCrags[0]!.stats).toEqual({ sectors: 2, boulders: 3, routes: 5 });
+    expect(model.allCrags[1]!.stats).toEqual({ sectors: 1, boulders: 1, routes: 2 });
+    expect(model.allCrags.map((c) => c.slug)).toEqual(["moraksan", "anyang"]);
   });
 
-  it("returns empty areas/announcements arrays when nothing is published", async () => {
+  it("returns empty areas/allCrags/announcements arrays when nothing is published", async () => {
     vi.mocked(queries.getStats).mockResolvedValue({ crags: 0, sectors: 0, boulders: 0, routes: 0 });
     vi.mocked(queries.getPublishedAreas).mockResolvedValue([]);
-    vi.mocked(queries.getCragsByAreaId).mockResolvedValue([]);
+    vi.mocked(queries.getAllPublishedCrags).mockResolvedValue([]);
     vi.mocked(queries.getPublishedAnnouncements).mockResolvedValue([]);
 
     const model = await getHomeModel();
     expect(model.areas).toHaveLength(0);
+    expect(model.allCrags).toHaveLength(0);
     expect(model.announcements).toHaveLength(0);
+  });
+
+  it("area stats are zero when its crags are absent from allCrags (e.g. different area)", async () => {
+    const AREA_2 = {
+      ...AREA_1,
+      id: "area-2",
+      name: "영남권",
+      slug: "yeongnam",
+    };
+    vi.mocked(queries.getStats).mockResolvedValue({ crags: 1, sectors: 1, boulders: 1, routes: 1 });
+    // Two areas, but allCrags only has CRAG_1 which belongs to area-1
+    vi.mocked(queries.getPublishedAreas).mockResolvedValue([AREA_1, AREA_2]);
+    vi.mocked(queries.getAllPublishedCrags).mockResolvedValue([CRAG_1]);
+    vi.mocked(queries.getCragStats).mockResolvedValue({ sectors: 2, boulders: 3, routes: 5 });
+    vi.mocked(queries.getPublishedAnnouncements).mockResolvedValue([]);
+
+    const model = await getHomeModel();
+
+    expect(model.areas).toHaveLength(2);
+    const area1 = model.areas.find((a) => a.id === "area-1")!;
+    const area2 = model.areas.find((a) => a.id === "area-2")!;
+
+    // area-1 has CRAG_1
+    expect(area1.stats).toEqual({ crags: 1, sectors: 2, boulders: 3, routes: 5 });
+    // area-2 has no crags in allCrags → all-zero stats
+    expect(area2.stats).toEqual({ crags: 0, sectors: 0, boulders: 0, routes: 0 });
+
+    // allCrags is just the flat list from getAllPublishedCrags
+    expect(model.allCrags).toHaveLength(1);
+    expect(model.allCrags[0]!.slug).toBe("moraksan");
+  });
+
+  it("uses getAllPublishedCrags (not getCragsByAreaId) for the flat crag list", async () => {
+    vi.mocked(queries.getStats).mockResolvedValue({ crags: 0, sectors: 0, boulders: 0, routes: 0 });
+    vi.mocked(queries.getPublishedAreas).mockResolvedValue([]);
+    vi.mocked(queries.getAllPublishedCrags).mockResolvedValue([]);
+    vi.mocked(queries.getPublishedAnnouncements).mockResolvedValue([]);
+
+    await getHomeModel();
+
+    expect(vi.mocked(queries.getAllPublishedCrags)).toHaveBeenCalledOnce();
+    expect(vi.mocked(queries.getCragsByAreaId)).not.toHaveBeenCalled();
   });
 });
 

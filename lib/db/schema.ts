@@ -135,7 +135,8 @@ export type SectorDetail = Sector & {
 
 export type HomeModel = {
   totals: Stats;
-  areas: Array<Area & { stats: Stats; crags: Array<Crag & { stats: Omit<Stats, "crags"> }> }>;
+  areas: Array<Area & { stats: Stats }>;
+  allCrags: Array<Crag & { stats: Omit<Stats, "crags"> }>;
   announcements: Announcement[];
 };
 

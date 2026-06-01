@@ -7,6 +7,7 @@ import {
   getCragRoutes,
   getCragSectors,
   getCragStats,
+  getAllPublishedCrags,
   getPublishedAreas,
   getPublishedAnnouncements,
   getCragsByAreaId,
@@ -79,43 +80,57 @@ async function loadAreaBySlug(slug: string): Promise<AreaDetail | null> {
 }
 
 async function loadHomeModel(): Promise<HomeModel> {
-  const [totals, areas, announcements] = await Promise.all([
+  const [totals, areas, allCragsFlat, announcements] = await Promise.all([
     getStats(),
     getPublishedAreas(),
+    getAllPublishedCrags(),
     getPublishedAnnouncements(),
   ]);
 
-  const areasWithCrags = await Promise.all(
-    areas.map(async (area) => {
-      const areaCrags = await getCragsByAreaId(area.id);
+  // Build per-area stats by grouping the flat crag list (avoids N queries to
+  // getCragsByAreaId — we already have all crags from getAllPublishedCrags).
+  // We still need getCragStats for sector/boulder/route counts per crag.
+  const allCragStats = await Promise.all(
+    allCragsFlat.map((crag) => getCragStats(crag.id))
+  );
 
-      const cragStats = await Promise.all(
-        areaCrags.map((crag) => getCragStats(crag.id))
-      );
+  // Map cragId → stats for fast lookup when aggregating per-area totals.
+  const cragStatsById = new Map<string, Omit<Stats, "crags">>();
+  allCragsFlat.forEach((crag, i) => {
+    cragStatsById.set(crag.id, allCragStats[i] ?? { sectors: 0, boulders: 0, routes: 0 });
+  });
 
-      // Aggregate per-area stats = sum of each crag's stats + crag count
-      const areaStats: Stats = cragStats.reduce<Stats>(
-        (acc, s) => ({
+  // Group crags by areaId to compute per-area aggregate stats.
+  const cragsByAreaId = new Map<string, typeof allCragsFlat>();
+  for (const crag of allCragsFlat) {
+    const list = cragsByAreaId.get(crag.areaId) ?? [];
+    list.push(crag);
+    cragsByAreaId.set(crag.areaId, list);
+  }
+
+  const areasWithStats = areas.map((area) => {
+    const areaCrags = cragsByAreaId.get(area.id) ?? [];
+    const areaStats: Stats = areaCrags.reduce<Stats>(
+      (acc, crag) => {
+        const s = cragStatsById.get(crag.id) ?? { sectors: 0, boulders: 0, routes: 0 };
+        return {
           crags: acc.crags,
           sectors: acc.sectors + s.sectors,
           boulders: acc.boulders + s.boulders,
           routes: acc.routes + s.routes,
-        }),
-        { crags: areaCrags.length, sectors: 0, boulders: 0, routes: 0 }
-      );
+        };
+      },
+      { crags: areaCrags.length, sectors: 0, boulders: 0, routes: 0 }
+    );
+    return { ...area, stats: areaStats };
+  });
 
-      return {
-        ...area,
-        stats: areaStats,
-        crags: areaCrags.map((crag, i) => ({
-          ...crag,
-          stats: cragStats[i] ?? { sectors: 0, boulders: 0, routes: 0 },
-        })),
-      };
-    })
-  );
+  const allCrags = allCragsFlat.map((crag) => ({
+    ...crag,
+    stats: cragStatsById.get(crag.id) ?? { sectors: 0, boulders: 0, routes: 0 },
+  }));
 
-  return { totals, areas: areasWithCrags, announcements };
+  return { totals, areas: areasWithStats, allCrags, announcements };
 }
 
 async function loadCragBySlug(slug: string): Promise<CragDetail | null> {

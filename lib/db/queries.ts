@@ -286,6 +286,37 @@ export async function getPublishedAreas(): Promise<Area[]> {
 }
 
 /**
+ * All published, non-soft-deleted crags whose parent area is also published
+ * and non-soft-deleted. Returns a flat list ordered by sort_order ASC, then
+ * name ASC. Used by the home page all-Crags slider.
+ */
+export async function getAllPublishedCrags(): Promise<Crag[]> {
+  const rows = await queryD1<CragRow>(
+    `SELECT
+       c.id,
+       c.area_id        AS areaId,
+       c.name,
+       c.name_en        AS nameEn,
+       c.slug,
+       c.lat,
+       c.lng,
+       c.description,
+       c.season,
+       c.cover_image_url AS coverImageUrl,
+       c.is_published    AS isPublished,
+       c.sort_order      AS sortOrder
+     FROM crags c
+     JOIN areas a ON a.id = c.area_id
+     WHERE c.is_published = 1
+       AND a.is_published = 1
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL
+     ORDER BY c.sort_order ASC, c.name ASC`
+  );
+  return rows.map(mapCrag);
+}
+
+/**
  * Published crags for a given area, ordered by sort_order then id.
  * The repository uses this to compose HomeModel area cards.
  */
