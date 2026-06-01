@@ -293,15 +293,15 @@ These decisions apply across multiple tasks. Reference them when implementing.
 - Modify: `app/layout.tsx` or a small SDK loader to inject the Kakao JS SDK `<Script>` with `NEXT_PUBLIC_KAKAO_MAP_KEY`
 - Modify: `next.config.js` if image domains need to be allowed for any POI thumbnails (unlikely)
 
-- [ ] Install `react-kakao-maps-sdk`. Confirm bundle size impact (<50KB additional JS for the Crag page) is acceptable.
-- [ ] Add a Kakao SDK loader: use `next/script` with `strategy="beforeInteractive"` or the SDK's documented `autoload=false` + `kakao.maps.load(...)` pattern. Key from `NEXT_PUBLIC_KAKAO_MAP_KEY`. Domain restriction is enforced server-side at the Kakao console.
-- [ ] `KakaoMap` component is `"use client"`, takes `{ lat, lng, name, zoom? }` props, renders `<Map>` + `<MapMarker>`.
-- [ ] Map tab on Crag detail shows the Crag's `lat`/`lng` with a marker. Handle the case where `lat`/`lng` are `null` (show "위치 정보 미등록" empty state).
-- [ ] Travel tab content: until POI data is in scope (out-of-scope for Phase 4 beyond the map embed), reuse existing `buildTravelItems` static list overlay above the map, OR keep current placeholder structure with a small Kakao-powered surrounding map. Pick the simpler approach in implementation; do not introduce a new POI fetch.
-- [ ] Ensure Map tab honors mobile width and that map height (e.g. 240px on mobile, 400px on desktop) does not break the page layout.
-- [ ] Add a fallback for `NEXT_PUBLIC_KAKAO_MAP_KEY` missing — render the empty state, don't throw at build time.
-- [ ] Run: `pnpm typecheck`
-- [ ] Manually verify Map tab on a known Crag slug, marker appears, zoom/pan work, and the page does not error when key is omitted in local dev.
+- [x] Install `react-kakao-maps-sdk`. Confirm bundle size impact (<50KB additional JS for the Crag page) is acceptable. _(Crag page first-load JS went from 107 kB to 108 kB — negligible.)_
+- [x] Add a Kakao SDK loader: use `next/script` with `strategy="afterInteractive"` and the `autoload=false` pattern. Key from `NEXT_PUBLIC_KAKAO_MAP_KEY`.
+- [x] `KakaoMap` component is `"use client"`, takes `{ lat, lng, name, zoom?, className? }` props, renders `<Map>` + `<MapMarker>`.
+- [x] Map tab on Crag detail shows the Crag's `lat`/`lng` with a marker. Empty state "위치 정보가 등록되지 않았습니다." when null.
+- [x] Travel tab content: kept existing `buildTravelItems` placeholder structure (no new POI fetch).
+- [x] Map tab honors mobile width with height `h-[240px] md:h-[400px]`.
+- [x] Script conditional on `NEXT_PUBLIC_KAKAO_MAP_KEY` — no throw when missing.
+- [x] Run: `pnpm typecheck` + `pnpm build`
+- [ ] Manually verify Map tab on a known Crag slug, marker appears, zoom/pan work, page does not error when key is omitted. _(deferred to Task 12)_
 
 ### Task 12: Final Phase 4 Verification
 
