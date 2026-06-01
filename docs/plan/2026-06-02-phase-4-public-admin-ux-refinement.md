@@ -190,15 +190,15 @@ These decisions apply across multiple tasks. Reference them when implementing.
 - Modify: `app/(site)/c/[cragSlug]/page.tsx` — sort state lives at page level via search params
 - Test: add component or page test for sort behavior (URL-driven)
 
-- [ ] Make Grade header sorting actually change route order.
-- [ ] Sort key is `routes.gradeNum` (already on schema, see `lib/db/schema.ts:71`). Fall back to `grade` label for stable secondary ordering.
-- [ ] Sort state is held in URL search param `?sort=grade:asc` or `?sort=grade:desc`. Default (no param) keeps existing repository order. Cycle: none → asc → desc → none on header clicks.
-- [ ] Grade header is a `Link` (or form button) that toggles `?sort` while preserving `?tab=route` and `?q=` params.
-- [ ] Provide ascending and descending states with visual sort icon (Figma reference if available; otherwise simple chevron up/down).
-- [ ] Place the sort icon next to the Grade label without overlapping table content.
-- [ ] Keep Route, Grade, Boulder columns readable at mobile width.
-- [ ] Run: `pnpm typecheck`
-- [ ] Manually verify Grade sort toggles on the Crag Route tab and that the URL reflects state (shareable).
+- [x] Make Grade header sorting actually change route order.
+- [x] Sort key is `routes.gradeNum` (already on schema, see `lib/db/schema.ts:71`). Fall back to `grade` label for stable secondary ordering.
+- [x] Sort state is held in URL search param `?sort=grade:asc` or `?sort=grade:desc`. Default (no param) keeps existing repository order. Cycle: none → asc → desc → none on header clicks.
+- [x] Grade header is a `Link` (or form button) that toggles `?sort` while preserving `?tab=route` and `?q=` params.
+- [x] Provide ascending and descending states with visual sort icon (Figma reference if available; otherwise simple chevron up/down).
+- [x] Place the sort icon next to the Grade label without overlapping table content.
+- [x] Keep Route, Grade, Boulder columns readable at mobile width.
+- [x] Run: `pnpm typecheck`
+- [ ] Manually verify Grade sort toggles on the Crag Route tab and that the URL reflects state (shareable). _(deferred to Task 12)_
 
 ### Task 7: Route/Topo Icon Updates
 
