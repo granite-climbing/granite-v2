@@ -31,6 +31,9 @@ import {
   getTopoRoutes,
   getTopoById,
   getRouteById,
+  getAreaBySlug,
+  getAreaStats,
+  getAreaGradeDistribution,
 } from "./queries";
 
 // ---------------------------------------------------------------------------
@@ -759,5 +762,190 @@ describe("getRouteById", () => {
     expect(route!.gradeNum).toBe(7);
     expect(route!.boulderName).toBe("바위");
     expect(route!.cragSlug).toBe("amjang");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getAreaBySlug — published/unpublished/soft-deleted/not-found
+// ---------------------------------------------------------------------------
+
+describe("getAreaBySlug", () => {
+  it("passes slug as bound param, returns null when not found", async () => {
+    mockQueryD1First.mockResolvedValueOnce(null);
+
+    const result = await getAreaBySlug("nonexistent");
+
+    const [sql, params] = mockQueryD1First.mock.calls[0] as [string, unknown[]];
+    expect(params).toEqual(["nonexistent"]);
+    expect(sql).toMatch(/\?/);
+    expect(sql).not.toContain("nonexistent");
+    expect(result).toBeNull();
+  });
+
+  it("SQL filters is_published = 1 and deleted_at IS NULL", async () => {
+    mockQueryD1First.mockResolvedValueOnce(null);
+    await getAreaBySlug("bukhansan");
+
+    const [sql] = mockQueryD1First.mock.calls[0] as [string, unknown];
+    expect(sql).toMatch(/FROM areas/);
+    expect(sql).toMatch(/is_published = 1/);
+    expect(sql).toMatch(/deleted_at IS NULL/);
+  });
+
+  it("returns Area with boolean isPublished when found", async () => {
+    mockQueryD1First.mockResolvedValueOnce({
+      id: "area-1",
+      name: "북한산",
+      nameEn: "Bukhansan",
+      slug: "bukhansan",
+      coverImageUrl: "https://cdn/img.jpg",
+      isPublished: 1,
+      sortOrder: 0,
+    });
+
+    const area = await getAreaBySlug("bukhansan");
+    expect(area).not.toBeNull();
+    expect(area!.isPublished).toBe(true);
+    expect(area!.slug).toBe("bukhansan");
+    expect(area!.nameEn).toBe("Bukhansan");
+  });
+
+  it("returns null when DB row has is_published = 0 (SQL WHERE excludes it)", async () => {
+    // The SQL WHERE is_published = 1 prevents this row from being returned.
+    // Simulate by having queryD1First return null (as the DB would).
+    mockQueryD1First.mockResolvedValueOnce(null);
+    const result = await getAreaBySlug("unpublished");
+    expect(result).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getAreaStats — four subqueries, one param each
+// ---------------------------------------------------------------------------
+
+describe("getAreaStats", () => {
+  it("passes areaId as four bound params", async () => {
+    mockQueryD1First.mockResolvedValueOnce({
+      crags: 2,
+      sectors: 5,
+      boulders: 10,
+      routes: 30,
+    });
+
+    const stats = await getAreaStats("area-abc");
+
+    const [sql, params] = mockQueryD1First.mock.calls[0] as [string, unknown[]];
+    expect(params).toEqual(["area-abc", "area-abc", "area-abc", "area-abc"]);
+    expect(sql).toMatch(/\?/);
+    expect(sql).not.toContain("area-abc");
+    expect(stats).toEqual({ crags: 2, sectors: 5, boulders: 10, routes: 30 });
+    expect(sql).toMatch(/deleted_at IS NULL/);
+  });
+
+  it("returns zero stats when query returns null", async () => {
+    mockQueryD1First.mockResolvedValueOnce(null);
+    const stats = await getAreaStats("area-empty");
+    expect(stats).toEqual({ crags: 0, sectors: 0, boulders: 0, routes: 0 });
+  });
+
+  it("SQL uses ancestor chain (sectors JOIN crags, boulders JOIN sectors JOIN crags, routes JOIN topos)", async () => {
+    mockQueryD1First.mockResolvedValueOnce({ crags: 0, sectors: 0, boulders: 0, routes: 0 });
+    await getAreaStats("area-1");
+
+    const [sql] = mockQueryD1First.mock.calls[0] as [string, unknown];
+    expect(sql).toMatch(/FROM crags c/);
+    expect(sql).toMatch(/FROM sectors s/);
+    expect(sql).toMatch(/FROM boulders b/);
+    expect(sql).toMatch(/FROM routes r/);
+    expect(sql).toMatch(/JOIN topos t/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getAreaGradeDistribution — band mapping + empty area
+// ---------------------------------------------------------------------------
+
+describe("getAreaGradeDistribution", () => {
+  it("passes areaId as bound param and returns all five bands", async () => {
+    // Simulate DB returning rows for V0-V2 band (min=0) and V6-V8 band (min=6).
+    mockQueryD1.mockResolvedValueOnce([
+      { min: 0, count: 3 },
+      { min: 6, count: 5 },
+    ]);
+
+    const dist = await getAreaGradeDistribution("area-1");
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(params).toEqual(["area-1"]);
+    expect(sql).toMatch(/\?/);
+    expect(sql).not.toContain("area-1");
+    expect(sql).toMatch(/FROM routes r/);
+    expect(sql).toMatch(/JOIN topos t/);
+    expect(sql).toMatch(/JOIN boulders b/);
+    expect(sql).toMatch(/JOIN sectors s/);
+    expect(sql).toMatch(/JOIN crags c/);
+
+    // Always five bands
+    expect(dist).toHaveLength(5);
+    expect(dist.map((b) => b.band)).toEqual(["V0-V2", "V3-V5", "V6-V8", "V9-V11", "V12+"]);
+  });
+
+  it("buckets routes correctly: V0-V2 count=3, V6-V8 count=5, rest 0", async () => {
+    mockQueryD1.mockResolvedValueOnce([
+      { min: 0, count: 3 },
+      { min: 6, count: 5 },
+    ]);
+
+    const dist = await getAreaGradeDistribution("area-1");
+
+    expect(dist[0]).toEqual({ band: "V0-V2", min: 0, max: 2, count: 3 });
+    expect(dist[1]).toEqual({ band: "V3-V5", min: 3, max: 5, count: 0 });
+    expect(dist[2]).toEqual({ band: "V6-V8", min: 6, max: 8, count: 5 });
+    expect(dist[3]).toEqual({ band: "V9-V11", min: 9, max: 11, count: 0 });
+    expect(dist[4]).toEqual({ band: "V12+", min: 12, max: 99, count: 0 });
+  });
+
+  it("returns all-zero counts when area has no routes", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+
+    const dist = await getAreaGradeDistribution("area-empty");
+
+    expect(dist).toHaveLength(5);
+    expect(dist.every((b) => b.count === 0)).toBe(true);
+  });
+
+  it("SQL filters full ancestor chain published and not soft-deleted", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAreaGradeDistribution("area-1");
+
+    const [sql] = mockQueryD1.mock.calls[0] as [string, unknown];
+    expect(sql).toMatch(/r\.is_published = 1/);
+    expect(sql).toMatch(/t\.deleted_at IS NULL/);
+    expect(sql).toMatch(/b\.is_published = 1/);
+    expect(sql).toMatch(/s\.is_published = 1/);
+    expect(sql).toMatch(/c\.is_published = 1/);
+    expect(sql).toMatch(/r\.deleted_at IS NULL/);
+    expect(sql).toMatch(/b\.deleted_at IS NULL/);
+    expect(sql).toMatch(/s\.deleted_at IS NULL/);
+    expect(sql).toMatch(/c\.deleted_at IS NULL/);
+  });
+
+  it("SQL groups by band min and omits NULL grades via HAVING", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAreaGradeDistribution("area-1");
+
+    const [sql] = mockQueryD1.mock.calls[0] as [string, unknown];
+    expect(sql).toMatch(/GROUP BY min/);
+    expect(sql).toMatch(/HAVING min IS NOT NULL/);
+  });
+
+  it("V12+ band (min=12) is correctly identified from DB row with min=12", async () => {
+    mockQueryD1.mockResolvedValueOnce([{ min: 12, count: 7 }]);
+
+    const dist = await getAreaGradeDistribution("area-1");
+    const v12Band = dist.find((b) => b.band === "V12+");
+    expect(v12Band).toBeDefined();
+    expect(v12Band!.count).toBe(7);
+    expect(v12Band!.max).toBe(99);
   });
 });

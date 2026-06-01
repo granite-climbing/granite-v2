@@ -10,6 +10,9 @@ import {
   getPublishedAreas,
   getPublishedAnnouncements,
   getCragsByAreaId,
+  getAreaBySlug,
+  getAreaStats,
+  getAreaGradeDistribution,
   getRouteById,
   getSectorBySlug,
   getSectorRoutes,
@@ -19,6 +22,7 @@ import {
   parseHashtags,
 } from "./queries";
 import type {
+  AreaDetail,
   BoulderDetail,
   CragDetail,
   HomeModel,
@@ -43,6 +47,31 @@ export function parseBoulderHashtags(hashtagsJson: string): string[] {
 // ---------------------------------------------------------------------------
 // Private load helpers (un-cached, used by the cache wrappers below)
 // ---------------------------------------------------------------------------
+
+async function loadAreaBySlug(slug: string): Promise<AreaDetail | null> {
+  const area = await getAreaBySlug(slug);
+  if (!area) return null;
+
+  const [stats, gradeDistribution, areaCrags] = await Promise.all([
+    getAreaStats(area.id),
+    getAreaGradeDistribution(area.id),
+    getCragsByAreaId(area.id),
+  ]);
+
+  const cragStats = await Promise.all(
+    areaCrags.map((crag) => getCragStats(crag.id))
+  );
+
+  return {
+    ...area,
+    stats,
+    gradeDistribution,
+    crags: areaCrags.map((crag, i) => ({
+      ...crag,
+      stats: cragStats[i] ?? { sectors: 0, boulders: 0, routes: 0 },
+    })),
+  };
+}
 
 async function loadHomeModel(): Promise<HomeModel> {
   const [totals, areas, announcements] = await Promise.all([
@@ -198,6 +227,15 @@ async function loadAllRouteItems(): Promise<RouteListItem[]> {
 // ---------------------------------------------------------------------------
 // Public API — each function wraps its loader in unstable_cache
 // ---------------------------------------------------------------------------
+
+export async function findAreaDetailBySlug(slug: string): Promise<AreaDetail | null> {
+  const cached = unstable_cache(
+    () => loadAreaBySlug(slug),
+    ["findAreaDetailBySlug", slug],
+    { tags: ["areas:list", `area:${slug}`] }
+  );
+  return cached();
+}
 
 export async function getHomeModel(): Promise<HomeModel> {
   const cached = unstable_cache(loadHomeModel, ["getHomeModel"], {

@@ -32,6 +32,7 @@ vi.mock("@/lib/db/admin-content-queries", () => ({
   softDeleteContent: vi.fn(),
   restoreContent: vi.fn(),
   findRowBySlug: vi.fn(),
+  getAreaSlugByAreaId: vi.fn(),
   getCragSlugByCragId: vi.fn(),
   getSectorAncestry: vi.fn(),
   getBoulderAncestry: vi.fn(),
@@ -64,6 +65,7 @@ import {
   softDeleteContent,
   restoreContent,
   findRowBySlug,
+  getAreaSlugByAreaId,
   getCragSlugByCragId,
   getSectorAncestry,
   getBoulderAncestry,
@@ -81,6 +83,7 @@ import {
   saveBoulderAction,
   saveTopoAction,
   saveRouteAction,
+  softDeleteAreaAction,
   softDeleteCragAction,
   softDeleteBoulderAction,
   softDeleteRouteAction,
@@ -102,6 +105,7 @@ const mockedUpdatePublishState = vi.mocked(updatePublishState);
 const mockedSoftDeleteContent = vi.mocked(softDeleteContent);
 const mockedRestoreContent = vi.mocked(restoreContent);
 const mockedFindRowBySlug = vi.mocked(findRowBySlug);
+const mockedGetAreaSlugByAreaId = vi.mocked(getAreaSlugByAreaId);
 const mockedGetCragSlugByCragId = vi.mocked(getCragSlugByCragId);
 const mockedGetSectorAncestry = vi.mocked(getSectorAncestry);
 const mockedGetBoulderAncestry = vi.mocked(getBoulderAncestry);
@@ -304,6 +308,7 @@ describe("admin content actions", () => {
     mockedRestoreContent.mockResolvedValue(undefined);
     mockedInsertAdminAuditLog.mockResolvedValue(undefined);
     // Default: ancestry helpers return null (actions gracefully skip optional tags)
+    mockedGetAreaSlugByAreaId.mockResolvedValue(null);
     mockedGetCragSlugByCragId.mockResolvedValue(null);
     mockedGetSectorAncestry.mockResolvedValue(null);
     // Default: descendant helpers return empty sets
@@ -1512,5 +1517,152 @@ describe("admin content actions", () => {
     // No boulder tags from descendant logic (topos only have route descendants)
     // Confirm getBoulderDescendantIds was NOT called
     expect(mockedGetBoulderDescendantIds).not.toHaveBeenCalled();
+  });
+
+  // -------------------------------------------------------------------------
+  // Task 2: Area detail revalidation
+  // -------------------------------------------------------------------------
+
+  it("saveAreaAction (create): revalidates area:<slug> and /a/<slug> in addition to home + areas:list", async () => {
+    const formData = new FormData();
+    // No id — create path
+    formData.set("name", "영남");
+    formData.set("slug", "yeongnam");
+    formData.set("coverImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+
+    await saveAreaAction(formData);
+
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("home");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("areas:list");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("area:yeongnam");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/a/yeongnam");
+  });
+
+  it("saveAreaAction (edit, same slug): revalidates area:<slug> exactly once", async () => {
+    // Edit: id provided, getAreaSlugByAreaId returns same slug
+    mockedGetAreaSlugByAreaId.mockResolvedValue("greater_seoul");
+
+    const formData = new FormData();
+    formData.set("id", "area_greater_seoul");
+    formData.set("name", "수도권 (수정)");
+    formData.set("slug", "greater_seoul");
+    formData.set("coverImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+
+    await saveAreaAction(formData);
+
+    // area:greater_seoul fires once (from new-side revalidation; old == new so no duplicate)
+    const areaCalls = mockedRevalidateTag.mock.calls.filter((c) => c[0] === "area:greater_seoul");
+    expect(areaCalls).toHaveLength(1);
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/a/greater_seoul");
+  });
+
+  it("saveAreaAction (edit, slug change): revalidates BOTH old and new area:<slug>", async () => {
+    // Edit: id provided, slug is changing from old_slug to new_slug
+    mockedGetAreaSlugByAreaId.mockResolvedValue("old_slug");
+
+    const formData = new FormData();
+    formData.set("id", "area_x");
+    formData.set("name", "영역 이름");
+    formData.set("slug", "new_slug");
+    formData.set("coverImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+
+    await saveAreaAction(formData);
+
+    // Old slug revalidated
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("area:old_slug");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/a/old_slug");
+    // New slug revalidated
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("area:new_slug");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/a/new_slug");
+  });
+
+  it("softDeleteAreaAction: resolves slug from DB and revalidates area:<slug> and /a/<slug>", async () => {
+    mockedGetAreaSlugByAreaId.mockResolvedValue("greater_seoul");
+
+    const formData = new FormData();
+    formData.set("id", "area_greater_seoul");
+    formData.set("confirm", "DELETE");
+
+    await softDeleteAreaAction(formData);
+
+    expect(mockedRequireAdmin).toHaveBeenCalled();
+    expect(mockedSoftDeleteContent).toHaveBeenCalledWith({ table: "areas", id: "area_greater_seoul" });
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("area:greater_seoul");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/a/greater_seoul");
+    // Standard area surface also fires
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("home");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("areas:list");
+  });
+
+  it("softDeleteAreaAction: still revalidates home+areas:list when DB returns null slug", async () => {
+    // Default mock returns null for getAreaSlugByAreaId
+    const formData = new FormData();
+    formData.set("id", "area_unknown");
+    formData.set("confirm", "DELETE");
+
+    await softDeleteAreaAction(formData);
+
+    expect(mockedSoftDeleteContent).toHaveBeenCalledWith({ table: "areas", id: "area_unknown" });
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("home");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("areas:list");
+    // area: tag must NOT fire when slug is null
+    expect(mockedRevalidateTag).not.toHaveBeenCalledWith(expect.stringMatching(/^area:/));
+  });
+
+  it("restoreAreaAction: resolves slug from DB and revalidates area:<slug> and /a/<slug>", async () => {
+    mockedGetAreaSlugByAreaId.mockResolvedValue("greater_seoul");
+
+    const formData = new FormData();
+    formData.set("id", "area_greater_seoul");
+
+    await restoreAreaAction(formData);
+
+    expect(mockedRequireAdmin).toHaveBeenCalled();
+    expect(mockedRestoreContent).toHaveBeenCalledWith({ table: "areas", id: "area_greater_seoul" });
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("area:greater_seoul");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/a/greater_seoul");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("home");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("areas:list");
+  });
+
+  it("togglePublishAction (areas): resolves slug from DB and revalidates area:<slug> and /a/<slug>", async () => {
+    mockedGetAreaSlugByAreaId.mockResolvedValue("greater_seoul");
+
+    const formData = new FormData();
+    formData.set("table", "areas");
+    formData.set("id", "area_greater_seoul");
+    formData.set("isPublished", "on");
+
+    await togglePublishAction(formData);
+
+    expect(mockedUpdatePublishState).toHaveBeenCalledWith(
+      expect.objectContaining({ table: "areas", id: "area_greater_seoul", isPublished: true }),
+    );
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("area:greater_seoul");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/a/greater_seoul");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("home");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("areas:list");
+  });
+
+  it("togglePublishAction (areas): still revalidates home+areas:list when DB returns null slug", async () => {
+    // Default mock returns null for getAreaSlugByAreaId
+    const formData = new FormData();
+    formData.set("table", "areas");
+    formData.set("id", "area_unknown");
+    formData.set("isPublished", "off");
+
+    await togglePublishAction(formData);
+
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("home");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("areas:list");
+    // area: tag must NOT fire when slug is null
+    expect(mockedRevalidateTag).not.toHaveBeenCalledWith(expect.stringMatching(/^area:/));
   });
 });

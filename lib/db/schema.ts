@@ -138,3 +138,16 @@ export type HomeModel = {
   areas: Array<Area & { stats: Stats; crags: Array<Crag & { stats: Omit<Stats, "crags"> }> }>;
   announcements: Announcement[];
 };
+
+export type GradeBand = {
+  band: string;  // e.g. "V0-V2"
+  min: number;
+  max: number;
+  count: number;
+};
+
+export type AreaDetail = Area & {
+  stats: Stats;
+  gradeDistribution: GradeBand[];
+  crags: Array<Crag & { stats: { sectors: number; boulders: number; routes: number } }>;
+};
