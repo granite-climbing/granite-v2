@@ -20,11 +20,24 @@ Canonical public URLs:
 - Topo detail: `/t/<topo-id>`
 - Route share: `/r/<route-id>` remains and redirects to `/t/<topo-id>?route=<route-id>`
 
+The legacy `/topos/<topo-id>` route is **removed completely** (no redirect). All in-codebase references must be migrated; external clients hitting the old URL will get a 404.
+
 Out of scope:
 
 - 하단 바텀 탭
 - 사용자 로그인, 사용자 계정 화면, 마이페이지 확장
 - Instagram webhook, manual Beta registration, Beta moderation
+- `/me` 페이지 (현재 상태 유지)
+
+## Cross-cutting Decisions
+
+These decisions apply across multiple tasks. Reference them when implementing.
+
+- **URL search param conventions** — All public/admin list filters and sort state live in URL search params (not client state) so back/forward, refresh, and share all work. Param keys use camelCase IDs (`?areaId=...`, `?cragId=...`, `?topoId=...`) to match DB columns and TS types. Search uses `?q=...`. Sort uses `?sort=<field>:<asc|desc>`.
+- **Caching/invalidation** — New `area:<slug>` cache tag added. All admin Area mutations (`saveArea`, `togglePublishArea`, `softDeleteArea`, `restoreArea`) call `revalidateTag('area:<slug>')` and `revalidatePath('/a/<slug>')`. Existing tags (`home`, `areas:list`, `crag:<slug>`, etc.) remain unchanged.
+- **Kakao Map integration** — Crag Map tab uses [`react-kakao-maps-sdk`](https://react-kakao-maps-sdk.jaeseokim.dev/docs/intro). The SDK is loaded on the client only (`"use client"` boundary). `NEXT_PUBLIC_KAKAO_MAP_KEY` already exists per CLAUDE.md.
+- **Admin EditDrawer + sidebar** — Drawer keeps its `fixed inset-0` overlay structure but its z-index/positioning is adjusted so the admin sidebar remains visible (the backdrop covers only the main content area, not the sidebar). No new `/new` or `/edit` routes are introduced; current drawer-routed flows stay.
+- **Figma asset extraction** — Use `mcp__Framelink_Figma_MCP__download_figma_images` for icon export. SVGs preferred (Instagram/map/beta icons). Store under `public/images/figma/icons/` with names like `icon-instagram.svg`, `icon-map.svg`, `icon-beta.svg`.
 
 ## Figma References
 
@@ -39,19 +52,25 @@ Out of scope:
 
 ## File Map
 
-- Modify: `app/(site)/(public)/page.tsx` — home Area/Crag slider entry points.
-- Create: `app/(site)/a/[areaSlug]/page.tsx` — Area detail route.
-- Move: `app/(site)/topos/[topoId]/page.tsx` → `app/(site)/t/[topoId]/page.tsx` — Topo canonical route.
+- Modify: `app/(site)/(public)/page.tsx` — home Area/Crag slider entry points, drop chip UI.
+- Create: `app/(site)/a/[areaSlug]/page.tsx` — Area detail route + `generateMetadata`.
+- Move: `app/(site)/topos/[topoId]/page.tsx` → `app/(site)/t/[topoId]/page.tsx` and delete the old `topos/` directory.
 - Modify: `app/(site)/r/[routeId]/page.tsx` — redirect to `/t/<topo-id>?route=<route-id>`.
-- Modify: `app/(site)/c/[cragSlug]/page.tsx` — Crag tab refinements, shared search UI, Grade sort.
-- Modify: `components/public/crag-carousel.tsx`, `components/public/crag-card.tsx`, `components/public/route-table.tsx`, `components/public/boulder-card.tsx` — public cards, sliders, route table.
-- Create: `components/public/area-card.tsx`, `components/public/search-field.tsx`, `components/public/topo-nav.tsx` — focused reusable UI.
+- Modify: `app/(site)/c/[cragSlug]/page.tsx` — Crag tab refinements, URL-driven search/sort, Kakao Map embed.
+- Modify: `app/(site)/layout.tsx` — update comment reference at line 8.
+- Modify: `components/public/crag-carousel.tsx`, `components/public/crag-card.tsx`, `components/public/route-table.tsx`, `components/public/boulder-card.tsx`, `components/public/stat-bar.tsx` — public cards, sliders, route table, real grade distribution.
+- Create: `components/public/area-card.tsx`, `components/public/search-field.tsx`, `components/public/topo-nav.tsx`, `components/public/kakao-map.tsx` — focused reusable UI.
 - Modify: `components/layout/footer.tsx` — Instagram icon.
-- Modify: `lib/db/queries.ts`, `lib/db/repository.ts`, `lib/db/schema.ts` if needed — Area detail and Topo sibling read models.
-- Modify tests: `lib/db/queries.test.ts`, `lib/db/repository.test.ts`, `lib/actions/admin-content.test.ts`.
+- Add: `public/images/figma/icons/icon-instagram.svg`, `icon-map.svg`, `icon-beta.svg`.
+- Modify: `lib/db/queries.ts`, `lib/db/repository.ts`, `lib/db/schema.ts` — Area detail, all-Crags read, Topo sibling read models, `HomeModel` reshape, comment cleanup.
+- Modify: `lib/actions/admin-content.ts` — add `area:<slug>` tag/path revalidation, replace `/topos/<id>` revalidation paths with `/t/<id>`.
+- Modify tests: `lib/db/queries.test.ts`, `lib/db/repository.test.ts`, `lib/actions/admin-content.test.ts`, `lib/db/admin-content-queries.test.ts` (fixture URLs).
 - Modify admin pages: `app/admin/(protected)/content/{areas,crags,sectors,boulders,topos,routes}/page.tsx`.
+- Modify: `components/admin/edit-drawer.tsx` — sidebar-friendly positioning.
+- Modify: `components/admin/admin-shell.tsx` — expose sidebar width if needed.
 - Create: `components/admin/parent-filter.tsx` — shared parent cascade filter.
-- Modify: `lib/db/admin-read-queries.ts`, `lib/db/admin-read-queries.test.ts` — parent-filter option queries.
+- Modify: `lib/db/admin-read-queries.ts`, `lib/db/admin-read-queries.test.ts` — filtered list + parent-option queries.
+- Add dep: `react-kakao-maps-sdk`.
 
 ---
 
@@ -59,9 +78,13 @@ Out of scope:
 
 **Files:**
 - Move: `app/(site)/topos/[topoId]/page.tsx` → `app/(site)/t/[topoId]/page.tsx`
+- Delete: entire `app/(site)/topos/` directory after move
 - Modify: `app/(site)/r/[routeId]/page.tsx`
 - Modify: `components/public/route-table.tsx`
 - Modify: `app/(site)/c/[cragSlug]/page.tsx`
+- Modify: `app/(site)/layout.tsx` (comment reference at line 8)
+- Modify: `lib/db/queries.ts` (comment reference at ~line 216)
+- Modify: `lib/db/admin-content-queries.test.ts` (URL in test fixture, line 190)
 - Modify: `lib/actions/admin-content.ts`
 - Test: `lib/actions/admin-content.test.ts`
 
@@ -69,7 +92,10 @@ Out of scope:
 - [ ] Update route share redirect from `/topos/${route.topoId}?route=${route.id}` to `/t/${route.topoId}?route=${route.id}`.
 - [ ] Update admin revalidation paths from `/topos/<id>` to `/t/<id>`.
 - [ ] Update tests that assert `revalidatePath("/topos/...")` to assert `revalidatePath("/t/...")`.
-- [ ] Keep no canonical `/topos/<id>` public link in active app code.
+- [ ] Delete `app/(site)/topos/` directory after content is moved (no redirect — clean removal per [Cross-cutting Decisions](#cross-cutting-decisions)).
+- [ ] Update doc-style references in code comments (`app/(site)/layout.tsx:8`, `lib/db/queries.ts:216`).
+- [ ] Update test fixture URLs (e.g. `https://cdn.granite.kr/topos/topo_a.webp` is a CDN path for image storage — keep as-is since it refers to R2 key, not the public route).
+- [ ] grep -r `"/topos/"` and `"/topos\$"` across the repo and confirm only R2 key paths remain.
 - [ ] Run: `pnpm test lib/actions/admin-content.test.ts`
 - [ ] Run: `pnpm typecheck`
 
@@ -78,16 +104,20 @@ Out of scope:
 **Files:**
 - Modify: `lib/db/queries.ts`
 - Modify: `lib/db/repository.ts`
-- Modify: `lib/db/schema.ts` if existing exported types need extension
+- Modify: `lib/db/schema.ts` — add `AreaDetail` type (Area + stats + gradeDistribution + crags)
+- Modify: `lib/actions/admin-content.ts` — add `revalidateTag('area:<slug>')` and `revalidatePath('/a/<slug>')` to Area mutations
 - Test: `lib/db/queries.test.ts`
 - Test: `lib/db/repository.test.ts`
+- Test: `lib/actions/admin-content.test.ts` — assert new revalidation calls
 
 - [ ] Add an Area detail query by slug that returns published Area metadata, aggregate counts, grade distribution, and published Crags.
+- [ ] Grade distribution shape: `{ band: string; min: number; max: number; count: number }[]`. Bands: `V0-V2`, `V3-V5`, `V6-V8`, `V9-V11`, `V12+`. Compute via SQL `GROUP BY CASE WHEN gradeNum ...` over all Routes whose ancestor chain (Topo→Boulder→Sector→Crag→Area) is published and not soft-deleted.
 - [ ] Ensure the query filters `is_published = 1` and `deleted_at IS NULL` for Area and descendant public rows.
 - [ ] Return `null` when Area slug does not exist, is unpublished, or is soft-deleted.
-- [ ] Add repository wrapper `findAreaDetailBySlug(areaSlug)`.
-- [ ] Add tests for published Area, unpublished Area, soft-deleted Area, and Crag filtering.
-- [ ] Run: `pnpm test lib/db/queries.test.ts lib/db/repository.test.ts`
+- [ ] Add repository wrapper `findAreaDetailBySlug(areaSlug)` with `unstable_cache` keyed by slug and tag `area:<slug>`.
+- [ ] Add `area:<slug>` revalidation in `lib/actions/admin-content.ts` for: `saveArea` (both create + update; on slug change, revalidate both old and new slug), `togglePublishArea`, `softDeleteArea`, `restoreArea`. Also call `revalidatePath('/a/<slug>')`.
+- [ ] Add tests for published Area, unpublished Area, soft-deleted Area, Crag filtering, grade distribution bucketing (empty area → all zero counts; mixed grades → correct counts), and admin revalidation calls.
+- [ ] Run: `pnpm test lib/db/queries.test.ts lib/db/repository.test.ts lib/actions/admin-content.test.ts`
 
 ### Task 3: Area Detail Page
 
@@ -95,12 +125,15 @@ Out of scope:
 - Create: `app/(site)/a/[areaSlug]/page.tsx`
 - Create: `components/public/area-card.tsx`
 - Modify: `components/public/crag-card.tsx`
-- Modify: `components/public/stat-bar.tsx` if grade distribution rendering needs reuse
+- Modify: `components/public/stat-bar.tsx` — accept real `gradeDistribution` prop (existing usages on Crag detail also migrated)
 
 - [ ] Implement `/a/<area-slug>` using `findAreaDetailBySlug`.
 - [ ] Call `notFound()` when the repository returns `null`.
-- [ ] Render Area hero/header, aggregate stats, grade distribution, search field, and Crag list/cards.
+- [ ] Include `AppHeader` consistent with other site pages.
+- [ ] Render Area hero (cover image, name, name_en), aggregate stats line (`{crags} Crags · {sectors} Sectors · {boulders} Boulders · {routes} Routes`), `StatBar` with real grade distribution, `SearchField` (from Task 5, links to `/c/<crag-slug>?q=...` or page-local Crag filter — see decision below), and a list of Crag cards.
+- [ ] Search on the Area page filters the Crag list via URL `?q=...` (server-side substring match against Crag name/name_en, case-insensitive).
 - [ ] Link Crag cards to `/c/<crag-slug>`.
+- [ ] Add `generateMetadata({ params })` returning `{ title: '<Area Name> · Granite', description: <Area description or fallback> }`.
 - [ ] Keep the page mobile-first with max-width behavior inherited from `app/(site)/layout.tsx`.
 - [ ] Run: `pnpm typecheck`
 - [ ] Manually verify: `/a/<known-area-slug>` renders and `/a/not-real` returns 404.
@@ -109,16 +142,23 @@ Out of scope:
 
 **Files:**
 - Modify: `app/(site)/(public)/page.tsx`
+- Modify: `lib/db/repository.ts` — `getHomeModel` returns `{ totals, areas[], allCrags[], announcements }` instead of `areas[].crags`
+- Modify: `lib/db/queries.ts` — add `getAllPublishedCrags()` (with per-Crag stats) if not already covered
+- Modify: `lib/db/schema.ts` — update `HomeModel` type
 - Create or modify: `components/public/area-card.tsx`
 - Modify: `components/public/crag-carousel.tsx`
 - Modify: `components/public/crag-card.tsx`
+- Test: `lib/db/queries.test.ts`, `lib/db/repository.test.ts`
 
-- [ ] Remove the Area chip/filter UI from the home page.
-- [ ] Render Area cards in a horizontal snap slider.
+- [ ] Change `getHomeModel` to return all published Crags as a flat top-level list (sorted by `sortOrder ASC`, then `name ASC`), independent of Area selection. Areas remain in the model as a separate top-level list for the Area slider.
+- [ ] Remove the Area chip/filter UI from the home page (no per-area selection, no embedded Crag list under a selected Area).
+- [ ] Render Area cards in a horizontal snap slider using the Figma `30:734` reference.
 - [ ] Link each Area card to `/a/<area-slug>`.
-- [ ] Add the requested Crag section margin before the Crag slider.
+- [ ] Add the requested Crag section margin before the Crag slider (extract spec from Figma).
 - [ ] Ensure Crag cards remain horizontally scrollable and link to `/c/<crag-slug>`.
 - [ ] Keep slider dimensions stable so card text and image loading do not shift layout.
+- [ ] Update the existing `home` cache tag/key if the model shape changes; invalidate on any Crag/Area mutation already covered by admin actions.
+- [ ] Run: `pnpm test lib/db/queries.test.ts lib/db/repository.test.ts`
 - [ ] Run: `pnpm typecheck`
 - [ ] Manually verify mobile viewport horizontal scrolling for Area and Crag sliders.
 
@@ -129,30 +169,36 @@ Out of scope:
 - Modify: `components/public/boulder-card.tsx`
 - Modify: `components/public/crag-card.tsx` if shared card style applies
 - Create: `components/public/search-field.tsx`
+- Pre-step: capture Figma design tokens for each referenced node (font sizes, card heights, image ratios, spacing, colors) into a short notes file or inline in implementation PR description — avoids per-task re-querying Figma.
 
 - [ ] Match the Crag Info tab structure to Figma `30:889`.
 - [ ] Match the Sector tab card/list structure to Figma `30:2070`.
 - [ ] Match the Boulder tab card/list structure to Figma `30:2155`.
 - [ ] Keep each tab using DB-backed data already loaded for the Crag detail page.
-- [ ] Introduce a reusable `SearchField` for Sector/Boulder/Route tabs.
-- [ ] Use the same height, icon placement, placeholder, border, and focus treatment for all three tab search inputs.
+- [ ] Introduce a reusable `SearchField` component used by Sector/Boulder/Route tabs.
+- [ ] `SearchField` writes a URL search param (`?q=<value>`); page re-renders with server-filtered list. Use a small client wrapper (form `action` to current path) or `useRouter().replace` with debounce; pick whichever stays a Server Component for the list rendering.
+- [ ] Server-side filter performs case-insensitive substring match against the entity's `name` and `name_en` (Sector/Boulder/Route).
+- [ ] Use the same height, icon placement, placeholder, border, and focus treatment for all three tab search inputs (Figma `31:2518`).
+- [ ] Tab switching preserves the `q` and (Route tab) `sort` params only when relevant to that tab; clear when navigating away.
 - [ ] Run: `pnpm typecheck`
-- [ ] Manually verify Info/Sector/Boulder tabs at mobile width.
+- [ ] Manually verify Info/Sector/Boulder tabs at mobile width and that `?q=...` survives reload.
 
 ### Task 6: Route Tab Grade Sorting
 
 **Files:**
 - Modify: `components/public/route-table.tsx`
-- Modify: `app/(site)/c/[cragSlug]/page.tsx` if sort state belongs at page level
-- Test: add or update component/repository test only if existing route table behavior is already tested
+- Modify: `app/(site)/c/[cragSlug]/page.tsx` — sort state lives at page level via search params
+- Test: add component or page test for sort behavior (URL-driven)
 
 - [ ] Make Grade header sorting actually change route order.
-- [ ] Sort by numeric grade field when available, not lexicographic label.
-- [ ] Provide ascending and descending states.
+- [ ] Sort key is `routes.gradeNum` (already on schema, see `lib/db/schema.ts:71`). Fall back to `grade` label for stable secondary ordering.
+- [ ] Sort state is held in URL search param `?sort=grade:asc` or `?sort=grade:desc`. Default (no param) keeps existing repository order. Cycle: none → asc → desc → none on header clicks.
+- [ ] Grade header is a `Link` (or form button) that toggles `?sort` while preserving `?tab=route` and `?q=` params.
+- [ ] Provide ascending and descending states with visual sort icon (Figma reference if available; otherwise simple chevron up/down).
 - [ ] Place the sort icon next to the Grade label without overlapping table content.
 - [ ] Keep Route, Grade, Boulder columns readable at mobile width.
 - [ ] Run: `pnpm typecheck`
-- [ ] Manually verify Grade sort toggles on the Crag Route tab.
+- [ ] Manually verify Grade sort toggles on the Crag Route tab and that the URL reflects state (shareable).
 
 ### Task 7: Route/Topo Icon Updates
 
@@ -160,12 +206,14 @@ Out of scope:
 - Modify: `components/layout/footer.tsx`
 - Modify: `app/(site)/t/[topoId]/page.tsx`
 - Modify: `components/public/route-table.tsx` or the local Route/Topo action button component
-- Add assets under: `public/images/figma/` only if exported static assets are needed
+- Add assets under: `public/images/figma/icons/` — `icon-instagram.svg`, `icon-map.svg`, `icon-beta.svg`
 
-- [ ] Replace Footer Instagram icon using Figma `1:186`.
-- [ ] Replace Route/Topo map icon using Figma `1:1420`.
-- [ ] Replace Route/Topo beta icon using Figma `1:1417`.
-- [ ] Ensure icon buttons have a 44px recommended touch target.
+- [ ] Export icons from Figma using `mcp__Framelink_Figma_MCP__download_figma_images`, format SVG, target `public/images/figma/icons/`.
+- [ ] Replace Footer Instagram icon using Figma `1:186` → `icon-instagram.svg`.
+- [ ] Replace Route/Topo map icon using Figma `1:1420` → `icon-map.svg`.
+- [ ] Replace Route/Topo beta icon using Figma `1:1417` → `icon-beta.svg`.
+- [ ] Reference icons via `<Image>` or inline `<svg>` (prefer inline SVG for currentColor support if Figma export allows).
+- [ ] Ensure icon buttons have a 44px recommended touch target (button hit area, not necessarily icon size).
 - [ ] Align icons visually in their button containers at 1x and high-density displays.
 - [ ] Run: `pnpm typecheck`
 - [ ] Manually verify Footer, Topo page, and Route action buttons.
@@ -180,28 +228,33 @@ Out of scope:
 - Test: `lib/db/queries.test.ts`, `lib/db/repository.test.ts`
 
 - [ ] Add a read model that returns current Topo plus sibling Topos in the same Boulder.
+- [ ] Filter sibling Topos by `deleted_at IS NULL` and ensure ancestor chain (Boulder→Sector→Crag→Area) is published & not soft-deleted. Topos themselves have no `is_published` column (see `lib/db/queries.ts` comment around line 216) — gating is by ancestors only.
 - [ ] Sort sibling Topos by `sort_order ASC`, then `name ASC`.
 - [ ] Compute previous and next Topo IDs for the current Topo.
 - [ ] Render left/right arrows on the Topo page.
 - [ ] Link enabled arrows to `/t/<topo-id>`.
 - [ ] Disable previous on the first Topo and next on the last Topo.
-- [ ] Add tests for middle, first, last, and single-Topo Boulder cases.
+- [ ] Add tests for middle, first, last, single-Topo Boulder, and ancestor-unpublished filtering cases.
 - [ ] Run: `pnpm test lib/db/queries.test.ts lib/db/repository.test.ts`
 - [ ] Run: `pnpm typecheck`
 
 ### Task 9: Admin Sidebar on Creation/Edit Surfaces
 
-**Files:**
-- Modify: `app/admin/(protected)/content/{areas,crags,sectors,boulders,topos,routes}/page.tsx`
-- Modify: `components/admin/edit-drawer.tsx` if drawer routing prevents sidebar visibility
-- Modify: `components/admin/admin-shell.tsx` only if current layout cannot host create/edit surfaces
+**Approach:** Keep the existing side-drawer UX (introduced in commit 77c6b46) but reposition so the admin sidebar is visible alongside the drawer. The drawer no longer covers the full viewport.
 
-- [ ] Confirm current create/edit flows that hide the sidebar.
-- [ ] Move create/edit UI into the protected admin layout surface rather than a standalone screen without shell.
-- [ ] Keep the Admin sidebar visible for Area, Crag, Sector, Boulder, Topo, and Route create/edit workflows.
+**Files:**
+- Modify: `components/admin/edit-drawer.tsx`
+- Modify: `components/admin/admin-shell.tsx` if sidebar width needs to be exposed for drawer offset
+- No changes required to entity page routes themselves.
+
+- [ ] Identify the admin sidebar width (likely a Tailwind class like `w-64` / 256px or similar — read `admin-shell.tsx`).
+- [ ] Change `EditDrawer` root from `fixed inset-0` to `fixed inset-y-0 right-0 left-[<sidebar-width>]` (so it spans only the content area, not the sidebar). On narrow viewports (`max-md`), keep full-width overlay.
+- [ ] Confirm backdrop covers only the content area, not the sidebar.
+- [ ] Keep z-index so drawer sits above main content but below sidebar (or sidebar can keep its own elevated stacking context).
+- [ ] Verify ESC-to-close, backdrop click, and slide animation still work.
 - [ ] Preserve existing Server Action form field names so mutations do not change behavior.
 - [ ] Run: `pnpm typecheck`
-- [ ] Manually verify each content type create/edit screen has the sidebar.
+- [ ] Manually verify each content type (Area/Crag/Sector/Boulder/Topo/Route) create/edit drawer shows the sidebar at desktop width, and falls back to full overlay at mobile width.
 
 ### Task 10: Admin Parent Cascade Filters
 
@@ -212,22 +265,46 @@ Out of scope:
 - Modify: `app/admin/(protected)/content/boulders/page.tsx`
 - Modify: `app/admin/(protected)/content/topos/page.tsx`
 - Modify: `app/admin/(protected)/content/routes/page.tsx`
-- Modify: `lib/db/admin-read-queries.ts`
+- Modify: `lib/db/admin-read-queries.ts` — add filter args + dropdown-option queries
 - Test: `lib/db/admin-read-queries.test.ts`
 
-- [ ] Implement URL search param filters for Area, Crag, Sector, Boulder, and Topo parents.
+- [ ] Implement URL search param filters using camelCase IDs: `?areaId=...`, `?cragId=...`, `?sectorId=...`, `?boulderId=...`, `?topoId=...`. (See [Cross-cutting Decisions](#cross-cutting-decisions).)
 - [ ] Crag list filters by `areaId`.
 - [ ] Sector list filters by `areaId` and `cragId`.
 - [ ] Boulder list filters by `areaId`, `cragId`, and `sectorId`.
 - [ ] Topo list filters by `areaId`, `cragId`, `sectorId`, and `boulderId`.
 - [ ] Route list filters by `areaId`, `cragId`, `sectorId`, `boulderId`, and `topoId`.
-- [ ] When a parent filter is selected, use it as the default value in the create form.
-- [ ] Add a clear-filter link that returns to the unfiltered list.
-- [ ] Add query tests for each filtered read path.
+- [ ] When parent params disagree (e.g. `cragId` doesn't belong to `areaId`), apply both filters as conjunctive AND — result will simply be empty rather than redirecting; do not silently drop a filter.
+- [ ] `ParentFilter` is a server component that takes the current params + a list of `{ label, value }` option groups (Area/Crag/Sector/Boulder/Topo as applicable) and renders cascading `<select>` elements wrapped in a `<form method="get">`. Submitting the form updates URL params. No client JS required.
+- [ ] Dropdown option queries: add `listAreaOptions()`, `listCragOptionsByArea(areaId)`, `listSectorOptionsByCrag(cragId)`, `listBoulderOptionsBySector(sectorId)`, `listTopoOptionsByBoulder(boulderId)` to `lib/db/admin-read-queries.ts`. Each returns `{ id, name }[]`, sorted by `sort_order ASC, name ASC`, including soft-deleted? — **no, exclude soft-deleted** options; admin list rows still show soft-deleted entries via the existing toggle.
+- [ ] When a parent filter is selected, prefill the EditDrawer create form's hidden parent ID field with the filter value. Implementation: pass current search params through to the drawer's create form `defaultValue`.
+- [ ] Add a "필터 초기화" link that returns to the unfiltered list (link to the same page with no params).
+- [ ] Add query tests for each filtered read path (param presence / absence / multi-param combinations) and for the option-list queries.
 - [ ] Run: `pnpm test lib/db/admin-read-queries.test.ts`
 - [ ] Run: `pnpm typecheck`
 
-### Task 11: Final Phase 4 Verification
+### Task 11: Crag Map/Travel Tabs with Kakao Map
+
+**Approach:** Replace the current placeholder `MapPreview` / `TravelPanel` on the Crag detail page with a real Kakao Map embed using `react-kakao-maps-sdk` ([docs](https://react-kakao-maps-sdk.jaeseokim.dev/docs/intro)).
+
+**Files:**
+- Add dep: `react-kakao-maps-sdk` via `pnpm add react-kakao-maps-sdk`
+- Create: `components/public/kakao-map.tsx` — client component, encapsulates SDK init and rendering
+- Modify: `app/(site)/c/[cragSlug]/page.tsx` — Map tab renders `<KakaoMap>`, Travel tab renders surrounding-POI list
+- Modify: `app/layout.tsx` or a small SDK loader to inject the Kakao JS SDK `<Script>` with `NEXT_PUBLIC_KAKAO_MAP_KEY`
+- Modify: `next.config.js` if image domains need to be allowed for any POI thumbnails (unlikely)
+
+- [ ] Install `react-kakao-maps-sdk`. Confirm bundle size impact (<50KB additional JS for the Crag page) is acceptable.
+- [ ] Add a Kakao SDK loader: use `next/script` with `strategy="beforeInteractive"` or the SDK's documented `autoload=false` + `kakao.maps.load(...)` pattern. Key from `NEXT_PUBLIC_KAKAO_MAP_KEY`. Domain restriction is enforced server-side at the Kakao console.
+- [ ] `KakaoMap` component is `"use client"`, takes `{ lat, lng, name, zoom? }` props, renders `<Map>` + `<MapMarker>`.
+- [ ] Map tab on Crag detail shows the Crag's `lat`/`lng` with a marker. Handle the case where `lat`/`lng` are `null` (show "위치 정보 미등록" empty state).
+- [ ] Travel tab content: until POI data is in scope (out-of-scope for Phase 4 beyond the map embed), reuse existing `buildTravelItems` static list overlay above the map, OR keep current placeholder structure with a small Kakao-powered surrounding map. Pick the simpler approach in implementation; do not introduce a new POI fetch.
+- [ ] Ensure Map tab honors mobile width and that map height (e.g. 240px on mobile, 400px on desktop) does not break the page layout.
+- [ ] Add a fallback for `NEXT_PUBLIC_KAKAO_MAP_KEY` missing — render the empty state, don't throw at build time.
+- [ ] Run: `pnpm typecheck`
+- [ ] Manually verify Map tab on a known Crag slug, marker appears, zoom/pan work, and the page does not error when key is omitted in local dev.
+
+### Task 12: Final Phase 4 Verification
 
 **Files:**
 - No new implementation files expected.
@@ -236,7 +313,10 @@ Out of scope:
 - [ ] Run: `pnpm typecheck`
 - [ ] Run: `pnpm build`
 - [ ] Start local app: `pnpm dev`
-- [ ] Browser QA: `/`, `/a/<known-area-slug>`, `/c/<known-crag-slug>`, `/t/<known-topo-id>`, `/r/<known-route-id>`.
-- [ ] Browser QA admin: `/admin/content/areas`, `/admin/content/crags`, `/admin/content/sectors`, `/admin/content/boulders`, `/admin/content/topos`, `/admin/content/routes`.
-- [ ] Confirm no public route or visible link points to old Area/Topo routes or to a public user profile route.
+- [ ] Browser QA public: `/`, `/a/<known-area-slug>`, `/a/not-real` (expect 404), `/c/<known-crag-slug>` (Info/Sector/Boulder/Route/Map/Travel tabs), `/c/<known-crag-slug>?tab=route&sort=grade:asc` (verify shareable sort), `/c/<known-crag-slug>?tab=sector&q=...` (verify shareable search), `/t/<known-topo-id>` (verify prev/next nav), `/r/<known-route-id>` (verify redirects to `/t/<id>?route=<id>`), `/topos/<known-topo-id>` (expect 404 — legacy route removed).
+- [ ] Browser QA admin: `/admin/content/areas`, `/admin/content/crags?areaId=<id>`, `/admin/content/sectors?areaId=<id>&cragId=<id>`, `/admin/content/boulders`, `/admin/content/topos`, `/admin/content/routes`. Verify cascading parent filter, prefilled create form, "필터 초기화" link.
+- [ ] Open EditDrawer on each admin content type at desktop width — sidebar must remain visible alongside the drawer.
+- [ ] Resize to mobile width (<768px) — drawer falls back to full overlay.
+- [ ] Verify `revalidatePath` / `revalidateTag` calls fire (manual: edit an Area, then load `/a/<slug>` and confirm new data appears without redeploy).
+- [ ] Confirm no public route or visible link points to `/topos/<id>` or any public user-profile route.
 - [ ] Confirm Phase 4 excludes bottom tab, login, manual Beta registration, webhook inbox, and Beta moderation.
