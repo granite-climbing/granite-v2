@@ -180,7 +180,8 @@ function CragTabPanel({
           const q = query.toLowerCase();
           return (
             r.name.toLowerCase().includes(q) ||
-            r.boulderName.toLowerCase().includes(q)
+            r.boulderName.toLowerCase().includes(q) ||
+            r.grade.toLowerCase().includes(q)
           );
         })
       : crag.routes;
@@ -197,7 +198,11 @@ function CragTabPanel({
           />
         </div>
         <div className="mt-4 px-4">
-          <RouteTable routes={filtered} />
+          {filtered.length === 0 ? (
+            <EmptyResult query={query} />
+          ) : (
+            <RouteTable routes={filtered} />
+          )}
         </div>
       </section>
     );
