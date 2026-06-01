@@ -1,4 +1,9 @@
-import { getAdminSectors, getAdminCrags } from "@/lib/db/admin-read-queries";
+import {
+  getAdminSectors,
+  getAdminCrags,
+  listAreaOptions,
+  listCragOptionsByArea,
+} from "@/lib/db/admin-read-queries";
 import {
   saveSectorAction,
   softDeleteSectorAction,
@@ -14,51 +19,48 @@ import { DeleteControls, RestoreControls } from "@/components/admin/delete-resto
 import { ImageUploadField } from "@/components/admin/image-upload-field";
 import { EditDrawer } from "@/components/admin/edit-drawer";
 import { FormSection, FullWidth } from "@/components/admin/form-section";
+import { ParentFilter } from "@/components/admin/parent-filter";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 interface Props {
-  searchParams: Promise<{ cragId?: string; edit?: string }>;
+  searchParams: Promise<{ areaId?: string; cragId?: string; edit?: string }>;
 }
 
 export default async function AdminSectorsPage({ searchParams }: Props) {
-  const { cragId, edit } = await searchParams;
-  const [sectors, crags] = await Promise.all([
-    getAdminSectors(cragId || undefined),
-    getAdminCrags(),
+  const { areaId, cragId, edit } = await searchParams;
+  const [sectors, crags, areaOptions, cragOptions] = await Promise.all([
+    getAdminSectors({ areaId, cragId }),
+    getAdminCrags(areaId ? { areaId } : undefined),
+    listAreaOptions(),
+    areaId ? listCragOptionsByArea(areaId) : Promise.resolve([]),
   ]);
   const liveCrags = crags.filter((c) => c.deletedAt === null);
   const selectedCrag = cragId ? liveCrags.find((c) => c.id === cragId) : undefined;
 
-  // For drawer we need all sectors (not filtered) so we can find by id across all crags
-  // If edit id isn't in the filtered list, we still have it from the full fetch when no cragId filter.
-  // The sectors list may be filtered; look for editRow in it first, otherwise it won't render.
   const editRow = edit ? sectors.find((s) => s.id === edit) : undefined;
 
-  // Build base href preserving cragId filter
-  const baseHref = cragId
-    ? `/admin/content/sectors?cragId=${cragId}`
+  // Build base href preserving active filters
+  const filterParams = new URLSearchParams();
+  if (areaId) filterParams.set("areaId", areaId);
+  if (cragId) filterParams.set("cragId", cragId);
+  const filterString = filterParams.toString();
+  const baseHref = filterString
+    ? `/admin/content/sectors?${filterString}`
     : "/admin/content/sectors";
 
   return (
     <AdminShell>
       <h1 className="mb-6 text-2xl font-bold">Sectors</h1>
 
-      {/* Filter bar */}
-      <form method="get" className="mb-4 flex items-center gap-2">
-        <label className="text-sm font-semibold text-[#57606A]">Filter by Crag:</label>
-        <select name="cragId" defaultValue={cragId ?? ""} className={`${selectCls} w-48`}>
-          <option value="">All crags</option>
-          {liveCrags.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-        <button type="submit" className={btnPrimaryCls}>Filter</button>
-        {cragId && (
-          <a href="/admin/content/sectors" className="text-xs text-[#0969DA] hover:underline">Clear</a>
-        )}
-      </form>
+      {/* Cascading parent filter */}
+      <ParentFilter
+        action="/admin/content/sectors"
+        current={{ areaId, cragId }}
+        areaOptions={areaOptions}
+        cragOptions={cragOptions.length > 0 ? cragOptions : undefined}
+      />
 
       {/* Create form */}
       <AdminCard title="Create Sector">
@@ -154,7 +156,7 @@ export default async function AdminSectorsPage({ searchParams }: Props) {
                 <AdminTableCell>
                   <div className="flex flex-col gap-1">
                     <Link
-                      href={cragId ? `?cragId=${cragId}&edit=${sector.id}` : `?edit=${sector.id}`}
+                      href={filterString ? `?${filterString}&edit=${sector.id}` : `?edit=${sector.id}`}
                       className={btnPrimaryCls}
                     >
                       Edit

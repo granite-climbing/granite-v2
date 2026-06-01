@@ -1,4 +1,10 @@
-import { getAdminBoulders, getAdminSectors } from "@/lib/db/admin-read-queries";
+import {
+  getAdminBoulders,
+  getAdminSectors,
+  listAreaOptions,
+  listCragOptionsByArea,
+  listSectorOptionsByCrag,
+} from "@/lib/db/admin-read-queries";
 import {
   saveBoulderAction,
   softDeleteBoulderAction,
@@ -14,47 +20,50 @@ import { DeleteControls, RestoreControls } from "@/components/admin/delete-resto
 import { ImageUploadField } from "@/components/admin/image-upload-field";
 import { EditDrawer } from "@/components/admin/edit-drawer";
 import { FormSection, FullWidth } from "@/components/admin/form-section";
+import { ParentFilter } from "@/components/admin/parent-filter";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 interface Props {
-  searchParams: Promise<{ sectorId?: string; edit?: string }>;
+  searchParams: Promise<{ areaId?: string; cragId?: string; sectorId?: string; edit?: string }>;
 }
 
 export default async function AdminBouldersPage({ searchParams }: Props) {
-  const { sectorId, edit } = await searchParams;
-  const [boulders, sectors] = await Promise.all([
-    getAdminBoulders(sectorId || undefined),
-    getAdminSectors(),
+  const { areaId, cragId, sectorId, edit } = await searchParams;
+  const [boulders, sectors, areaOptions, cragOptions, sectorOptions] = await Promise.all([
+    getAdminBoulders({ areaId, cragId, sectorId }),
+    getAdminSectors({ areaId, cragId }),
+    listAreaOptions(),
+    areaId ? listCragOptionsByArea(areaId) : Promise.resolve([]),
+    cragId ? listSectorOptionsByCrag(cragId) : Promise.resolve([]),
   ]);
   const liveSectors = sectors.filter((s) => s.deletedAt === null);
   const selectedSector = sectorId ? liveSectors.find((s) => s.id === sectorId) : undefined;
   const editRow = edit ? boulders.find((b) => b.id === edit) : undefined;
 
-  // Build base href preserving sectorId filter
-  const baseHref = sectorId
-    ? `/admin/content/boulders?sectorId=${sectorId}`
+  // Build base href preserving active filters
+  const filterParams = new URLSearchParams();
+  if (areaId) filterParams.set("areaId", areaId);
+  if (cragId) filterParams.set("cragId", cragId);
+  if (sectorId) filterParams.set("sectorId", sectorId);
+  const filterString = filterParams.toString();
+  const baseHref = filterString
+    ? `/admin/content/boulders?${filterString}`
     : "/admin/content/boulders";
 
   return (
     <AdminShell>
       <h1 className="mb-6 text-2xl font-bold">Boulders</h1>
 
-      {/* Filter bar */}
-      <form method="get" className="mb-4 flex items-center gap-2">
-        <label className="text-sm font-semibold text-[#57606A]">Filter by Sector:</label>
-        <select name="sectorId" defaultValue={sectorId ?? ""} className={`${selectCls} w-56`}>
-          <option value="">All sectors</option>
-          {liveSectors.map((s) => (
-            <option key={s.id} value={s.id}>{s.cragName} / {s.name}</option>
-          ))}
-        </select>
-        <button type="submit" className={btnPrimaryCls}>Filter</button>
-        {sectorId && (
-          <a href="/admin/content/boulders" className="text-xs text-[#0969DA] hover:underline">Clear</a>
-        )}
-      </form>
+      {/* Cascading parent filter */}
+      <ParentFilter
+        action="/admin/content/boulders"
+        current={{ areaId, cragId, sectorId }}
+        areaOptions={areaOptions}
+        cragOptions={cragOptions.length > 0 ? cragOptions : undefined}
+        sectorOptions={sectorOptions.length > 0 ? sectorOptions : undefined}
+      />
 
       {/* Create form */}
       <AdminCard title="Create Boulder">
@@ -145,7 +154,7 @@ export default async function AdminBouldersPage({ searchParams }: Props) {
                 <AdminTableCell>
                   <div className="flex flex-col gap-1">
                     <Link
-                      href={sectorId ? `?sectorId=${sectorId}&edit=${boulder.id}` : `?edit=${boulder.id}`}
+                      href={filterString ? `?${filterString}&edit=${boulder.id}` : `?edit=${boulder.id}`}
                       className={btnPrimaryCls}
                     >
                       Edit

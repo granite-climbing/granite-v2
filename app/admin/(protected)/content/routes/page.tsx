@@ -1,4 +1,12 @@
-import { getAdminRoutes, getAdminTopos } from "@/lib/db/admin-read-queries";
+import {
+  getAdminRoutes,
+  getAdminTopos,
+  listAreaOptions,
+  listCragOptionsByArea,
+  listSectorOptionsByCrag,
+  listBoulderOptionsBySector,
+  listTopoOptionsByBoulder,
+} from "@/lib/db/admin-read-queries";
 import {
   saveRouteAction,
   softDeleteRouteAction,
@@ -14,47 +22,64 @@ import { DeleteControls, RestoreControls } from "@/components/admin/delete-resto
 import { ImageUploadField } from "@/components/admin/image-upload-field";
 import { EditDrawer } from "@/components/admin/edit-drawer";
 import { FormSection, FullWidth } from "@/components/admin/form-section";
+import { ParentFilter } from "@/components/admin/parent-filter";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 interface Props {
-  searchParams: Promise<{ topoId?: string; edit?: string }>;
+  searchParams: Promise<{
+    areaId?: string;
+    cragId?: string;
+    sectorId?: string;
+    boulderId?: string;
+    topoId?: string;
+    edit?: string;
+  }>;
 }
 
 export default async function AdminRoutesPage({ searchParams }: Props) {
-  const { topoId, edit } = await searchParams;
-  const [routes, topos] = await Promise.all([
-    getAdminRoutes(topoId || undefined),
-    getAdminTopos(),
-  ]);
+  const { areaId, cragId, sectorId, boulderId, topoId, edit } = await searchParams;
+  const [routes, topos, areaOptions, cragOptions, sectorOptions, boulderOptions, topoOptions] =
+    await Promise.all([
+      getAdminRoutes({ areaId, cragId, sectorId, boulderId, topoId }),
+      getAdminTopos({ areaId, cragId, sectorId, boulderId }),
+      listAreaOptions(),
+      areaId ? listCragOptionsByArea(areaId) : Promise.resolve([]),
+      cragId ? listSectorOptionsByCrag(cragId) : Promise.resolve([]),
+      sectorId ? listBoulderOptionsBySector(sectorId) : Promise.resolve([]),
+      boulderId ? listTopoOptionsByBoulder(boulderId) : Promise.resolve([]),
+    ]);
   const liveTopos = topos.filter((t) => t.deletedAt === null);
   const selectedTopo = topoId ? liveTopos.find((t) => t.id === topoId) : undefined;
   const editRow = edit ? routes.find((r) => r.id === edit) : undefined;
 
-  // Build base href preserving topoId filter
-  const baseHref = topoId
-    ? `/admin/content/routes?topoId=${topoId}`
+  // Build base href preserving active filters
+  const filterParams = new URLSearchParams();
+  if (areaId) filterParams.set("areaId", areaId);
+  if (cragId) filterParams.set("cragId", cragId);
+  if (sectorId) filterParams.set("sectorId", sectorId);
+  if (boulderId) filterParams.set("boulderId", boulderId);
+  if (topoId) filterParams.set("topoId", topoId);
+  const filterString = filterParams.toString();
+  const baseHref = filterString
+    ? `/admin/content/routes?${filterString}`
     : "/admin/content/routes";
 
   return (
     <AdminShell>
       <h1 className="mb-6 text-2xl font-bold">Routes</h1>
 
-      {/* Filter bar */}
-      <form method="get" className="mb-4 flex items-center gap-2">
-        <label className="text-sm font-semibold text-[#57606A]">Filter by Topo:</label>
-        <select name="topoId" defaultValue={topoId ?? ""} className={`${selectCls} w-64`}>
-          <option value="">All topos</option>
-          {liveTopos.map((t) => (
-            <option key={t.id} value={t.id}>{t.boulderName} / {t.name}</option>
-          ))}
-        </select>
-        <button type="submit" className={btnPrimaryCls}>Filter</button>
-        {topoId && (
-          <a href="/admin/content/routes" className="text-xs text-[#0969DA] hover:underline">Clear</a>
-        )}
-      </form>
+      {/* Cascading parent filter */}
+      <ParentFilter
+        action="/admin/content/routes"
+        current={{ areaId, cragId, sectorId, boulderId, topoId }}
+        areaOptions={areaOptions}
+        cragOptions={cragOptions.length > 0 ? cragOptions : undefined}
+        sectorOptions={sectorOptions.length > 0 ? sectorOptions : undefined}
+        boulderOptions={boulderOptions.length > 0 ? boulderOptions : undefined}
+        topoOptions={topoOptions.length > 0 ? topoOptions : undefined}
+      />
 
       {/* Create form */}
       <AdminCard title="Create Route">
@@ -149,7 +174,7 @@ export default async function AdminRoutesPage({ searchParams }: Props) {
                 <AdminTableCell>
                   <div className="flex flex-col gap-1">
                     <Link
-                      href={topoId ? `?topoId=${topoId}&edit=${route.id}` : `?edit=${route.id}`}
+                      href={filterString ? `?${filterString}&edit=${route.id}` : `?edit=${route.id}`}
                       className={btnPrimaryCls}
                     >
                       Edit

@@ -1,4 +1,4 @@
-import { getAdminCrags, getAdminAreas } from "@/lib/db/admin-read-queries";
+import { getAdminCrags, getAdminAreas, listAreaOptions } from "@/lib/db/admin-read-queries";
 import {
   saveCragAction,
   softDeleteCragAction,
@@ -14,23 +14,40 @@ import { DeleteControls, RestoreControls } from "@/components/admin/delete-resto
 import { ImageUploadField } from "@/components/admin/image-upload-field";
 import { EditDrawer } from "@/components/admin/edit-drawer";
 import { FormSection, FullWidth } from "@/components/admin/form-section";
+import { ParentFilter } from "@/components/admin/parent-filter";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 interface Props {
-  searchParams: Promise<{ edit?: string }>;
+  searchParams: Promise<{ areaId?: string; edit?: string }>;
 }
 
 export default async function AdminCragsPage({ searchParams }: Props) {
-  const { edit } = await searchParams;
-  const [crags, areas] = await Promise.all([getAdminCrags(), getAdminAreas()]);
+  const { areaId, edit } = await searchParams;
+  const [crags, areas, areaOptions] = await Promise.all([
+    getAdminCrags(areaId ? { areaId } : undefined),
+    getAdminAreas(),
+    listAreaOptions(),
+  ]);
   const liveAreas = areas.filter((a) => a.deletedAt === null);
   const editRow = edit ? crags.find((c) => c.id === edit) : undefined;
+
+  // Build base href preserving areaId filter
+  const baseHref = areaId
+    ? `/admin/content/crags?areaId=${areaId}`
+    : "/admin/content/crags";
 
   return (
     <AdminShell>
       <h1 className="mb-6 text-2xl font-bold">Crags</h1>
+
+      {/* Cascading parent filter */}
+      <ParentFilter
+        action="/admin/content/crags"
+        current={{ areaId }}
+        areaOptions={areaOptions}
+      />
 
       {/* Create form */}
       <AdminCard title="Create Crag">
@@ -38,7 +55,7 @@ export default async function AdminCragsPage({ searchParams }: Props) {
           <FormSection title="Identity" cols={2}>
             <FullWidth>
               <AdminField label="Area">
-                <select name="areaId" required className={selectCls}>
+                <select name="areaId" required defaultValue={areaId ?? ""} className={selectCls}>
                   <option value="">— select area —</option>
                   {liveAreas.map((a) => (
                     <option key={a.id} value={a.id}>{a.name}</option>
@@ -121,7 +138,12 @@ export default async function AdminCragsPage({ searchParams }: Props) {
                 </AdminTableCell>
                 <AdminTableCell>
                   <div className="flex flex-col gap-1">
-                    <Link href={`?edit=${crag.id}`} className={btnPrimaryCls}>Edit</Link>
+                    <Link
+                      href={areaId ? `?areaId=${areaId}&edit=${crag.id}` : `?edit=${crag.id}`}
+                      className={btnPrimaryCls}
+                    >
+                      Edit
+                    </Link>
 
                     {crag.deletedAt === null && (
                       <form action={togglePublishAction} className="flex items-center gap-1">
@@ -155,9 +177,10 @@ export default async function AdminCragsPage({ searchParams }: Props) {
 
       {/* Edit drawer */}
       {editRow && (
-        <EditDrawer title="Edit Crag" closeHref="/admin/content/crags">
+        <EditDrawer title="Edit Crag" closeHref={baseHref}>
           <form action={saveCragAction}>
             <input type="hidden" name="id" value={editRow.id} />
+            {/* Preserve filter context for post-save redirect (not used by action, harmless) */}
             <FormSection title="Identity" cols={2}>
               <FullWidth>
                 <label className="mb-1 block text-xs font-semibold text-[#374151]">Area</label>
