@@ -240,21 +240,20 @@ These decisions apply across multiple tasks. Reference them when implementing.
 
 ### Task 9: Admin Sidebar on Creation/Edit Surfaces
 
-**Approach:** Keep the existing side-drawer UX (introduced in commit 77c6b46) but reposition so the admin sidebar is visible alongside the drawer. The drawer no longer covers the full viewport.
+**Approach (revised during implementation):** The admin layout actually uses a **top header with horizontal nav** (`app/admin/(protected)/layout.tsx`), not a left sidebar. The fix adapts the same intent — keep nav visible when drawer is open — by making the header `sticky top-0 z-50` and lowering the drawer's z-index to `z-40` so the header floats above the backdrop.
 
 **Files:**
-- Modify: `components/admin/edit-drawer.tsx`
-- Modify: `components/admin/admin-shell.tsx` if sidebar width needs to be exposed for drawer offset
-- No changes required to entity page routes themselves.
+- Modify: `app/admin/(protected)/layout.tsx` — sticky header
+- Modify: `components/admin/edit-drawer.tsx` — drawer z-index reduced to z-40
 
-- [ ] Identify the admin sidebar width (likely a Tailwind class like `w-64` / 256px or similar — read `admin-shell.tsx`).
-- [ ] Change `EditDrawer` root from `fixed inset-0` to `fixed inset-y-0 right-0 left-[<sidebar-width>]` (so it spans only the content area, not the sidebar). On narrow viewports (`max-md`), keep full-width overlay.
-- [ ] Confirm backdrop covers only the content area, not the sidebar.
-- [ ] Keep z-index so drawer sits above main content but below sidebar (or sidebar can keep its own elevated stacking context).
-- [ ] Verify ESC-to-close, backdrop click, and slide animation still work.
-- [ ] Preserve existing Server Action form field names so mutations do not change behavior.
-- [ ] Run: `pnpm typecheck`
-- [ ] Manually verify each content type (Area/Crag/Sector/Boulder/Topo/Route) create/edit drawer shows the sidebar at desktop width, and falls back to full overlay at mobile width.
+- [x] Identify the admin layout structure (top header with nav, not left sidebar).
+- [x] Make header `sticky top-0 z-50` so it stays visible when drawer opens.
+- [x] Drawer z-40 sits below the header but above main content.
+- [x] Backdrop covers content area below the header.
+- [x] ESC-to-close, backdrop click, slide animation all still work.
+- [x] Server Action form field names unchanged.
+- [x] Run: `pnpm typecheck`
+- [ ] Manually verify each content type (Area/Crag/Sector/Boulder/Topo/Route) drawer shows the header at all widths. _(deferred to Task 12)_
 
 ### Task 10: Admin Parent Cascade Filters
 
