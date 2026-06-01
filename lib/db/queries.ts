@@ -318,7 +318,8 @@ export async function getAllPublishedCrags(): Promise<Crag[]> {
 
 /**
  * Published crags for a given area, ordered by sort_order then id.
- * The repository uses this to compose HomeModel area cards.
+ * Used by the repository's Area detail loader (`loadAreaBySlug`) and by
+ * `loadAllRouteItems`. The home model uses `getAllPublishedCrags` instead.
  */
 export async function getCragsByAreaId(areaId: string): Promise<Crag[]> {
   const rows = await queryD1<CragRow>(
