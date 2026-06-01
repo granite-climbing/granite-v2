@@ -7,7 +7,7 @@ export default async function AdminProtectedLayout({ children }: Readonly<{ chil
 
   return (
     <main className="min-h-screen bg-[#F7F8F8]">
-      <header className="border-b border-[#E8E8E8] bg-white px-5 py-4">
+      <header className="sticky top-0 z-50 border-b border-[#E8E8E8] bg-white px-5 py-4">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-xl font-black">Granite Admin</h1>
