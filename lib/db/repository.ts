@@ -25,12 +25,17 @@ import type {
   AreaDetail,
   BoulderDetail,
   CragDetail,
+  GradeBand,
   HomeModel,
   RouteListItem,
   SectorDetail,
   Stats,
   TopoDetail,
 } from "./schema";
+
+// Re-export so that page components can `import type { AreaDetail } from "@/lib/db/repository"`
+// alongside the `findAreaDetailBySlug` function. Mirrors the `RouteListItem` re-export in queries.ts.
+export type { AreaDetail, GradeBand };
 
 export const CRAG_TABS = ["Info", "Sector", "Boulder", "Route", "Map", "Travel"] as const;
 export const SECTOR_TABS = ["Info", "Boulder", "Route", "Map", "Travel"] as const;

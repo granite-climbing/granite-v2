@@ -149,5 +149,5 @@ export type GradeBand = {
 export type AreaDetail = Area & {
   stats: Stats;
   gradeDistribution: GradeBand[];
-  crags: Array<Crag & { stats: { sectors: number; boulders: number; routes: number } }>;
+  crags: Array<Crag & { stats: Omit<Stats, "crags"> }>;
 };
