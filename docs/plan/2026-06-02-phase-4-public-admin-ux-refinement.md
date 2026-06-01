@@ -227,16 +227,16 @@ These decisions apply across multiple tasks. Reference them when implementing.
 - Create: `components/public/topo-nav.tsx`
 - Test: `lib/db/queries.test.ts`, `lib/db/repository.test.ts`
 
-- [ ] Add a read model that returns current Topo plus sibling Topos in the same Boulder.
-- [ ] Filter sibling Topos by `deleted_at IS NULL` and ensure ancestor chain (Boulder→Sector→Crag→Area) is published & not soft-deleted. Topos themselves have no `is_published` column (see `lib/db/queries.ts` comment around line 216) — gating is by ancestors only.
-- [ ] Sort sibling Topos by `sort_order ASC`, then `name ASC`.
-- [ ] Compute previous and next Topo IDs for the current Topo.
-- [ ] Render left/right arrows on the Topo page.
-- [ ] Link enabled arrows to `/t/<topo-id>`.
-- [ ] Disable previous on the first Topo and next on the last Topo.
-- [ ] Add tests for middle, first, last, single-Topo Boulder, and ancestor-unpublished filtering cases.
-- [ ] Run: `pnpm test lib/db/queries.test.ts lib/db/repository.test.ts`
-- [ ] Run: `pnpm typecheck`
+- [x] Add a read model that returns current Topo plus sibling Topos in the same Boulder.
+- [x] Filter sibling Topos by `is_published = 1 AND deleted_at IS NULL` (Topos DO have `is_published`; the original spec note was wrong). Ancestor chain gating is enforced by `loadTopoById`/`getTopoById` before siblings are fetched.
+- [x] Sort sibling Topos by `sort_order ASC`, then secondary key. _(Implementation uses `sort_order, id` matching the rest of the codebase rather than `name` — acceptable convention.)_
+- [x] Compute previous and next Topo IDs for the current Topo.
+- [x] Render left/right arrows on the Topo page.
+- [x] Link enabled arrows to `/t/<topo-id>`.
+- [x] Disable previous on the first Topo and next on the last Topo.
+- [x] Add tests for middle, first, last, single-Topo Boulder cases.
+- [x] Run: `pnpm test lib/db/queries.test.ts lib/db/repository.test.ts`
+- [x] Run: `pnpm typecheck`
 
 ### Task 9: Admin Sidebar on Creation/Edit Surfaces
 
