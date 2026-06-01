@@ -171,17 +171,17 @@ These decisions apply across multiple tasks. Reference them when implementing.
 - Create: `components/public/search-field.tsx`
 - Pre-step: capture Figma design tokens for each referenced node (font sizes, card heights, image ratios, spacing, colors) into a short notes file or inline in implementation PR description — avoids per-task re-querying Figma.
 
-- [ ] Match the Crag Info tab structure to Figma `30:889`.
-- [ ] Match the Sector tab card/list structure to Figma `30:2070`.
-- [ ] Match the Boulder tab card/list structure to Figma `30:2155`.
-- [ ] Keep each tab using DB-backed data already loaded for the Crag detail page.
-- [ ] Introduce a reusable `SearchField` component used by Sector/Boulder/Route tabs.
-- [ ] `SearchField` writes a URL search param (`?q=<value>`); page re-renders with server-filtered list. Use a small client wrapper (form `action` to current path) or `useRouter().replace` with debounce; pick whichever stays a Server Component for the list rendering.
-- [ ] Server-side filter performs case-insensitive substring match against the entity's `name` and `name_en` (Sector/Boulder/Route).
-- [ ] Use the same height, icon placement, placeholder, border, and focus treatment for all three tab search inputs (Figma `31:2518`).
-- [ ] Tab switching preserves the `q` and (Route tab) `sort` params only when relevant to that tab; clear when navigating away.
-- [ ] Run: `pnpm typecheck`
-- [ ] Manually verify Info/Sector/Boulder tabs at mobile width and that `?q=...` survives reload.
+- [x] Match the Crag Info tab structure to Figma `30:889`.
+- [x] Match the Sector tab card/list structure to Figma `30:2070`.
+- [x] Match the Boulder tab card/list structure to Figma `30:2155`.
+- [x] Keep each tab using DB-backed data already loaded for the Crag detail page.
+- [x] Introduce a reusable `SearchField` component used by Sector/Boulder/Route tabs.
+- [x] `SearchField` writes a URL search param (`?q=<value>`); page re-renders with server-filtered list. Use a small client wrapper (form `action` to current path) or `useRouter().replace` with debounce; pick whichever stays a Server Component for the list rendering.
+- [x] Server-side filter performs case-insensitive substring match against the entity's `name` and `name_en` (Sector/Boulder/Route). _(Boulder/Route lack `name_en` in the schema → Boulder filters `name`, Route filters `name` + `boulderName` + `grade`.)_
+- [x] Use the same height, icon placement, placeholder, border, and focus treatment for all three tab search inputs (Figma `31:2518`).
+- [x] Tab switching preserves the `q` and (Route tab) `sort` params only when relevant to that tab; clear when navigating away.
+- [x] Run: `pnpm typecheck`
+- [ ] Manually verify Info/Sector/Boulder tabs at mobile width and that `?q=...` survives reload. _(deferred to Task 12)_
 
 ### Task 6: Route Tab Grade Sorting
 
