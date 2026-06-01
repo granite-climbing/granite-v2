@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { findTopoById } from "@/lib/db/repository";
+import { TopoNavArrow } from "@/components/public/topo-nav";
 import type { Route, TopoDetail } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
@@ -72,11 +73,11 @@ function TopoRouteSheet({ topo, selectedRoute }: { topo: TopoDetail; selectedRou
     <section className="bg-white px-4 pb-10 pt-2">
       <div className="mx-auto h-[2px] w-8 rounded-full bg-[#B8B8B8]" />
       <div className="mt-2 flex h-9 items-center justify-between">
-        <span className="grid size-6 place-items-center text-[26px] leading-6 text-[#B8B8B8]">←</span>
+        <TopoNavArrow topoId={topo.prevTopoId} direction="prev" />
         <h2 className="text-center text-[18px] font-medium leading-6 text-[#090909]">
           {topo.boulder.name} {topo.topoIndex}/{topo.topoCount}
         </h2>
-        <span className="grid size-6 place-items-center text-[30px] leading-6 text-[#090909]">→</span>
+        <TopoNavArrow topoId={topo.nextTopoId} direction="next" />
       </div>
       <div className="mt-3 border-y border-[#E8E8E8]">
         {topo.routes.map((route, index) => {

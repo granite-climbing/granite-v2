@@ -214,13 +214,18 @@ async function loadTopoById(id: string): Promise<TopoDetail | null> {
     getTopoRoutes(id),
   ]);
 
-  const topoIndex = boulderTopos.findIndex((t) => t.id === id) + 1;
+  const currentIdx = boulderTopos.findIndex((t) => t.id === id);
+  const topoIndex = currentIdx + 1;
   const topoCount = boulderTopos.length;
+  const prevTopoId = currentIdx > 0 ? (boulderTopos[currentIdx - 1]?.id ?? null) : null;
+  const nextTopoId = currentIdx < topoCount - 1 ? (boulderTopos[currentIdx + 1]?.id ?? null) : null;
 
   return {
     ...topo,
     topoIndex,
     topoCount,
+    prevTopoId,
+    nextTopoId,
     boulder,
     sector,
     crag,

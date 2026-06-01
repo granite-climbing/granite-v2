@@ -111,6 +111,8 @@ export type BoulderDetail = Boulder & {
 export type TopoDetail = Topo & {
   topoIndex: number;
   topoCount: number;
+  prevTopoId: string | null;
+  nextTopoId: string | null;
   boulder: Boulder;
   sector: Sector;
   crag: Crag;

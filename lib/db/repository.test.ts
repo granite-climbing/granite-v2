@@ -441,6 +441,80 @@ describe("findTopoById", () => {
     expect(result!.topoIndex).toBe(1);
     expect(result!.topoCount).toBe(2);
   });
+
+  it("first topo: prevTopoId is null, nextTopoId is set", async () => {
+    vi.mocked(queries.getTopoById).mockResolvedValue({
+      ...TOPO_1,
+      boulder: BOULDER_1,
+      sector: SECTOR_1,
+      crag: CRAG_1,
+    });
+    vi.mocked(queries.getBoulderTopos).mockResolvedValue([TOPO_1, TOPO_2]);
+    vi.mocked(queries.getTopoRoutes).mockResolvedValue([]);
+
+    const result = await findTopoById("topo-1");
+
+    expect(result!.prevTopoId).toBeNull();
+    expect(result!.nextTopoId).toBe("topo-2");
+  });
+
+  it("last topo: prevTopoId is set, nextTopoId is null", async () => {
+    vi.mocked(queries.getTopoById).mockResolvedValue({
+      ...TOPO_2,
+      boulder: BOULDER_1,
+      sector: SECTOR_1,
+      crag: CRAG_1,
+    });
+    vi.mocked(queries.getBoulderTopos).mockResolvedValue([TOPO_1, TOPO_2]);
+    vi.mocked(queries.getTopoRoutes).mockResolvedValue([]);
+
+    const result = await findTopoById("topo-2");
+
+    expect(result!.prevTopoId).toBe("topo-1");
+    expect(result!.nextTopoId).toBeNull();
+  });
+
+  it("middle topo: both prevTopoId and nextTopoId are set", async () => {
+    const TOPO_3 = {
+      id: "topo-3",
+      boulderId: "boulder-1",
+      name: "상단",
+      baseImageUrl: "https://cdn/topos/topo-3.jpg",
+      isPublished: true,
+      sortOrder: 3,
+    };
+    vi.mocked(queries.getTopoById).mockResolvedValue({
+      ...TOPO_2,
+      boulder: BOULDER_1,
+      sector: SECTOR_1,
+      crag: CRAG_1,
+    });
+    vi.mocked(queries.getBoulderTopos).mockResolvedValue([TOPO_1, TOPO_2, TOPO_3]);
+    vi.mocked(queries.getTopoRoutes).mockResolvedValue([]);
+
+    const result = await findTopoById("topo-2");
+
+    expect(result!.prevTopoId).toBe("topo-1");
+    expect(result!.nextTopoId).toBe("topo-3");
+  });
+
+  it("single-topo boulder: both prevTopoId and nextTopoId are null", async () => {
+    vi.mocked(queries.getTopoById).mockResolvedValue({
+      ...TOPO_1,
+      boulder: BOULDER_1,
+      sector: SECTOR_1,
+      crag: CRAG_1,
+    });
+    vi.mocked(queries.getBoulderTopos).mockResolvedValue([TOPO_1]);
+    vi.mocked(queries.getTopoRoutes).mockResolvedValue([]);
+
+    const result = await findTopoById("topo-1");
+
+    expect(result!.prevTopoId).toBeNull();
+    expect(result!.nextTopoId).toBeNull();
+    expect(result!.topoIndex).toBe(1);
+    expect(result!.topoCount).toBe(1);
+  });
 });
 
 // ---------------------------------------------------------------------------
