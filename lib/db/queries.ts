@@ -1017,7 +1017,7 @@ interface GradeBandCountRow {
  * Count is the number of published routes (full ancestor chain published and
  * non-soft-deleted) per grade band.
  * All five bands are always returned (count = 0 when no routes in that range).
- * Note: Topos have no is_published gate beyond deleted_at IS NULL.
+ * Topos filtered by t.is_published = 1 AND t.deleted_at IS NULL.
  */
 export async function getAreaGradeDistribution(
   areaId: string
@@ -1045,6 +1045,7 @@ export async function getAreaGradeDistribution(
      JOIN crags c ON c.id = s.crag_id
      WHERE c.area_id = ?
        AND r.is_published = 1
+       AND t.is_published = 1
        AND t.deleted_at IS NULL
        AND b.is_published = 1
        AND s.is_published = 1

@@ -920,6 +920,7 @@ describe("getAreaGradeDistribution", () => {
 
     const [sql] = mockQueryD1.mock.calls[0] as [string, unknown];
     expect(sql).toMatch(/r\.is_published = 1/);
+    expect(sql).toMatch(/t\.is_published = 1/);
     expect(sql).toMatch(/t\.deleted_at IS NULL/);
     expect(sql).toMatch(/b\.is_published = 1/);
     expect(sql).toMatch(/s\.is_published = 1/);
