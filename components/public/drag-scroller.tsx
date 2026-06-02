@@ -102,7 +102,10 @@ export const DragScroller = forwardRef<HTMLDivElement, DragScrollerProps>(functi
       samples: [{ t: performance.now(), x: e.clientX }],
     };
     didDrag.current = false;
-    el.setPointerCapture(e.pointerId);
+    // Intentionally DO NOT call setPointerCapture here. Capturing on pointerdown causes
+    // some browsers to re-target the trailing click event to this container, which
+    // breaks click navigation on child <Link>s. We defer capture until movement
+    // crosses DRAG_THRESHOLD (i.e. the gesture is confirmed to be a drag).
   }
 
   function onPointerMove(e: PointerEvent<HTMLDivElement>) {
@@ -115,6 +118,9 @@ export const DragScroller = forwardRef<HTMLDivElement, DragScrollerProps>(functi
       didDrag.current = true;
       // Disable snap so the drag feels 1:1 instead of locking to each snap point.
       el.style.scrollSnapType = "none";
+      // Capture now that the gesture is confirmed — we'll keep receiving pointer
+      // events even if the cursor leaves the container.
+      el.setPointerCapture(d.pointerId);
     }
     if (d.moved) {
       el.scrollLeft = d.startScroll - dx;
@@ -132,7 +138,10 @@ export const DragScroller = forwardRef<HTMLDivElement, DragScrollerProps>(functi
     const el = ref.current;
     const d = drag.current;
     if (!el || !d || d.pointerId !== e.pointerId) return;
-    el.releasePointerCapture(e.pointerId);
+    // Only release capture if we actually acquired it (i.e. the gesture was a drag).
+    if (d.moved && el.hasPointerCapture(e.pointerId)) {
+      el.releasePointerCapture(e.pointerId);
+    }
 
     if (d.moved) {
       // Estimate release velocity (px/ms, pointer-space). Negative scroll direction.
