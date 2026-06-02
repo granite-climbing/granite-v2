@@ -8,6 +8,7 @@ vi.mock("./d1", () => ({
   findPublishedRouteCandidates: vi.fn(),
   insertWebhookBeta: vi.fn(),
   hydrateWebhookInbox: vi.fn(),
+  tryReclaimWebhookForRetry: vi.fn(),
 }));
 vi.mock("./graph-api", () => ({
   fetchMentionedMedia: vi.fn(),
@@ -35,6 +36,9 @@ describe("processMentionEvent error boundary", () => {
     vi.mocked(d1.insertWebhookInbox).mockReset().mockResolvedValue({ inserted: true });
     vi.mocked(d1.setWebhookInboxStatus).mockReset().mockResolvedValue(undefined);
     vi.mocked(d1.insertWebhookOperationalEvent).mockReset().mockResolvedValue(undefined);
+    vi.mocked(d1.tryReclaimWebhookForRetry).mockReset();
+    vi.mocked(d1.hydrateWebhookInbox).mockReset().mockResolvedValue(undefined);
+    vi.mocked(d1.findPublishedRouteCandidates).mockReset();
     vi.mocked(graph.fetchMentionedMedia).mockReset();
     vi.mocked(graph.fetchMentionedComment).mockReset();
   });
@@ -105,5 +109,79 @@ describe("processMentionEvent error boundary", () => {
     const statusOrders = vi.mocked(d1.setWebhookInboxStatus).mock.invocationCallOrder;
     const lastStatusOrder = statusOrders[statusOrders.length - 1];
     expect(hydrateOrder).toBeLessThan(lastStatusOrder);
+  });
+});
+
+describe("processMentionEvent redelivery", () => {
+  beforeEach(() => {
+    vi.mocked(d1.insertWebhookInbox).mockReset().mockResolvedValue({ inserted: true });
+    vi.mocked(d1.setWebhookInboxStatus).mockReset().mockResolvedValue(undefined);
+    vi.mocked(d1.insertWebhookOperationalEvent).mockReset().mockResolvedValue(undefined);
+    vi.mocked(d1.tryReclaimWebhookForRetry).mockReset();
+    vi.mocked(d1.hydrateWebhookInbox).mockReset().mockResolvedValue(undefined);
+    vi.mocked(d1.findPublishedRouteCandidates).mockReset();
+    vi.mocked(graph.fetchMentionedMedia).mockReset();
+    vi.mocked(graph.fetchMentionedComment).mockReset();
+  });
+
+  it("no-ops when Meta redelivers a terminal-state row", async () => {
+    vi.mocked(d1.insertWebhookInbox).mockResolvedValueOnce({ inserted: false });
+    vi.mocked(d1.tryReclaimWebhookForRetry).mockResolvedValueOnce(null);
+
+    await processMentionEvent(
+      { externalId: "m_terminal", igUserId: "u1", mediaId: "m_terminal", commentId: null },
+      env,
+      "{}"
+    );
+
+    expect(graph.fetchMentionedMedia).not.toHaveBeenCalled();
+    expect(d1.setWebhookInboxStatus).not.toHaveBeenCalled();
+  });
+
+  it("reprocesses a failed row when Meta redelivers", async () => {
+    vi.mocked(d1.insertWebhookInbox).mockResolvedValueOnce({ inserted: false });
+    vi.mocked(d1.tryReclaimWebhookForRetry).mockResolvedValueOnce({
+      webhookId: "webhook_existing",
+      currentStatus: "failed",
+    });
+    vi.mocked(graph.fetchMentionedMedia).mockResolvedValueOnce({
+      username: "@Climber",
+      caption: "@granite.kr #큰바위 #SkyHook",
+      mediaUrl: "https://video.cdninstagram.com/abc",
+      thumbnailUrl: "https://scontent.cdninstagram.com/abc.jpg",
+      permalink: "https://www.instagram.com/p/abc/",
+    });
+    vi.mocked(d1.findPublishedRouteCandidates).mockResolvedValueOnce([]);
+
+    await processMentionEvent(
+      { externalId: "m_failed", igUserId: "u1", mediaId: "m_failed", commentId: null },
+      env,
+      "{}"
+    );
+
+    expect(d1.hydrateWebhookInbox).toHaveBeenCalledWith(
+      env.granite_v2,
+      expect.objectContaining({ id: "webhook_existing" })
+    );
+  });
+
+  it("uses the new row id when insert succeeds (first delivery)", async () => {
+    vi.mocked(d1.insertWebhookInbox).mockResolvedValueOnce({ inserted: true });
+    vi.mocked(graph.fetchMentionedMedia).mockResolvedValueOnce({
+      username: "@Climber",
+      caption: "@granite.kr #큰바위 #SkyHook",
+      mediaUrl: "https://video.cdninstagram.com/abc",
+      thumbnailUrl: null,
+      permalink: null,
+    });
+    vi.mocked(d1.findPublishedRouteCandidates).mockResolvedValueOnce([]);
+
+    await processMentionEvent(
+      { externalId: "m_new", igUserId: "u1", mediaId: "m_new", commentId: null },
+      env,
+      "{}"
+    );
+
+    expect(d1.tryReclaimWebhookForRetry).not.toHaveBeenCalled();
   });
 });

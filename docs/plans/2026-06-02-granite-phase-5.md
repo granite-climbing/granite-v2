@@ -3661,7 +3661,7 @@ The fix is state-aware idempotency:
 - Modify: `workers/instagram-webhook/src/match.test.ts` (3 new tests)
 - Modify: `docs/plans/2026-06-02-granite-phase-5.md` (checkboxes)
 
-- [ ] **Step 1: Write failing tests for the redelivery scenarios.**
+- [x] **Step 1: Write failing tests for the redelivery scenarios.**
 
 Open `workers/instagram-webhook/src/match.test.ts`. Add `tryReclaimWebhookForRetry: vi.fn()` to the existing `vi.mock("./d1", ...)` factory. Append three tests at the end of the `describe("processMentionEvent error boundary", ...)` block (or in a sibling `describe("processMentionEvent redelivery")`):
 
@@ -3737,7 +3737,7 @@ If `tryReclaimWebhookForRetry` is not yet in the mock factory, add it. Reset all
 
 After completing this step, flip Step 1's checkbox to `[x]` in the plan file.
 
-- [ ] **Step 2: Run the tests and confirm they fail.**
+- [x] **Step 2: Run the tests and confirm they fail.**
 
 ```
 pnpm test workers/instagram-webhook/src/match.test.ts
@@ -3746,7 +3746,7 @@ Expected: at least the terminal no-op test and the failed-reclaim test fail beca
 
 Flip Step 2 checkbox.
 
-- [ ] **Step 3: Add `tryReclaimWebhookForRetry` to `workers/instagram-webhook/src/d1.ts`.**
+- [x] **Step 3: Add `tryReclaimWebhookForRetry` to `workers/instagram-webhook/src/d1.ts`.**
 
 ```ts
 export async function tryReclaimWebhookForRetry(
@@ -3787,7 +3787,7 @@ export async function tryReclaimWebhookForRetry(
 
 Flip Step 3 checkbox.
 
-- [ ] **Step 4: Replace the early-return idempotency in `workers/instagram-webhook/src/match.ts`.**
+- [x] **Step 4: Replace the early-return idempotency in `workers/instagram-webhook/src/match.ts`.**
 
 Read the current file. Find the existing block (around the top of `processMentionEvent`):
 
@@ -3849,7 +3849,7 @@ Add `tryReclaimWebhookForRetry` to the `import { ... } from "./d1";` block.
 
 Flip Step 4 checkbox.
 
-- [ ] **Step 5: Run the tests and confirm they pass.**
+- [x] **Step 5: Run the tests and confirm they pass.**
 
 ```
 pnpm test workers/instagram-webhook/src/match.test.ts
@@ -3858,7 +3858,7 @@ Expected: all tests (Task 12, 14, and Task 16's 3 new) green.
 
 Flip Step 5 checkbox.
 
-- [ ] **Step 6: Full verification.**
+- [x] **Step 6: Full verification.**
 
 ```
 pnpm test workers/instagram-webhook
@@ -3869,7 +3869,7 @@ All three must pass.
 
 Flip Step 6 checkbox.
 
-- [ ] **Step 7: Mark Task 16 step checkboxes complete in this plan file.**
+- [x] **Step 7: Mark Task 16 step checkboxes complete in this plan file.**
 
 Verify Steps 1–6 are `[x]`. Flip Step 7 itself to `[x]`.
 

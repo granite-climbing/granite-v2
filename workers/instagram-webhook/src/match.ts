@@ -8,6 +8,7 @@ import {
   insertWebhookInbox,
   insertWebhookOperationalEvent,
   setWebhookInboxStatus,
+  tryReclaimWebhookForRetry,
 } from "./d1";
 import { fetchMentionedComment, fetchMentionedMedia } from "./graph-api";
 import { extractHashtags, normalizeHandle, normalizeToken } from "./normalize";
@@ -22,10 +23,10 @@ export async function processMentionEvent(
   env: Env,
   rawPayload: string
 ): Promise<void> {
-  const webhookId = uuid("webhook");
+  const newWebhookId = uuid("webhook");
 
   const inserted = await insertWebhookInbox(env.granite_v2, {
-    id: webhookId,
+    id: newWebhookId,
     externalId: event.externalId,
     externalMediaId: event.mediaId,
     igUserId: event.igUserId,
@@ -36,16 +37,23 @@ export async function processMentionEvent(
     rawPayload,
   });
 
-  if (!inserted.inserted) {
-    // Already processed (idempotent): nothing to do.
-    return;
+  let webhookId: string;
+  if (inserted.inserted) {
+    webhookId = newWebhookId;
+    await setWebhookInboxStatus(env.granite_v2, {
+      id: webhookId,
+      status: "processing",
+      incrementAttempts: true,
+    });
+  } else {
+    const reclaim = await tryReclaimWebhookForRetry(env.granite_v2, event.externalId);
+    if (!reclaim) {
+      // Existing row is in a terminal status — true idempotent no-op.
+      return;
+    }
+    webhookId = reclaim.webhookId;
+    // tryReclaimWebhookForRetry already set status='processing' + incremented attempts.
   }
-
-  await setWebhookInboxStatus(env.granite_v2, {
-    id: webhookId,
-    status: "processing",
-    incrementAttempts: true,
-  });
 
   try {
   let captionText = "";

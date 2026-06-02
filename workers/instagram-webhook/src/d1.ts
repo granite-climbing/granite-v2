@@ -176,6 +176,39 @@ export async function hydrateWebhookInbox(
     .run();
 }
 
+export async function tryReclaimWebhookForRetry(
+  db: D1Database,
+  externalId: string
+): Promise<{ webhookId: string; currentStatus: string } | null> {
+  const updateResult = await db
+    .prepare(
+      `UPDATE webhook_inbox
+       SET status = 'processing',
+           processing_attempts = processing_attempts + 1,
+           updated_at = datetime('now')
+       WHERE external_id = ?
+         AND status IN ('received', 'processing', 'failed', 'unmatched')`
+    )
+    .bind(externalId)
+    .run();
+
+  if ((updateResult.meta.changes ?? 0) === 0) {
+    return null;
+  }
+
+  const row = await db
+    .prepare(
+      `SELECT id AS webhookId, status AS currentStatus
+       FROM webhook_inbox
+       WHERE external_id = ?
+       LIMIT 1`
+    )
+    .bind(externalId)
+    .first<{ webhookId: string; currentStatus: string }>();
+
+  return row;
+}
+
 export async function insertWebhookOperationalEvent(
   db: D1Database,
   input: {
