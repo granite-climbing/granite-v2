@@ -785,7 +785,7 @@ git commit -m "feat(admin): move create forms into EditDrawer triggered by ?new=
 
 Today the option-list queries (`listCragOptionsByArea(areaId)`, etc.) require a parent ID. The page only loads child options when the parent is selected, so the dropdowns hide cascade. We want each dropdown ALWAYS visible with the full option list when the parent is unset.
 
-- [ ] **Step 1: Loosen `listCragOptionsByArea` to accept an optional `areaId`.**
+- [x] **Step 1: Loosen `listCragOptionsByArea` to accept an optional `areaId`.**
 
 Edit `lib/db/admin-read-queries.ts`:
 
@@ -810,11 +810,11 @@ export async function listCragOptionsByArea(areaId?: string): Promise<ParentOpti
 
 (Function name unchanged so existing callers keep working. The parameter becomes optional.)
 
-- [ ] **Step 2: Apply the same loosening to `listSectorOptionsByCrag`, `listBoulderOptionsBySector`, `listTopoOptionsByBoulder`.**
+- [x] **Step 2: Apply the same loosening to `listSectorOptionsByCrag`, `listBoulderOptionsBySector`, `listTopoOptionsByBoulder`.**
 
 For each, change the required parent-id parameter to optional. Build `WHERE` conditions dynamically. Keep ancestor `is_published`/`deleted_at` chain checks.
 
-- [ ] **Step 3: Add tests for the no-parent path.**
+- [x] **Step 3: Add tests for the no-parent path.**
 
 In `lib/db/admin-read-queries.test.ts`, mirror the existing test pattern. For each function:
 
@@ -836,12 +836,12 @@ it("listCragOptionsByArea: with no areaId returns all live crags", async () => {
 
 (Add four analogous tests.)
 
-- [ ] **Step 4: Run tests.**
+- [x] **Step 4: Run tests.**
 
 Run: `pnpm test lib/db/admin-read-queries.test.ts`
 Expected: all pass.
 
-- [ ] **Step 5: Update each entity page to ALWAYS load every applicable option list.**
+- [x] **Step 5: Update each entity page to ALWAYS load every applicable option list.**
 
 Example for `sectors/page.tsx`:
 
@@ -857,7 +857,7 @@ Drop the previous conditional `areaId ? listCragOptionsByArea(areaId) : Promise.
 
 Note: when no parent is set, the child option list may be large (potentially hundreds of crags/sectors). This is acceptable for admin — but verify in a build the page still renders fast. If performance becomes a concern, follow-up by paginating the dropdown or switching to typeahead — out of scope here.
 
-- [ ] **Step 6: Update `ParentFilter` to always render every applicable dropdown.**
+- [x] **Step 6: Update `ParentFilter` to always render every applicable dropdown.**
 
 Edit `components/admin/parent-filter.tsx`. The current code likely uses `{areaOptions && <select>}`-style gating; replace with unconditional rendering for the dropdowns that should always appear on this page. The page passes the full option lists every time (from step 5), so the gating can be removed entirely.
 
@@ -881,7 +881,7 @@ Concretely, change pattern:
 
 The actual logic: each page passes only the dropdowns relevant to its entity (e.g. Sectors page passes `areaOptions` + `cragOptions`; Crags page passes only `areaOptions`). The component should render each dropdown that received a non-empty array.
 
-- [ ] **Step 7: Confirm the DB list queries (`getAdminSectors`, `getAdminBoulders`, etc.) already apply each filter independently.**
+- [x] **Step 7: Confirm the DB list queries (`getAdminSectors`, `getAdminBoulders`, etc.) already apply each filter independently.**
 
 Read `lib/db/admin-read-queries.ts`. Per Task 10 of the original plan, the filter builder uses conjunctive AND with each filter applied independently — no requirement on parent presence. If the current implementation requires `areaId` before `cragId` is applied, fix it: each filter param should add its own WHERE condition independently. Add a regression test:
 
@@ -902,12 +902,12 @@ it("getAdminSectors: filters by cragId alone without areaId", async () => {
 
 If the existing implementation already passes this test, great. If not, refactor the WHERE-condition builder so each ID condition is independent.
 
-- [ ] **Step 8: Run tests + typecheck + build.**
+- [x] **Step 8: Run tests + typecheck + build.**
 
 Run: `pnpm typecheck && pnpm test && pnpm build`
 Expected: all clean.
 
-- [ ] **Step 9: Commit.**
+- [x] **Step 9: Commit.**
 
 ```bash
 git add lib/db/admin-read-queries.ts lib/db/admin-read-queries.test.ts \
@@ -920,7 +920,7 @@ git commit -m "feat(admin): independent parent filters with always-visible dropd
 
 ### Task 8: Final verification
 
-- [ ] **Step 1: Run full suite.**
+- [x] **Step 1: Run full suite.**
 
 ```bash
 pnpm test && pnpm typecheck && pnpm build
@@ -928,7 +928,7 @@ pnpm test && pnpm typecheck && pnpm build
 
 Expected: all green.
 
-- [ ] **Step 2: Local smoke check (manual).**
+- [x] **Step 2: Local smoke check (manual).**
 
 ```bash
 pnpm dev
@@ -943,7 +943,7 @@ Then in the browser at `http://localhost:3000`:
 - Admin `/admin/content/sectors?cragId=<crag-id>` (without areaId) — the list filters correctly by crag. Both Area and Crag dropdowns are visible with full options.
 - Admin `/admin/content/sectors?new=true&cragId=<crag-id>` — Drawer opens with `cragId` prefilled in the create form.
 
-- [ ] **Step 3: Confirm no legacy artifacts.**
+- [x] **Step 3: Confirm no legacy artifacts.**
 
 ```bash
 # Sanity grep: no <AdminCard title="Create ...> blocks remaining at top of list pages
@@ -955,7 +955,7 @@ grep -rn '/topos/' app/ components/ lib/
 # Expected: only R2 storage URLs under cdn.granite.kr.
 ```
 
-- [ ] **Step 4: Commit any final docs update if needed.**
+- [x] **Step 4: Commit any final docs update if needed.**
 
 ```bash
 # Only if anything was overlooked above.
