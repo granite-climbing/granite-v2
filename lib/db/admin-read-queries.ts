@@ -428,7 +428,7 @@ export async function getAdminCrags(filters?: CragFilters): Promise<AdminCragRow
   const conditions: string[] = ["a.deleted_at IS NULL"];
   const params: unknown[] = [];
 
-  if (filters?.areaId !== undefined) {
+  if (filters?.areaId) {
     conditions.push("c.area_id = ?");
     params.push(filters.areaId);
   }
@@ -477,11 +477,11 @@ export async function getAdminSectors(filters?: SectorFilters | string): Promise
   const conditions: string[] = ["c.deleted_at IS NULL", "a.deleted_at IS NULL"];
   const params: unknown[] = [];
 
-  if (normalised.areaId !== undefined) {
+  if (normalised.areaId) {
     conditions.push("c.area_id = ?");
     params.push(normalised.areaId);
   }
-  if (normalised.cragId !== undefined) {
+  if (normalised.cragId) {
     conditions.push("s.crag_id = ?");
     params.push(normalised.cragId);
   }
@@ -536,15 +536,15 @@ export async function getAdminBoulders(filters?: BoulderFilters | string): Promi
   ];
   const params: unknown[] = [];
 
-  if (normalised.areaId !== undefined) {
+  if (normalised.areaId) {
     conditions.push("c.area_id = ?");
     params.push(normalised.areaId);
   }
-  if (normalised.cragId !== undefined) {
+  if (normalised.cragId) {
     conditions.push("s.crag_id = ?");
     params.push(normalised.cragId);
   }
-  if (normalised.sectorId !== undefined) {
+  if (normalised.sectorId) {
     conditions.push("b.sector_id = ?");
     params.push(normalised.sectorId);
   }
@@ -601,19 +601,19 @@ export async function getAdminTopos(filters?: TopoFilters | string): Promise<Adm
   ];
   const params: unknown[] = [];
 
-  if (normalised.areaId !== undefined) {
+  if (normalised.areaId) {
     conditions.push("c.area_id = ?");
     params.push(normalised.areaId);
   }
-  if (normalised.cragId !== undefined) {
+  if (normalised.cragId) {
     conditions.push("s.crag_id = ?");
     params.push(normalised.cragId);
   }
-  if (normalised.sectorId !== undefined) {
+  if (normalised.sectorId) {
     conditions.push("b.sector_id = ?");
     params.push(normalised.sectorId);
   }
-  if (normalised.boulderId !== undefined) {
+  if (normalised.boulderId) {
     conditions.push("t.boulder_id = ?");
     params.push(normalised.boulderId);
   }
@@ -673,23 +673,23 @@ export async function getAdminRoutes(filters?: RouteFilters | string): Promise<A
   ];
   const params: unknown[] = [];
 
-  if (normalised.areaId !== undefined) {
+  if (normalised.areaId) {
     conditions.push("c.area_id = ?");
     params.push(normalised.areaId);
   }
-  if (normalised.cragId !== undefined) {
+  if (normalised.cragId) {
     conditions.push("s.crag_id = ?");
     params.push(normalised.cragId);
   }
-  if (normalised.sectorId !== undefined) {
+  if (normalised.sectorId) {
     conditions.push("b.sector_id = ?");
     params.push(normalised.sectorId);
   }
-  if (normalised.boulderId !== undefined) {
+  if (normalised.boulderId) {
     conditions.push("t.boulder_id = ?");
     params.push(normalised.boulderId);
   }
-  if (normalised.topoId !== undefined) {
+  if (normalised.topoId) {
     conditions.push("r.topo_id = ?");
     params.push(normalised.topoId);
   }

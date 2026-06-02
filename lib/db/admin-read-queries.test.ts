@@ -548,6 +548,26 @@ describe("getAdminSectors — areaId + cragId filters", () => {
     expect(sql).not.toMatch(/c\.area_id = \?/);
     expect(params).toEqual(["crag-1"]);
   });
+
+  it("regression: empty-string areaId is treated as no filter (from URL ?areaId=)", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminSectors({ areaId: "", cragId: "crag-1" });
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).not.toMatch(/c\.area_id = \?/);
+    expect(sql).toMatch(/s\.crag_id = \?/);
+    expect(params).toEqual(["crag-1"]);
+  });
+
+  it("regression: all-empty filters skip every parent condition", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminSectors({ areaId: "", cragId: "" });
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).not.toMatch(/c\.area_id = \?/);
+    expect(sql).not.toMatch(/s\.crag_id = \?/);
+    expect(params).toBeUndefined();
+  });
 });
 
 // ---------------------------------------------------------------------------
