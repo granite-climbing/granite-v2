@@ -1,9 +1,10 @@
 name = "granite-workers"
 main = "workers/instagram-webhook/src/index.ts"
-compatibility_date = "2026-05-16"
+compatibility_date = "2026-06-02"
 
 [vars]
 ENVIRONMENT = "production"
+CDN_BASE_URL = "https://cdn.granite.kr"
 
 [[d1_databases]]
 binding = "granite_v2"
