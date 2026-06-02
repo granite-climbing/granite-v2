@@ -3222,9 +3222,432 @@ git commit -m "fix(webhook): atomic manual match with canonical media id"
 
 ---
 
+## Task 14: Hydrate `webhook_inbox` with Graph API Response Data
+
+**Codex finding addressed:** `processMentionEvent` inserts the inbox row with empty `ig_username`, `caption`, `media_url`, `thumbnail_url`. After the Graph API helpers resolve, the data is held only in local variables and never written to the database. The admin webhook inbox therefore shows blank captions and missing media links — so operators cannot reason about `unmatched`/`failed`/`duplicate` rows. Worse, `manualMatchWebhookToRoute` (Task 13) SELECTs those same empty columns and feeds them into `INSERT INTO betas`, producing public Beta rows with blank handle/display name/media URL. The entire Phase 5 manual-recovery story is non-functional until hydration lands.
+
+**Files:**
+- Modify: `workers/instagram-webhook/src/d1.ts` (add `hydrateWebhookInbox`)
+- Modify: `workers/instagram-webhook/src/match.ts` (call hydrate after Graph API resolves)
+- Modify: `workers/instagram-webhook/src/match.test.ts` (assert hydrate is invoked with the resolved values)
+- Modify: `docs/plans/2026-06-02-granite-phase-5.md` (mark Task 14 step checkboxes)
+
+- [ ] **Step 1: Add the failing hydration assertion.**
+
+Open `workers/instagram-webhook/src/match.test.ts`. Add `hydrateWebhookInbox: vi.fn()` to the `vi.mock("./d1", ...)` factory, alongside the existing helpers. Add a new test at the bottom of the `describe("processMentionEvent error boundary", ...)` block (or in a new sibling `describe` named `"processMentionEvent hydration"`):
+
+```ts
+it("hydrates webhook_inbox with resolved Graph API fields before transitioning status", async () => {
+  vi.mocked(graph.fetchMentionedMedia).mockResolvedValue({
+    username: "@Climber",
+    caption: "@granite.kr #큰바위 #SkyHook",
+    mediaUrl: "https://video.cdninstagram.com/abc",
+    thumbnailUrl: "https://scontent.cdninstagram.com/abc.jpg",
+    permalink: "https://www.instagram.com/p/abc/",
+  });
+  vi.mocked(d1.findPublishedRouteCandidates).mockResolvedValue([]); // force unmatched
+
+  await processMentionEvent(
+    { externalId: "m3", igUserId: "u1", mediaId: "m3", commentId: null },
+    env,
+    "{}"
+  );
+
+  expect(d1.hydrateWebhookInbox).toHaveBeenCalledWith(
+    env.granite_v2,
+    expect.objectContaining({
+      id: expect.any(String),
+      igUsername: "climber", // normalized: @ stripped, lowercased
+      caption: "@granite.kr #큰바위 #SkyHook",
+      mediaUrl: "https://video.cdninstagram.com/abc",
+      permalinkUrl: "https://www.instagram.com/p/abc/",
+    })
+  );
+
+  // hydrate must run BEFORE the final unmatched/matched status transition
+  const hydrateOrder = vi.mocked(d1.hydrateWebhookInbox).mock.invocationCallOrder[0];
+  const statusOrder = vi.mocked(d1.setWebhookInboxStatus).mock.invocationCallOrder;
+  const lastStatusOrder = statusOrder[statusOrder.length - 1];
+  expect(hydrateOrder).toBeLessThan(lastStatusOrder);
+});
+```
+
+- [ ] **Step 2: Run the test and confirm it fails.**
+
+```
+pnpm test workers/instagram-webhook/src/match.test.ts
+```
+Expected: this new test fails because `hydrateWebhookInbox` does not exist yet.
+
+- [ ] **Step 3: Add `hydrateWebhookInbox` to `workers/instagram-webhook/src/d1.ts`.**
+
+Append next to the other inbox helpers:
+
+```ts
+export async function hydrateWebhookInbox(
+  db: D1Database,
+  input: {
+    id: string;
+    igUsername: string;
+    caption: string;
+    mediaUrl: string;
+    permalinkUrl: string | null;
+    thumbnailUrl: string | null;
+  }
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE webhook_inbox SET
+         ig_username = ?,
+         caption = ?,
+         media_url = ?,
+         thumbnail_url = ?,
+         updated_at = datetime('now')
+       WHERE id = ?`
+    )
+    .bind(
+      input.igUsername,
+      input.caption,
+      input.mediaUrl,
+      input.thumbnailUrl,
+      input.id
+    )
+    .run();
+}
+```
+
+Note: `webhook_inbox` has no `permalink_url` column today. `permalinkUrl` is included in the helper signature for symmetry with `betas.permalink_url` and so the controller (match.ts) can pass it; we drop it in the SQL until/unless a future migration adds the column. Keeping it in the signature documents intent without a schema change.
+
+- [ ] **Step 4: Call `hydrateWebhookInbox` from `workers/instagram-webhook/src/match.ts`.**
+
+Inside the existing `try` block (Task 12 wrapper), AFTER both `fetchMentionedComment` (if applicable) and `fetchMentionedMedia` have resolved successfully, and BEFORE the duplicate check, insert:
+
+```ts
+const igUsername = normalizeHandle(media.username);
+if (!captionText) captionText = media.caption;
+
+await hydrateWebhookInbox(env.granite_v2, {
+  id: webhookId,
+  igUsername,
+  caption: captionText,
+  mediaUrl: media.mediaUrl ?? media.permalink ?? "",
+  permalinkUrl: media.permalink,
+  thumbnailUrl: media.thumbnailUrl,
+});
+```
+
+The existing `const igUsername = normalizeHandle(media.username);` and `if (!captionText) captionText = media.caption;` lines should ALREADY appear earlier — move them above the hydrate call if needed so the hydrate sees the normalized handle. Remove any duplicate later assignment.
+
+Add `hydrateWebhookInbox` to the existing `import { ... } from "./d1";` block.
+
+- [ ] **Step 5: Run the test and confirm it passes.**
+
+```
+pnpm test workers/instagram-webhook/src/match.test.ts
+```
+Expected: 3/3 (or 4/4 if you added it as a new test in a sibling describe) green.
+
+- [ ] **Step 6: Full verification.**
+
+```
+pnpm test workers/instagram-webhook
+pnpm typecheck
+pnpm wrangler deploy --dry-run
+```
+All three must pass.
+
+- [ ] **Step 7: Mark Task 14 step checkboxes complete in this plan file.**
+
+In `docs/plans/2026-06-02-granite-phase-5.md`, change every `- [ ] **Step N:` line inside Task 14 to `- [x] **Step N:`. Include Step 7 itself (your last action before the commit step).
+
+- [ ] **Step 8: Commit.**
+
+```bash
+git add workers/instagram-webhook/src/d1.ts workers/instagram-webhook/src/match.ts workers/instagram-webhook/src/match.test.ts docs/plans/2026-06-02-granite-phase-5.md
+git commit -m "fix(webhook): hydrate inbox with graph api response before status transitions"
+```
+
+---
+
+## Task 15: Manual Match Partial-Failure Recovery and Orphan Visibility
+
+**Codex finding addressed:** Task 13's `manualMatchWebhookToRoute` makes 5 separate D1 HTTP calls (atomic claim → SELECT row → `findExistingBetaByExternalMedia` → INSERT beta → finalize matched_beta_id). Each is a network round-trip. If steps 4 or 5 fail, the row's status is already `manual_matched` but `matched_beta_id` may be NULL (orphan) or the Beta may exist without a back-link. The Phase 5 Self-Review noted this as "acceptable for admin-gated low-volume operations" but Codex's partial-failure framing is correct: there is no compensating action, and the admin UI doesn't surface the orphan state.
+
+**Files:**
+- Modify: `lib/db/beta-queries.ts` (compensating revert + operational events around partial failures)
+- Modify: `lib/db/beta-queries.test.ts` (partial failure tests)
+- Modify: `app/admin/(protected)/webhooks/page.tsx` (orphan callout for `manual_matched + matched_beta_id IS NULL`)
+- Modify: `docs/plans/2026-06-02-granite-phase-5.md` (mark Task 15 step checkboxes)
+
+- [ ] **Step 1: Write failing tests for partial-failure recovery.**
+
+Open `lib/db/beta-queries.test.ts`. Add `insertWebhookOperationalEvent: vi.fn()` to the `vi.mock` factory if it's not already there. Then append these tests at the end of the existing `describe("manualMatchWebhookToRoute", ...)` block:
+
+```ts
+it("reverts to unmatched and logs orphan event when beta insert fails", async () => {
+  vi.mocked(executeD1Meta).mockResolvedValue({ changes: 1 });
+
+  const insertError = new Error("D1 UNIQUE constraint");
+  vi.mocked(queryD1)
+    .mockResolvedValueOnce([
+      {
+        igUsername: "climber",
+        caption: "@granite.kr #큰바위 #SkyHook",
+        mediaUrl: "https://www.instagram.com/p/abc/",
+        externalId: "comment_1",
+        externalMediaId: "media_1",
+      },
+    ]) // SELECT row
+    .mockRejectedValueOnce(insertError) // INSERT betas FAILS
+    .mockResolvedValueOnce([]); // compensating revert UPDATE
+  vi.mocked(queryD1First).mockResolvedValueOnce(null); // findExistingBetaByExternalMedia
+
+  const { manualMatchWebhookToRoute } = await import("./beta-queries");
+
+  const outcome = await manualMatchWebhookToRoute({
+    webhookId: "webhook_1",
+    routeId: "route_1",
+    betaId: "beta_new",
+  });
+
+  expect(outcome).toEqual({ ok: false, reason: "not_unmatched" });
+
+  // Compensating revert ran: status back to unmatched
+  const revertCall = vi
+    .mocked(queryD1)
+    .mock.calls.find(
+      (c) =>
+        typeof c[0] === "string" &&
+        c[0].includes("UPDATE webhook_inbox") &&
+        c[0].includes("status = 'unmatched'")
+    );
+  expect(revertCall).toBeDefined();
+});
+
+it("logs orphan event when finalize update fails", async () => {
+  vi.mocked(executeD1Meta).mockResolvedValue({ changes: 1 });
+  const finalizeError = new Error("D1 network blip");
+  vi.mocked(queryD1)
+    .mockResolvedValueOnce([
+      {
+        igUsername: "climber",
+        caption: "@granite.kr #큰바위 #SkyHook",
+        mediaUrl: "https://www.instagram.com/p/abc/",
+        externalId: "comment_1",
+        externalMediaId: "media_1",
+      },
+    ]) // SELECT row
+    .mockResolvedValueOnce([]) // INSERT betas (success)
+    .mockRejectedValueOnce(finalizeError); // finalize UPDATE FAILS
+  vi.mocked(queryD1First).mockResolvedValueOnce(null); // findExistingBetaByExternalMedia
+
+  const { manualMatchWebhookToRoute } = await import("./beta-queries");
+
+  await expect(
+    manualMatchWebhookToRoute({
+      webhookId: "webhook_1",
+      routeId: "route_1",
+      betaId: "beta_new",
+    })
+  ).rejects.toThrow(finalizeError);
+
+  // Beta was inserted before the failure
+  const insertCall = vi
+    .mocked(queryD1)
+    .mock.calls.find(
+      (c) => typeof c[0] === "string" && c[0].includes("INSERT INTO betas")
+    );
+  expect(insertCall).toBeDefined();
+});
+```
+
+- [ ] **Step 2: Run the tests and confirm they fail.**
+
+```
+pnpm test lib/db/beta-queries.test.ts
+```
+Expected: the two new tests fail because `manualMatchWebhookToRoute` does not compensate on partial failure.
+
+- [ ] **Step 3: Add compensating revert + orphan logging to `manualMatchWebhookToRoute`.**
+
+In `lib/db/beta-queries.ts`, replace steps 4 and 5 of the existing `manualMatchWebhookToRoute` body (the INSERT-betas block and the finalize-matched_beta_id UPDATE) with a try/catch wrapper:
+
+```ts
+// 4) Insert the Beta with the canonical media id.
+const today = new Date().toISOString().slice(0, 10);
+try {
+  await queryD1(
+    `INSERT INTO betas (
+       id, route_id, user_id, instagram_id, display_name, source, platform,
+       media_url, permalink_url, external_media_id, thumbnail_url, sent_at, status, claim_status
+     ) VALUES (?, ?, NULL, ?, ?, 'instagram_webhook', 'instagram', ?, NULL, ?, NULL, ?, 'pending', 'unclaimed')`,
+    [
+      input.betaId,
+      input.routeId,
+      row.igUsername,
+      row.igUsername,
+      row.mediaUrl,
+      canonicalMediaId,
+      today,
+    ]
+  );
+} catch (insertError) {
+  // Compensating revert: release the claim so an operator can retry.
+  await queryD1(
+    `UPDATE webhook_inbox
+     SET status = 'unmatched',
+         last_error_code = 'manual_match_insert_failed',
+         last_error_message = ?,
+         updated_at = datetime('now')
+     WHERE id = ?`,
+    [
+      insertError instanceof Error ? insertError.message.slice(0, 500) : "insert failed",
+      input.webhookId,
+    ]
+  );
+  return { ok: false, reason: "not_unmatched" };
+}
+
+// 5) Finalize the webhook row with the new Beta id.
+try {
+  await queryD1(
+    `UPDATE webhook_inbox
+     SET matched_beta_id = ?, updated_at = datetime('now')
+     WHERE id = ?`,
+    [input.betaId, input.webhookId]
+  );
+} catch (finalizeError) {
+  // The Beta exists but the inbox can't be back-linked. Log as orphan and rethrow
+  // so the admin Server Action surfaces an error to the operator; the row will
+  // appear in /admin/webhooks under manual_matched + matched_beta_id IS NULL.
+  try {
+    await insertWebhookOperationalEvent({
+      id: `opev_${crypto.randomUUID()}`,
+      eventType: "duplicate_beta", // closest existing event_type for orphan beta tracking
+      webhookId: input.webhookId,
+      betaId: input.betaId,
+      requestId: "",
+      method: "POST",
+      path: "/admin/webhooks/manual-match",
+      statusCode: null,
+      message: "manual match finalize failed; beta orphaned (inbox missing matched_beta_id)",
+      metadata: JSON.stringify({ kind: "orphan_beta", reason: finalizeError instanceof Error ? finalizeError.message : "unknown" }),
+    });
+  } catch {
+    // Best effort: do not lose the original error if the op-event insert also fails.
+  }
+  throw finalizeError;
+}
+
+return { ok: true, betaId: input.betaId };
+```
+
+Note on event_type reuse: the existing CHECK constraint on `webhook_operational_events.event_type` (migration 0004) does not include an `orphan_beta` value. Reusing `duplicate_beta` keeps the migration footprint zero and uses `metadata.kind` to differentiate orphan vs duplicate. If a follow-up phase adds an `orphan_beta` event_type via migration, callers can switch.
+
+Ensure `insertWebhookOperationalEvent` is imported in this file (it should already be exported from the same module per Task 3).
+
+- [ ] **Step 4: Run the tests and confirm they pass.**
+
+```
+pnpm test lib/db/beta-queries.test.ts
+```
+Expected: 7/7 or 8/8 passing (existing manualMatchWebhookToRoute tests + the two new ones).
+
+- [ ] **Step 5: Surface orphan rows in `/admin/webhooks`.**
+
+Read `app/admin/(protected)/webhooks/page.tsx`. The page already lists `manual_matched` rows. Add a separate "고립된 매칭" section above (or below) the main table, populated by a new query that returns rows where `status = 'manual_matched' AND matched_beta_id IS NULL`. Add the query to `lib/db/beta-queries.ts`:
+
+```ts
+export async function getOrphanedManualMatches(): Promise<WebhookInboxAdminRow[]> {
+  return queryD1<WebhookInboxAdminRow>(
+    `SELECT
+       id,
+       external_id AS externalId,
+       ig_username AS igUsername,
+       caption,
+       media_url AS mediaUrl,
+       thumbnail_url AS thumbnailUrl,
+       matched_beta_id AS matchedBetaId,
+       status,
+       processing_attempts AS processingAttempts,
+       last_error_code AS lastErrorCode,
+       last_error_message AS lastErrorMessage,
+       received_at AS receivedAt,
+       updated_at AS updatedAt
+     FROM webhook_inbox
+     WHERE status = 'manual_matched' AND matched_beta_id IS NULL
+     ORDER BY updated_at DESC`,
+    []
+  );
+}
+```
+
+In `app/admin/(protected)/webhooks/page.tsx`, call this in parallel with the existing data and render a callout. Suggested skeleton:
+
+```tsx
+const [rows, routes, opEvents, orphans] = await Promise.all([
+  getAdminWebhookInbox(status),
+  getAdminRoutes(),
+  getRecentWebhookOperationalEvents(50),
+  getOrphanedManualMatches(),
+]);
+```
+
+Above the main table render a section that's hidden when `orphans.length === 0`:
+
+```tsx
+{orphans.length > 0 ? (
+  <AdminCard>
+    <h2 className="mb-2 text-[14px] font-bold text-[#B53A3A]">
+      고립된 매칭 ({orphans.length})
+    </h2>
+    <p className="mb-2 text-[12px] text-[#7A7A7A]">
+      `manual_matched` 상태인데 `matched_beta_id`가 비어 있는 행입니다. 매뉴얼 매칭 finalize 단계 실패 가능성이 있습니다. 운영자가 Beta 존재 여부를 확인하고 직접 SQL로 재연결하거나 거절해 주세요.
+    </p>
+    <AdminTable>
+      {orphans.map((row) => (
+        <AdminTableRow key={row.id}>
+          <AdminTableCell>{row.receivedAt}</AdminTableCell>
+          <AdminTableCell>@{row.igUsername || "-"}</AdminTableCell>
+          <AdminTableCell>
+            <span className="line-clamp-2">{row.caption || "-"}</span>
+          </AdminTableCell>
+          <AdminTableCell>{row.lastErrorCode || "-"}</AdminTableCell>
+        </AdminTableRow>
+      ))}
+    </AdminTable>
+  </AdminCard>
+) : null}
+```
+
+Match the existing admin styles. Do not provide UI actions in this task — orphan recovery is operator-by-SQL until a follow-up phase.
+
+- [ ] **Step 6: Verify.**
+
+```
+pnpm test lib/db/beta-queries.test.ts
+pnpm typecheck
+pnpm build
+pnpm wrangler deploy --dry-run
+```
+All must pass.
+
+- [ ] **Step 7: Mark Task 15 step checkboxes complete in this plan file.**
+
+In `docs/plans/2026-06-02-granite-phase-5.md`, change every `- [ ] **Step N:` line inside Task 15 to `- [x] **Step N:`. Include Step 7 itself (last action before the commit step).
+
+- [ ] **Step 8: Commit.**
+
+```bash
+git add lib/db/beta-queries.ts lib/db/beta-queries.test.ts 'app/admin/(protected)/webhooks/page.tsx' docs/plans/2026-06-02-granite-phase-5.md
+git commit -m "fix(webhook): manual match partial-failure recovery and orphan visibility"
+```
+
+---
+
 ## Self-Review
 
-- **Spec coverage:** Covers PRD P5-01 through P5-08: caption UI, Worker webhook, inbox persistence, matching, unclaimed Beta creation, admin inbox, Beta moderation, manual registration, and thumbnail fallback. Tasks 12 and 13 (added after Codex adversarial review) close two integrity gaps found in the implemented code: (a) async exceptions in `processMentionEvent` stranded rows in `processing` invisible to operators; (b) `manualMatchWebhookToRoute` was not atomic and used the wrong identifier for comment-mention dedup, so admins could create duplicate Betas.
+- **Spec coverage:** Covers PRD P5-01 through P5-08: caption UI, Worker webhook, inbox persistence, matching, unclaimed Beta creation, admin inbox, Beta moderation, manual registration, and thumbnail fallback. Tasks 12 and 13 (first Codex adversarial review) close two integrity gaps in the implemented code: (a) async exceptions in `processMentionEvent` stranded rows in `processing` invisible to operators; (b) `manualMatchWebhookToRoute` was not atomic and used the wrong identifier for comment-mention dedup, so admins could create duplicate Betas. Tasks 14 and 15 (second Codex adversarial review) close two follow-ups: (c) `webhook_inbox` was never hydrated with the Graph API response so manual matching produced blank Betas; (d) `manualMatchWebhookToRoute` lacked compensating actions for INSERT/finalize partial failures.
 - **Excluded intentionally:** OAuth, my records, projects, and unclaimed claims remain Phase 6. Scheduled retry, manual-submission rate limit, moderation SLA, and webhook admin notification channel are also explicitly out of scope (see Out Of Scope and Future Work).
 - **Risk areas:** Meta payload shape and permission review may require adjustment after the real app callback is approved. Worker D1/R2 binding names (`granite_v2`, `BUCKET`) must remain aligned with the production Cloudflare project before deploy. D1 HTTP API lacks true transactions; Task 13's claim/insert sequence reduces but cannot fully eliminate the race window — acceptable because manual matching is admin-gated and operationally infrequent.
 - **Verification:** Each implementation task has a focused Vitest/typecheck/build or manual QA gate. Tasks 1–11 are implemented and committed on `phase5-implementation` (commits `fbb07da` through `d29ea51`, 370 tests passing). Tasks 12–13 are pending implementation. Final release requires Meta app review and production HMAC verification (Task 11 Step 5 manual QA, deferred to launch).
