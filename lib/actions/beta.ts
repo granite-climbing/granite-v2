@@ -1,0 +1,34 @@
+"use server";
+
+import { randomUUID } from "node:crypto";
+import { revalidateTag } from "next/cache";
+import { createManualBeta, findExistingBetaByPermalink } from "@/lib/db/beta-queries";
+import { parseManualBetaForm } from "./beta-schema";
+
+export type ManualBetaActionResult = {
+  ok: boolean;
+  message: string;
+};
+
+export async function submitManualBetaAction(formData: FormData): Promise<ManualBetaActionResult> {
+  const parsed = parseManualBetaForm(Object.fromEntries(formData));
+  const existing = await findExistingBetaByPermalink(parsed.platform, parsed.permalinkUrl);
+  if (existing) {
+    return { ok: false, message: "이미 등록된 영상입니다." };
+  }
+
+  await createManualBeta({
+    id: `beta_${randomUUID()}`,
+    routeId: parsed.routeId,
+    instagramId: parsed.instagramId,
+    displayName: parsed.displayName,
+    platform: parsed.platform,
+    mediaUrl: parsed.mediaUrl,
+    permalinkUrl: parsed.permalinkUrl,
+    externalMediaId: parsed.externalMediaId,
+    sentAt: parsed.sentAt,
+  });
+
+  revalidateTag(`route:${parsed.routeId}`);
+  return { ok: true, message: "베타 영상이 등록되었습니다." };
+}
