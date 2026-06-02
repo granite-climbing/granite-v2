@@ -339,6 +339,13 @@ export async function getRecentWebhookOperationalEvents(
   );
 }
 
+export async function updateBetaThumbnailUrl(id: string, thumbnailUrl: string): Promise<void> {
+  await queryD1(
+    `UPDATE betas SET thumbnail_url = ?, updated_at = datetime('now') WHERE id = ?`,
+    [thumbnailUrl, id]
+  );
+}
+
 export async function manualMatchWebhookToRoute(input: {
   webhookId: string;
   routeId: string;

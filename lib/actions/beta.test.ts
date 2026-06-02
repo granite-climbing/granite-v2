@@ -5,6 +5,10 @@ vi.mock("next/cache", () => ({ revalidateTag: vi.fn(), revalidatePath: vi.fn() }
 vi.mock("@/lib/db/beta-queries", () => ({
   createManualBeta: vi.fn(),
   findExistingBetaByPermalink: vi.fn(),
+  updateBetaThumbnailUrl: vi.fn(),
+}));
+vi.mock("@/lib/beta/thumbnail-r2", () => ({
+  acquireAndStoreBetaThumbnail: vi.fn().mockResolvedValue(null),
 }));
 
 const { createManualBeta, findExistingBetaByPermalink } = await import("@/lib/db/beta-queries");

@@ -2,7 +2,8 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidateTag } from "next/cache";
-import { createManualBeta, findExistingBetaByPermalink } from "@/lib/db/beta-queries";
+import { createManualBeta, findExistingBetaByPermalink, updateBetaThumbnailUrl } from "@/lib/db/beta-queries";
+import { acquireAndStoreBetaThumbnail } from "@/lib/beta/thumbnail-r2";
 import { parseManualBetaForm } from "./beta-schema";
 
 export type ManualBetaActionResult = {
@@ -17,8 +18,9 @@ export async function submitManualBetaAction(formData: FormData): Promise<Manual
     return { ok: false, message: "이미 등록된 영상입니다." };
   }
 
+  const betaId = `beta_${randomUUID()}`;
   await createManualBeta({
-    id: `beta_${randomUUID()}`,
+    id: betaId,
     routeId: parsed.routeId,
     instagramId: parsed.instagramId,
     displayName: parsed.displayName,
@@ -28,6 +30,19 @@ export async function submitManualBetaAction(formData: FormData): Promise<Manual
     externalMediaId: parsed.externalMediaId,
     sentAt: parsed.sentAt,
   });
+
+  try {
+    const cdnUrl = await acquireAndStoreBetaThumbnail({
+      betaId,
+      platform: parsed.platform,
+      postUrl: parsed.permalinkUrl,
+    });
+    if (cdnUrl) {
+      await updateBetaThumbnailUrl(betaId, cdnUrl);
+    }
+  } catch (err) {
+    console.warn("thumbnail acquisition failed:", err);
+  }
 
   revalidateTag(`route:${parsed.routeId}`);
   return { ok: true, message: "베타 영상이 등록되었습니다." };
