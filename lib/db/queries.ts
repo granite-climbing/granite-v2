@@ -22,6 +22,8 @@ import type {
   Area,
   Boulder,
   Crag,
+  CragLocation,
+  GradeBand,
   RouteListItem,
   Route,
   Sector,
@@ -119,6 +121,7 @@ interface RouteRow {
 }
 
 interface RouteListItemRow extends RouteRow {
+  boulderId: string;
   boulderName: string;
   sectorName: string;
   cragName: string;
@@ -285,8 +288,40 @@ export async function getPublishedAreas(): Promise<Area[]> {
 }
 
 /**
+ * All published, non-soft-deleted crags whose parent area is also published
+ * and non-soft-deleted. Returns a flat list ordered by sort_order ASC, then
+ * name ASC. Used by the home page all-Crags slider.
+ */
+export async function getAllPublishedCrags(): Promise<Crag[]> {
+  const rows = await queryD1<CragRow>(
+    `SELECT
+       c.id,
+       c.area_id        AS areaId,
+       c.name,
+       c.name_en        AS nameEn,
+       c.slug,
+       c.lat,
+       c.lng,
+       c.description,
+       c.season,
+       c.cover_image_url AS coverImageUrl,
+       c.is_published    AS isPublished,
+       c.sort_order      AS sortOrder
+     FROM crags c
+     JOIN areas a ON a.id = c.area_id
+     WHERE c.is_published = 1
+       AND a.is_published = 1
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL
+     ORDER BY c.sort_order ASC, c.name ASC`
+  );
+  return rows.map(mapCrag);
+}
+
+/**
  * Published crags for a given area, ordered by sort_order then id.
- * The repository uses this to compose HomeModel area cards.
+ * Used by the repository's Area detail loader (`loadAreaBySlug`) and by
+ * `loadAllRouteItems`. The home model uses `getAllPublishedCrags` instead.
  */
 export async function getCragsByAreaId(areaId: string): Promise<Crag[]> {
   const rows = await queryD1<CragRow>(
@@ -542,6 +577,7 @@ export async function getCragRoutes(
        r.line_image_url   AS lineImageUrl,
        r.is_published     AS isPublished,
        r.sort_order       AS sortOrder,
+       b.id               AS boulderId,
        b.name             AS boulderName,
        s.name             AS sectorName,
        c.name             AS cragName,
@@ -630,6 +666,7 @@ export async function getSectorRoutes(
        r.line_image_url   AS lineImageUrl,
        r.is_published     AS isPublished,
        r.sort_order       AS sortOrder,
+       b.id               AS boulderId,
        b.name             AS boulderName,
        s.name             AS sectorName,
        c.name             AS cragName,
@@ -925,7 +962,179 @@ export async function getTopoById(id: string): Promise<
 }
 
 // ---------------------------------------------------------------------------
-// 11. Route by id
+// 11. Area by slug + area-scoped data
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns a single published, non-soft-deleted Area by its slug.
+ * Returns null if the slug does not exist, the area is unpublished, or soft-deleted.
+ */
+export async function getAreaBySlug(slug: string): Promise<Area | null> {
+  const row = await queryD1First<AreaRow>(
+    `SELECT
+       id,
+       name,
+       name_en        AS nameEn,
+       slug,
+       cover_image_url AS coverImageUrl,
+       is_published    AS isPublished,
+       sort_order      AS sortOrder
+     FROM areas
+     WHERE slug = ?
+       AND is_published = 1
+       AND deleted_at IS NULL`,
+    [slug]
+  );
+  return row ? mapArea(row) : null;
+}
+
+/**
+ * Published-ancestor-aware aggregate stats for a single area.
+ * Returns crag/sector/boulder/route counts where the full ancestor chain is
+ * published and non-soft-deleted.
+ */
+export async function getAreaStats(areaId: string): Promise<Stats> {
+  const row = await queryD1First<StatsRow>(
+    `SELECT
+       (SELECT COUNT(*)
+        FROM crags c
+        WHERE c.area_id = ?
+          AND c.is_published = 1
+          AND c.deleted_at IS NULL
+       ) AS crags,
+       (SELECT COUNT(*)
+        FROM sectors s
+        JOIN crags c ON c.id = s.crag_id
+        WHERE c.area_id = ?
+          AND s.is_published = 1 AND c.is_published = 1
+          AND s.deleted_at IS NULL AND c.deleted_at IS NULL
+       ) AS sectors,
+       (SELECT COUNT(*)
+        FROM boulders b
+        JOIN sectors s ON s.id = b.sector_id
+        JOIN crags c ON c.id = s.crag_id
+        WHERE c.area_id = ?
+          AND b.is_published = 1 AND s.is_published = 1 AND c.is_published = 1
+          AND b.deleted_at IS NULL AND s.deleted_at IS NULL AND c.deleted_at IS NULL
+       ) AS boulders,
+       (SELECT COUNT(*)
+        FROM routes r
+        JOIN topos t ON t.id = r.topo_id
+        JOIN boulders b ON b.id = t.boulder_id
+        JOIN sectors s ON s.id = b.sector_id
+        JOIN crags c ON c.id = s.crag_id
+        WHERE c.area_id = ?
+          AND r.is_published = 1 AND t.is_published = 1
+          AND b.is_published = 1 AND s.is_published = 1 AND c.is_published = 1
+          AND r.deleted_at IS NULL AND t.deleted_at IS NULL
+          AND b.deleted_at IS NULL AND s.deleted_at IS NULL AND c.deleted_at IS NULL
+       ) AS routes`,
+    [areaId, areaId, areaId, areaId]
+  );
+  return row ?? { crags: 0, sectors: 0, boulders: 0, routes: 0 };
+}
+
+// Grade band definitions — ordered V0-V2, V3-V5, V6-V8, V9-V11, V12+.
+const GRADE_BANDS: ReadonlyArray<{ band: string; min: number; max: number }> = [
+  { band: "V0-V2", min: 0, max: 2 },
+  { band: "V3-V5", min: 3, max: 5 },
+  { band: "V6-V8", min: 6, max: 8 },
+  { band: "V9-V11", min: 9, max: 11 },
+  { band: "V12+", min: 12, max: 99 },
+];
+
+interface GradeBandCountRow {
+  min: number;
+  count: number;
+}
+
+/**
+ * Returns the grade distribution for a published area.
+ * Count is the number of published routes (full ancestor chain published and
+ * non-soft-deleted) per grade band.
+ * All five bands are always returned (count = 0 when no routes in that range).
+ * Topos filtered by t.is_published = 1 AND t.deleted_at IS NULL.
+ */
+export async function getAreaGradeDistribution(
+  areaId: string
+): Promise<GradeBand[]> {
+  // Build a CASE expression that maps grade_num to the band's min boundary so
+  // we can GROUP BY band without string interpolation.
+  // SQLite's CASE is safe here — the values (0, 3, 6, 9, 12) are constants, not user input.
+  const caseExpr = `CASE
+    WHEN r.grade_num BETWEEN 0 AND 2 THEN 0
+    WHEN r.grade_num BETWEEN 3 AND 5 THEN 3
+    WHEN r.grade_num BETWEEN 6 AND 8 THEN 6
+    WHEN r.grade_num BETWEEN 9 AND 11 THEN 9
+    WHEN r.grade_num >= 12 THEN 12
+    ELSE NULL
+  END`;
+
+  const rows = await queryD1<GradeBandCountRow>(
+    `SELECT
+       ${caseExpr} AS min,
+       COUNT(*) AS count
+     FROM routes r
+     JOIN topos t ON t.id = r.topo_id
+     JOIN boulders b ON b.id = t.boulder_id
+     JOIN sectors s ON s.id = b.sector_id
+     JOIN crags c ON c.id = s.crag_id
+     WHERE c.area_id = ?
+       AND r.is_published = 1
+       AND t.is_published = 1
+       AND t.deleted_at IS NULL
+       AND b.is_published = 1
+       AND s.is_published = 1
+       AND c.is_published = 1
+       AND r.deleted_at IS NULL
+       AND b.deleted_at IS NULL
+       AND s.deleted_at IS NULL
+       AND c.deleted_at IS NULL
+     GROUP BY min
+     HAVING min IS NOT NULL`,
+    [areaId]
+  );
+
+  // Build a lookup from band-min → count, then map to ordered output.
+  const countByMin = new Map<number, number>();
+  for (const row of rows) {
+    countByMin.set(row.min, row.count);
+  }
+
+  return GRADE_BANDS.map((b) => ({
+    band: b.band,
+    min: b.min,
+    max: b.max,
+    count: countByMin.get(b.min) ?? 0,
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// 12. Area crags with coordinates (for overview map)
+// ---------------------------------------------------------------------------
+
+/**
+ * Published Crags within an Area that have non-null coordinates.
+ * Used by the Area overview map. Excludes Crags without lat/lng (they'd render at (0,0)).
+ * Ancestor published check: area must also be published and non-soft-deleted.
+ */
+export async function getAreaCragsWithCoords(areaId: string): Promise<CragLocation[]> {
+  const rows = await queryD1<CragLocation>(
+    `SELECT c.id, c.slug, c.name, c.lat AS lat, c.lng AS lng
+       FROM crags c
+       JOIN areas a ON a.id = c.area_id
+      WHERE c.area_id = ?
+        AND c.is_published = 1 AND c.deleted_at IS NULL
+        AND a.is_published = 1 AND a.deleted_at IS NULL
+        AND c.lat IS NOT NULL AND c.lng IS NOT NULL
+      ORDER BY c.sort_order ASC, c.id ASC`,
+    [areaId]
+  );
+  return rows;
+}
+
+// ---------------------------------------------------------------------------
+// 13. Route by id
 // ---------------------------------------------------------------------------
 
 export async function getRouteById(id: string): Promise<RouteListItem | null> {
@@ -942,6 +1151,7 @@ export async function getRouteById(id: string): Promise<RouteListItem | null> {
        r.line_image_url   AS lineImageUrl,
        r.is_published     AS isPublished,
        r.sort_order       AS sortOrder,
+       b.id               AS boulderId,
        b.name             AS boulderName,
        s.name             AS sectorName,
        c.name             AS cragName,

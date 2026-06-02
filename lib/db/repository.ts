@@ -7,9 +7,14 @@ import {
   getCragRoutes,
   getCragSectors,
   getCragStats,
+  getAllPublishedCrags,
   getPublishedAreas,
   getPublishedAnnouncements,
   getCragsByAreaId,
+  getAreaBySlug,
+  getAreaStats,
+  getAreaGradeDistribution,
+  getAreaCragsWithCoords,
   getRouteById,
   getSectorBySlug,
   getSectorRoutes,
@@ -19,14 +24,20 @@ import {
   parseHashtags,
 } from "./queries";
 import type {
+  AreaDetail,
   BoulderDetail,
   CragDetail,
+  GradeBand,
   HomeModel,
   RouteListItem,
   SectorDetail,
   Stats,
   TopoDetail,
 } from "./schema";
+
+// Re-export so that page components can `import type { AreaDetail } from "@/lib/db/repository"`
+// alongside the `findAreaDetailBySlug` function. Mirrors the `RouteListItem` re-export in queries.ts.
+export type { AreaDetail, GradeBand };
 
 export const CRAG_TABS = ["Info", "Sector", "Boulder", "Route", "Map", "Travel"] as const;
 export const SECTOR_TABS = ["Info", "Boulder", "Route", "Map", "Travel"] as const;
@@ -44,44 +55,85 @@ export function parseBoulderHashtags(hashtagsJson: string): string[] {
 // Private load helpers (un-cached, used by the cache wrappers below)
 // ---------------------------------------------------------------------------
 
+async function loadAreaBySlug(slug: string): Promise<AreaDetail | null> {
+  const area = await getAreaBySlug(slug);
+  if (!area) return null;
+
+  const [stats, gradeDistribution, areaCrags, cragLocations] = await Promise.all([
+    getAreaStats(area.id),
+    getAreaGradeDistribution(area.id),
+    getCragsByAreaId(area.id),
+    getAreaCragsWithCoords(area.id),
+  ]);
+
+  const cragStats = await Promise.all(
+    areaCrags.map((crag) => getCragStats(crag.id))
+  );
+
+  return {
+    ...area,
+    stats,
+    gradeDistribution,
+    crags: areaCrags.map((crag, i) => ({
+      ...crag,
+      stats: cragStats[i] ?? { sectors: 0, boulders: 0, routes: 0 },
+    })),
+    cragLocations,
+  };
+}
+
 async function loadHomeModel(): Promise<HomeModel> {
-  const [totals, areas, announcements] = await Promise.all([
+  const [totals, areas, allCragsFlat, announcements] = await Promise.all([
     getStats(),
     getPublishedAreas(),
+    getAllPublishedCrags(),
     getPublishedAnnouncements(),
   ]);
 
-  const areasWithCrags = await Promise.all(
-    areas.map(async (area) => {
-      const areaCrags = await getCragsByAreaId(area.id);
+  // Build per-area stats by grouping the flat crag list (avoids N queries to
+  // getCragsByAreaId — we already have all crags from getAllPublishedCrags).
+  // We still need getCragStats for sector/boulder/route counts per crag.
+  const allCragStats = await Promise.all(
+    allCragsFlat.map((crag) => getCragStats(crag.id))
+  );
 
-      const cragStats = await Promise.all(
-        areaCrags.map((crag) => getCragStats(crag.id))
-      );
+  // Map cragId → stats for fast lookup when aggregating per-area totals.
+  const cragStatsById = new Map<string, Omit<Stats, "crags">>();
+  allCragsFlat.forEach((crag, i) => {
+    cragStatsById.set(crag.id, allCragStats[i] ?? { sectors: 0, boulders: 0, routes: 0 });
+  });
 
-      // Aggregate per-area stats = sum of each crag's stats + crag count
-      const areaStats: Stats = cragStats.reduce<Stats>(
-        (acc, s) => ({
+  // Group crags by areaId to compute per-area aggregate stats.
+  const cragsByAreaId = new Map<string, typeof allCragsFlat>();
+  for (const crag of allCragsFlat) {
+    const list = cragsByAreaId.get(crag.areaId) ?? [];
+    list.push(crag);
+    cragsByAreaId.set(crag.areaId, list);
+  }
+
+  const areasWithStats = areas.map((area) => {
+    const areaCrags = cragsByAreaId.get(area.id) ?? [];
+    const areaStats: Stats = areaCrags.reduce<Stats>(
+      (acc, crag) => {
+        const s = cragStatsById.get(crag.id) ?? { sectors: 0, boulders: 0, routes: 0 };
+        return {
           crags: acc.crags,
           sectors: acc.sectors + s.sectors,
           boulders: acc.boulders + s.boulders,
           routes: acc.routes + s.routes,
-        }),
-        { crags: areaCrags.length, sectors: 0, boulders: 0, routes: 0 }
-      );
+        };
+      },
+      { crags: areaCrags.length, sectors: 0, boulders: 0, routes: 0 }
+    );
+    return { ...area, stats: areaStats };
+  });
 
-      return {
-        ...area,
-        stats: areaStats,
-        crags: areaCrags.map((crag, i) => ({
-          ...crag,
-          stats: cragStats[i] ?? { sectors: 0, boulders: 0, routes: 0 },
-        })),
-      };
-    })
-  );
+  const allCrags = allCragsFlat.map((crag) => ({
+    ...crag,
+    stats: cragStatsById.get(crag.id) ?? { sectors: 0, boulders: 0, routes: 0 },
+  }));
 
-  return { totals, areas: areasWithCrags, announcements };
+  return { totals, areas: areasWithStats, allCrags, announcements };
 }
 
 async function loadCragBySlug(slug: string): Promise<CragDetail | null> {
@@ -165,13 +217,18 @@ async function loadTopoById(id: string): Promise<TopoDetail | null> {
     getTopoRoutes(id),
   ]);
 
-  const topoIndex = boulderTopos.findIndex((t) => t.id === id) + 1;
+  const currentIdx = boulderTopos.findIndex((t) => t.id === id);
+  const topoIndex = currentIdx + 1;
   const topoCount = boulderTopos.length;
+  const prevTopoId = currentIdx > 0 ? (boulderTopos[currentIdx - 1]?.id ?? null) : null;
+  const nextTopoId = currentIdx < topoCount - 1 ? (boulderTopos[currentIdx + 1]?.id ?? null) : null;
 
   return {
     ...topo,
     topoIndex,
     topoCount,
+    prevTopoId,
+    nextTopoId,
     boulder,
     sector,
     crag,
@@ -198,6 +255,15 @@ async function loadAllRouteItems(): Promise<RouteListItem[]> {
 // ---------------------------------------------------------------------------
 // Public API — each function wraps its loader in unstable_cache
 // ---------------------------------------------------------------------------
+
+export async function findAreaDetailBySlug(slug: string): Promise<AreaDetail | null> {
+  const cached = unstable_cache(
+    () => loadAreaBySlug(slug),
+    ["findAreaDetailBySlug", slug],
+    { tags: ["areas:list", `area:${slug}`] }
+  );
+  return cached();
+}
 
 export async function getHomeModel(): Promise<HomeModel> {
   const cached = unstable_cache(loadHomeModel, ["getHomeModel"], {

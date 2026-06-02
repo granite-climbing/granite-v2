@@ -1,7 +1,7 @@
 ---
 id: 0017
 title: 5단계 출시 (UI / DB / Admin / Instagram / Personalization)
-status: Accepted
+status: Superseded by 0019
 date: 2026-05-22
 ---
 

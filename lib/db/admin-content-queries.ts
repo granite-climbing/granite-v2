@@ -408,6 +408,17 @@ export async function upsertAnnouncement(input: {
 // ---------------------------------------------------------------------------
 
 /**
+ * Returns the slug of an area by its id, or null if not found.
+ */
+export async function getAreaSlugByAreaId(id: string): Promise<string | null> {
+  const row = await queryD1First<{ slug: string }>(
+    "SELECT slug FROM areas WHERE id = ?",
+    [id],
+  );
+  return row?.slug ?? null;
+}
+
+/**
  * Returns the slug of a crag by its id, or null if not found.
  */
 export async function getCragSlugByCragId(id: string): Promise<string | null> {

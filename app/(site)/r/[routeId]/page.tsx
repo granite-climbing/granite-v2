@@ -14,5 +14,5 @@ export default async function RoutePage({ params }: RoutePageProps) {
     notFound();
   }
 
-  redirect(`/topos/${route.topoId}?route=${route.id}`);
+  redirect(`/t/${route.topoId}?route=${route.id}`);
 }

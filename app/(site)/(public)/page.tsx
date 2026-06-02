@@ -1,14 +1,14 @@
 import { AppHeader } from "@/components/layout/app-header";
 import { AdSlot } from "@/components/public/ad-slot";
+import { AreaCard } from "@/components/public/area-card";
 import { CragCarousel } from "@/components/public/crag-carousel";
-import { StatBar } from "@/components/public/stat-bar";
+import { DragScroller } from "@/components/public/drag-scroller";
 import { getHomeModel } from "@/lib/db/repository";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const model = await getHomeModel();
-  const selectedArea = model.areas[0];
   const updates = model.announcements;
 
   return (
@@ -40,48 +40,31 @@ export default async function HomePage() {
         <AdSlot />
       </div>
 
-      <section className="mt-10 px-4">
-        <h2 className="text-[20px] font-bold leading-7 text-[#090909]">Area</h2>
-        <div className="no-scrollbar mt-3 flex gap-[6px] overflow-x-auto">
-          {model.areas.map((area) => (
-            <span
-              key={area.id}
-              className={`shrink-0 rounded-full px-3 py-[6px] text-[14px] font-normal leading-5 ${
-                area.id === selectedArea?.id ? "bg-[#121212] text-white" : "bg-[#F7F8F8] text-[#7A7A7A]"
-              }`}
-            >
-              {area.name}
-            </span>
-          ))}
+      {/* Area slider */}
+      <section className="mt-10">
+        <div className="mb-5 px-4">
+          <h2 className="text-[20px] font-bold leading-7 text-[#090909]">Area</h2>
         </div>
-
-        {selectedArea ? (
-          <div className="mt-4 h-[150px] rounded-[8px] bg-white px-4 py-4 shadow-[0_0_6px_2px_rgba(0,0,0,0.1)]">
-            <div className="flex items-center gap-1">
-              <h3 className="text-[16px] font-bold leading-6 text-[#090909]">{selectedArea.name}</h3>
-              <span className="text-[16px] leading-4">›</span>
+        <DragScroller className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-4 px-4 pb-3">
+          {model.areas.map((area) => (
+            <div key={area.id} className="w-[270px] shrink-0 snap-start">
+              <AreaCard area={area} href={`/a/${area.slug}`} />
             </div>
-            <p className="mt-2 text-[12px] font-medium leading-4 text-[#7A7A7A]">
-              {selectedArea.stats.crags} Crags · {selectedArea.stats.sectors} Sectors ·{" "}
-              {selectedArea.stats.boulders} Boulders · {selectedArea.stats.routes} Routes
-            </p>
-            <div className="mt-3">
-              <StatBar />
-            </div>
-          </div>
-        ) : null}
+          ))}
+        </DragScroller>
       </section>
 
       <div className="mt-10">
         <AdSlot />
       </div>
 
+      {/* All-Crags slider */}
       <section className="mt-10">
         <div className="mb-5 flex h-7 items-center justify-between px-4">
           <h2 className="text-[20px] font-bold leading-7 text-[#090909]">Crags</h2>
           <span className="flex items-center text-[14px] font-medium leading-5 text-[#7A7A7A]">All ›</span>
         </div>
-        <CragCarousel crags={selectedArea?.crags ?? []} />
+        <CragCarousel crags={model.allCrags} />
       </section>
 
       <div className="mt-10">

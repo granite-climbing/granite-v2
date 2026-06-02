@@ -15,6 +15,7 @@ import {
   softDeleteContent,
   restoreContent,
   findRowBySlug,
+  getAreaSlugByAreaId,
   getCragSlugByCragId,
   getSectorAncestry,
   getBoulderAncestry,
@@ -108,10 +109,12 @@ async function resolveSlugConflict(input: {
 // Revalidation helpers
 // ---------------------------------------------------------------------------
 
-function revalidateAreaSurface(): void {
+function revalidateAreaSurface(slug?: string): void {
   revalidateTag("home");
   revalidateTag("areas:list");
   revalidatePath("/");
+  if (slug) revalidateTag(`area:${slug}`);
+  if (slug) revalidatePath(`/a/${slug}`);
 }
 
 function revalidateCragSurface(slug?: string): void {
@@ -137,7 +140,7 @@ function revalidateBoulderSurface(boulderId?: string, cragSlug?: string, sectorS
 
 function revalidateTopoSurface(boulderId?: string, topoId?: string, cragSlug?: string): void {
   if (boulderId) revalidateTag(`boulder:${boulderId}`);
-  if (topoId) revalidatePath(`/topos/${topoId}`);
+  if (topoId) revalidatePath(`/t/${topoId}`);
   if (cragSlug) revalidatePath(`/c/${cragSlug}`);
 }
 
@@ -146,7 +149,7 @@ function revalidateRouteSurface(routeId?: string, boulderId?: string, cragSlug?:
   if (boulderId) revalidateTag(`boulder:${boulderId}`);
   if (cragSlug) revalidateTag(`crag:${cragSlug}`);
   if (routeId) revalidatePath(`/r/${routeId}`);
-  if (topoId) revalidatePath(`/topos/${topoId}`);
+  if (topoId) revalidatePath(`/t/${topoId}`);
   if (cragSlug) revalidatePath(`/c/${cragSlug}`);
 }
 
@@ -170,11 +173,16 @@ export async function saveAreaAction(formData: FormData): Promise<void> {
       await restoreContent({ table: "areas", id });
     }
   } else {
+    // On edit, the slug might have changed — revalidate the old slug too.
+    const oldSlug = await getAreaSlugByAreaId(id);
     await upsertArea({ ...parsed, id });
+    if (oldSlug && oldSlug !== parsed.slug) {
+      revalidateAreaSurface(oldSlug);
+    }
   }
 
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "area", targetId: id, metadata: { slug: parsed.slug } });
-  revalidateAreaSurface();
+  revalidateAreaSurface(parsed.slug);
 }
 
 export async function saveCragAction(formData: FormData): Promise<void> {
@@ -248,7 +256,7 @@ export async function saveSectorAction(formData: FormData): Promise<void> {
       revalidateTag(`boulder:${boulderId}`);
     }
     for (const topoId of descendants.topoIds) {
-      revalidatePath(`/topos/${topoId}`);
+      revalidatePath(`/t/${topoId}`);
     }
     for (const routeId of descendants.routeIds) {
       revalidateTag(`route:${routeId}`);
@@ -300,7 +308,7 @@ export async function saveBoulderAction(formData: FormData): Promise<void> {
     // Flush descendant detail caches — they carry stale ancestry.
     const descendants = await getBoulderDescendantIds(id);
     for (const topoId of descendants.topoIds) {
-      revalidatePath(`/topos/${topoId}`);
+      revalidatePath(`/t/${topoId}`);
     }
     for (const routeId of descendants.routeIds) {
       revalidateTag(`route:${routeId}`);
@@ -405,9 +413,11 @@ export async function softDeleteAreaAction(formData: FormData): Promise<void> {
   assertDeleteConfirm(formData);
   const id = String(formData.get("id") ?? "");
 
+  // Resolve slug before soft-delete so we can fire the area-specific cache tag.
+  const slug = await getAreaSlugByAreaId(id);
   await softDeleteContent({ table: "areas", id });
   await auditLog({ adminId: admin.adminId, action: "content.soft_delete", targetType: "area", targetId: id });
-  revalidateAreaSurface();
+  revalidateAreaSurface(slug ?? undefined);
 }
 
 export async function softDeleteCragAction(formData: FormData): Promise<void> {
@@ -481,9 +491,11 @@ export async function restoreAreaAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const id = String(formData.get("id") ?? "");
 
+  // Resolve slug so we can fire the area-specific cache tag.
+  const slug = await getAreaSlugByAreaId(id);
   await restoreContent({ table: "areas", id });
   await auditLog({ adminId: admin.adminId, action: "content.restore", targetType: "area", targetId: id });
-  revalidateAreaSurface();
+  revalidateAreaSurface(slug ?? undefined);
 }
 
 export async function restoreCragAction(formData: FormData): Promise<void> {
@@ -576,9 +588,11 @@ export async function togglePublishAction(formData: FormData): Promise<void> {
 
   // Invalidate the authoritative surface for the affected entity, resolved from D1.
   switch (validTable) {
-    case "areas":
-      revalidateAreaSurface();
+    case "areas": {
+      const areaSlug = await getAreaSlugByAreaId(id);
+      revalidateAreaSurface(areaSlug ?? undefined);
       break;
+    }
     case "crags": {
       const slug = await getCragSlugByCragId(id);
       revalidateCragSurface(slug ?? undefined);

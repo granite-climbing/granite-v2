@@ -1,7 +1,7 @@
 # Granite v2 — Architecture
 
 > 작성일: 2026-05-13
-> 갱신일: 2026-05-22
+> 갱신일: 2026-06-01
 > 상태: Draft
 > 기준 설계: `docs/specs/2026-05-13-granite-design.md`
 
@@ -55,15 +55,23 @@ CRUD API를 줄이는 것이 목표이므로 관리자/사용자 mutation은 Ser
 - 관리자 mutation은 Server Actions를 사용하고 Zod 검증, `requireAdmin()`, revalidation, audit log를 적용한다.
 - R2 업로드와 CDN URL 저장을 운영 가능한 수준으로 연결한다.
 
-### Phase 4 — Beta / Instagram
+### Phase 4 — Public/Admin UX Refinement
+
+- 홈 Area/Crag 탐색을 칩 중심에서 가로 슬라이딩 카드 중심으로 보정한다.
+- Area 상세 페이지를 추가하고 DB-backed Area/Crag read path를 재사용한다.
+- Crag 상세 Info/Sector/Boulder/Route 탭을 최신 Figma 기준으로 보정하고, Route Grade 정렬과 공통 검색 UI를 안정화한다.
+- Route/Topo 아이콘과 이전/다음 Topo 이동을 보정한다.
+- 관리자 생성 화면에서도 사이드바를 유지하고, 콘텐츠 목록/생성 폼에 부모 항목 필터를 추가한다.
+
+### Phase 5 — Beta / Instagram
 
 - Instagram 멘션 웹훅을 수신하고 raw payload를 `webhook_inbox`에 저장한다.
 - 캡션 매칭 키로 Route를 찾고 `user_id = NULL`인 unclaimed Beta를 생성한다.
 - 로그인 없이 Instagram/YouTube 링크와 표시명/Instagram 핸들로 수동 Beta를 등록한다.
 - 관리자 웹훅 인박스와 베타 모더레이션을 제공한다.
-- 수동 Beta도 unclaimed 상태로 저장하고 Phase 5 클레임 대상이 된다.
+- 수동 Beta도 unclaimed 상태로 저장하고 Phase 6 클레임 대상이 된다.
 
-### Phase 5 — Login / Favorites / Claims
+### Phase 6 — Login / Favorites / Claims
 
 - Kakao/Naver/Google/Apple OAuth, 사용자 세션, 마이페이지를 추가한다.
 - Route 즐겨찾기 기반 프로젝트 탭과 본인 Beta 관리 UI를 추가한다.
@@ -107,29 +115,29 @@ pnpm wrangler deploy
 | 경로 | 종류 | 설명 | Phase |
 |------|------|------|:-----:|
 | `/` | Public | 홈 (탐색 메인, 지도 아님) | 1 |
+| `/a/<area-slug>` | Public | Area 상세 (Area 통계와 Crag 리스트) | 4 |
 | `/c/<crag-slug>` | Public | Crag 상세 (탭: Info/Sector/Boulder/Route/Map/Travel) | 1 |
-| `/topos/<topo-id>` | Public | Topo 상세와 Route 리스트 | 1 |
+| `/t/<topo-id>` | Public | Topo 상세와 Route 리스트 | 1 |
 | `/r/<route-id>` | Public | Route 상세 (공유 링크용) | 1 |
-| `/login` | Public | 로그인 (provider 선택) | 5 |
-| `/me` | Auth | 마이페이지 | 5 |
-| `/me/records` | Auth | 내 기록 탭 | 5 |
-| `/me/projects` | Auth | 프로젝트(저장한 Route) 탭 | 5 |
-| `/u/<user-id>` | Public | 타 사용자 공개 프로필 | 5 |
+| `/login` | Public | 로그인 (provider 선택) | 6 |
+| `/me` | Auth | 마이페이지 | 6 |
+| `/me/records` | Auth | 내 기록 탭 | 6 |
+| `/me/projects` | Auth | 프로젝트(저장한 Route) 탭 | 6 |
 | `/admin/login` | Public | 관리자 로그인 | 3 |
-| `/admin/content/...` | Admin | Area/Crag/Sector/Boulder/Topo/Route CRUD | 3 |
+| `/admin/content/...` | Admin | Area/Crag/Sector/Boulder/Topo/Route CRUD; Phase 4부터 부모 필터와 생성 화면 사이드바 유지 | 3 |
 | `/admin/announcements` | Admin | 공지 CRUD | 3 |
-| `/admin/webhooks` | Admin | 웹훅 인박스 (unmatched/manual_matched/rejected) | 4 |
-| `/admin/betas` | Admin | 베타 모더레이션 | 4 |
-| `/admin/users` | Admin | 회원 목록/검색 | 5 |
-| `/admin/stats` | Admin | 통계 대시보드 | 5 |
-| `/api/auth/callback/[provider]` | Route Handler | OAuth 콜백 (kakao/naver/google/apple) | 5 |
+| `/admin/webhooks` | Admin | 웹훅 인박스 (unmatched/manual_matched/rejected) | 5 |
+| `/admin/betas` | Admin | 베타 모더레이션 | 5 |
+| `/admin/users` | Admin | 회원 목록/검색 | 6 |
+| `/admin/stats` | Admin | 통계 대시보드 | 6 |
+| `/api/auth/callback/[provider]` | Route Handler | OAuth 콜백 (kakao/naver/google/apple) | 6 |
 | `/healthz` | Route Handler | 헬스체크 (DB 핑 포함) | 2 |
-| `/webhooks/instagram` (Worker) | Cloudflare Worker | Meta 웹훅 GET 검증 + POST 수신 | 4 |
-| `/jobs/thumbnails/retry` (Worker) | Cloudflare Worker | 썸네일 재시도 작업 | 4 |
+| `/webhooks/instagram` (Worker) | Cloudflare Worker | Meta 웹훅 GET 검증 + POST 수신 | 5 |
+| `/jobs/thumbnails/retry` (Worker) | Cloudflare Worker | 썸네일 재시도 작업 | 5 |
 
 ### 4.2 슬러그 정책
 
-- Area/Crag/Sector는 **슬러그** 기반(`/c/<crag-slug>/s/<sector-slug>`).
+- Area/Crag/Sector는 **슬러그** 기반(`/a/<area-slug>`, `/c/<crag-slug>/s/<sector-slug>`).
 - Boulder/Route는 **ID** 기반. 이름 변경 시 링크 안정성 확보.
 - 관리자 영역(`/admin/*`)은 슬러그/ID 혼용 가능 (운영 편의 우선).
 
@@ -139,10 +147,12 @@ pnpm wrangler deploy
 app/
 ├── (public)/
 │   └── page.tsx
+├── a/[areaSlug]/page.tsx
 ├── c/[cragSlug]/
 │   ├── page.tsx
 │   ├── s/[sectorSlug]/page.tsx
 │   └── b/[boulderId]/page.tsx
+├── t/[topoId]/page.tsx
 ├── r/[routeId]/page.tsx
 ├── me/
 │   ├── page.tsx
@@ -307,10 +317,11 @@ Mutation 후 관련 tag를 무효화한다.
 - Phase 3 관리자 콘텐츠 CRUD
 - Phase 3 이미지 업로드/삭제/정렬
 - Phase 3 공지 CRUD
-- Phase 4 비로그인 수동 Beta 등록
-- Phase 5 사용자 프로필 수정
-- Phase 5 favorite toggle
-- Phase 5 본인 Beta 관리/삭제
+- Phase 4 관리자 콘텐츠 부모 필터와 생성 폼 기본값 처리
+- Phase 5 비로그인 수동 Beta 등록
+- Phase 6 사용자 프로필 수정
+- Phase 6 favorite toggle
+- Phase 6 본인 Beta 관리/삭제
 
 모든 Server Action은 Zod 검증과 권한 검사를 먼저 수행한다.
 
@@ -353,7 +364,7 @@ Mutation 후 관련 tag를 무효화한다.
 ```
 
 구성 요소:
-- 1줄: 고정 인사 문구 (운영자가 캡션 템플릿에서 편집 가능, Phase 5)
+- 1줄: 고정 인사 문구 (운영자가 캡션 템플릿에서 편집 가능, Phase 6)
 - 2줄: `[<Crag>] <Sector> / <Boulder> / <Route> (<Grade>)`
 - 4줄: `@granite.kr` 멘션 + `#<boulder_name>` + `#<route_name>` + `boulders.hashtags` 운영 해시태그
 
@@ -367,7 +378,7 @@ Mutation 후 관련 tag를 무효화한다.
 ### 8.3 썸네일
 
 - Beta 생성과 썸네일 수집은 분리 가능하게 설계한다.
-- Phase 4에서는 동기 수집을 시도하고 실패 시 `thumbnail_url = NULL`로 둔다.
+- Phase 5에서는 동기 수집을 시도하고 실패 시 `thumbnail_url = NULL`로 둔다.
 - 재시도는 Cloudflare Worker scheduled job 또는 queue를 우선 검토한다.
 
 ### 8.4 비로그인 수동 Beta
@@ -375,7 +386,7 @@ Mutation 후 관련 tag를 무효화한다.
 - Route 화면의 “베타 영상 올리기”에서 Instagram/YouTube URL, 표시명, Instagram 핸들, 완등 날짜를 입력한다.
 - Server Action은 URL과 입력값을 검증하고 `user_id = NULL`, `source = 'manual'`, `platform = 'instagram' | 'youtube'`, `status = 'pending'` Beta를 생성한다.
 - 관리자 승인 전에는 공개 노출하지 않거나 제한 노출한다.
-- Phase 5 로그인 후 동일 Instagram 핸들의 unclaimed Beta를 클레임할 수 있다.
+- Phase 6 로그인 후 동일 Instagram 핸들의 unclaimed Beta를 클레임할 수 있다.
 
 ## 9. 인증
 
@@ -390,7 +401,7 @@ Mutation 후 관련 tag를 무효화한다.
 
 ### 9.2 사용자
 
-Phase 5에서 Kakao/Naver/Google/Apple OAuth를 도입한다.
+Phase 6에서 Kakao/Naver/Google/Apple OAuth를 도입한다.
 
 - OAuth callback은 `state` 파라미터를 검증해 CSRF를 방지한다.
 - provider uid는 `user_oauth_identities(provider, provider_uid)`에 저장한다.
@@ -453,8 +464,9 @@ Phase별 개인정보 처리:
 - Phase 1: 일반 사용자 정보 없음. mock/seed 기반 public UI만 검증.
 - Phase 2: 공개 콘텐츠 DB 레코드, 좌표, 이미지 URL 문자열을 저장.
 - Phase 3: 관리자 계정 정보와 audit log를 저장.
-- Phase 4: Instagram 웹훅 payload, username/id, 수동 등록자의 표시명/핸들, Instagram/YouTube URL을 운영 목적 최소 범위로 저장.
-- Phase 5: OAuth identity, 이메일, 표시 이름, Instagram 핸들, 선택 신체정보 저장.
+- Phase 4: 추가 개인정보 없음. public/admin UX 보정만 수행.
+- Phase 5: Instagram 웹훅 payload, username/id, 수동 등록자의 표시명/핸들, Instagram/YouTube URL을 운영 목적 최소 범위로 저장.
+- Phase 6: OAuth identity, 이메일, 표시 이름, Instagram 핸들, 선택 신체정보 저장.
 
 삭제 원칙:
 
@@ -502,21 +514,21 @@ Phase별 개인정보 처리:
 | `CDN_BASE_URL` | `https://cdn.granite.kr` | 3 |
 | `NEXT_PUBLIC_KAKAO_MAP_KEY` | 카카오맵 JS 키 (도메인 제한) | 1 |
 | `ADMIN_JWT_SECRET` | 관리자 세션 서명 | 3 |
-| `JWT_SECRET` | 사용자 세션 서명 | 5 |
-| `KAKAO_OAUTH_CLIENT_ID` / `_SECRET` | 카카오 로그인 | 5 |
-| `NAVER_OAUTH_CLIENT_ID` / `_SECRET` | 네이버 로그인 | 5 |
-| `GOOGLE_OAUTH_CLIENT_ID` / `_SECRET` | 구글 로그인 | 5 |
-| `APPLE_TEAM_ID` / `APPLE_KEY_ID` / `APPLE_PRIVATE_KEY` / `APPLE_CLIENT_ID` | 애플 로그인 | 5 |
+| `JWT_SECRET` | 사용자 세션 서명 | 6 |
+| `KAKAO_OAUTH_CLIENT_ID` / `_SECRET` | 카카오 로그인 | 6 |
+| `NAVER_OAUTH_CLIENT_ID` / `_SECRET` | 네이버 로그인 | 6 |
+| `GOOGLE_OAUTH_CLIENT_ID` / `_SECRET` | 구글 로그인 | 6 |
+| `APPLE_TEAM_ID` / `APPLE_KEY_ID` / `APPLE_PRIVATE_KEY` / `APPLE_CLIENT_ID` | 애플 로그인 | 6 |
 
 ### 16.2 Cloudflare Worker
 
 | 키 | 용도 | Phase |
 |----|------|:-----:|
-| `META_APP_ID` | Meta 앱 ID | 4 |
-| `META_APP_SECRET` | `X-Hub-Signature-256` HMAC 검증 | 4 |
-| `META_WEBHOOK_VERIFY_TOKEN` | `GET /webhooks/instagram` 검증 토큰 | 4 |
-| D1 binding | Worker→D1 (`wrangler.toml`의 `[[d1_databases]]`) | 4 |
-| R2 binding | Worker→R2 (`wrangler.toml`의 `[[r2_buckets]]`) | 4 |
+| `META_APP_ID` | Meta 앱 ID | 5 |
+| `META_APP_SECRET` | `X-Hub-Signature-256` HMAC 검증 | 5 |
+| `META_WEBHOOK_VERIFY_TOKEN` | `GET /webhooks/instagram` 검증 토큰 | 5 |
+| D1 binding | Worker→D1 (`wrangler.toml`의 `[[d1_databases]]`) | 5 |
+| R2 binding | Worker→R2 (`wrangler.toml`의 `[[r2_buckets]]`) | 5 |
 
 ### 16.3 비밀 회전 정책
 

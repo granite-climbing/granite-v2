@@ -1,4 +1,11 @@
-import { getAdminTopos, getAdminBoulders } from "@/lib/db/admin-read-queries";
+import {
+  getAdminTopos,
+  getAdminBoulders,
+  listAreaOptions,
+  listCragOptionsByArea,
+  listSectorOptionsByCrag,
+  listBoulderOptionsBySector,
+} from "@/lib/db/admin-read-queries";
 import {
   saveTopoAction,
   softDeleteTopoAction,
@@ -14,95 +21,74 @@ import { DeleteControls, RestoreControls } from "@/components/admin/delete-resto
 import { ImageUploadField } from "@/components/admin/image-upload-field";
 import { EditDrawer } from "@/components/admin/edit-drawer";
 import { FormSection, FullWidth } from "@/components/admin/form-section";
+import { ParentFilter } from "@/components/admin/parent-filter";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 interface Props {
-  searchParams: Promise<{ boulderId?: string; edit?: string }>;
+  searchParams: Promise<{
+    areaId?: string;
+    cragId?: string;
+    sectorId?: string;
+    boulderId?: string;
+    edit?: string;
+    new?: string;
+  }>;
 }
 
 export default async function AdminToposPage({ searchParams }: Props) {
-  const { boulderId, edit } = await searchParams;
-  const [topos, boulders] = await Promise.all([
-    getAdminTopos(boulderId || undefined),
-    getAdminBoulders(),
-  ]);
+  const { areaId, cragId, sectorId, boulderId, edit, new: isNew } = await searchParams;
+  const showCreate = isNew === "true";
+  const [topos, boulders, areaOptions, cragOptions, sectorOptions, boulderOptions] =
+    await Promise.all([
+      getAdminTopos({ areaId, cragId, sectorId, boulderId }),
+      getAdminBoulders({ areaId, cragId, sectorId }),
+      listAreaOptions(),
+      listCragOptionsByArea(areaId),
+      listSectorOptionsByCrag(cragId),
+      listBoulderOptionsBySector(sectorId),
+    ]);
   const liveBoulders = boulders.filter((b) => b.deletedAt === null);
   const selectedBoulder = boulderId ? liveBoulders.find((b) => b.id === boulderId) : undefined;
   const editRow = edit ? topos.find((t) => t.id === edit) : undefined;
 
-  // Build base href preserving boulderId filter
-  const baseHref = boulderId
-    ? `/admin/content/topos?boulderId=${boulderId}`
+  // Build base href preserving active filters
+  const filterParams = new URLSearchParams();
+  if (areaId) filterParams.set("areaId", areaId);
+  if (cragId) filterParams.set("cragId", cragId);
+  if (sectorId) filterParams.set("sectorId", sectorId);
+  if (boulderId) filterParams.set("boulderId", boulderId);
+  const filterString = filterParams.toString();
+  const baseHref = filterString
+    ? `/admin/content/topos?${filterString}`
     : "/admin/content/topos";
+
+  // Build create href preserving filter + new=true
+  const createParams = new URLSearchParams();
+  if (areaId) createParams.set("areaId", areaId);
+  if (cragId) createParams.set("cragId", cragId);
+  if (sectorId) createParams.set("sectorId", sectorId);
+  if (boulderId) createParams.set("boulderId", boulderId);
+  createParams.set("new", "true");
+  const createHref = `?${createParams.toString()}`;
 
   return (
     <AdminShell>
-      <h1 className="mb-6 text-2xl font-bold">Topos</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Topos</h1>
+        <Link href={createHref} className={btnPrimaryCls}>+ New Topo</Link>
+      </div>
 
-      {/* Filter bar */}
-      <form method="get" className="mb-4 flex items-center gap-2">
-        <label className="text-sm font-semibold text-[#57606A]">Filter by Boulder:</label>
-        <select name="boulderId" defaultValue={boulderId ?? ""} className={`${selectCls} w-64`}>
-          <option value="">All boulders</option>
-          {liveBoulders.map((b) => (
-            <option key={b.id} value={b.id}>{b.cragName} / {b.sectorName} / {b.name}</option>
-          ))}
-        </select>
-        <button type="submit" className={btnPrimaryCls}>Filter</button>
-        {boulderId && (
-          <a href="/admin/content/topos" className="text-xs text-[#0969DA] hover:underline">Clear</a>
-        )}
-      </form>
-
-      {/* Create form */}
-      <AdminCard title="Create Topo">
-        <form action={saveTopoAction} className="space-y-2">
-          <FormSection title="Hierarchy" cols={2}>
-            <FullWidth>
-              <AdminField label="Boulder">
-                <select name="boulderId" required defaultValue={boulderId ?? ""} className={selectCls}>
-                  <option value="">— select boulder —</option>
-                  {liveBoulders.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.cragName} / {b.sectorName} / {b.name}
-                    </option>
-                  ))}
-                </select>
-              </AdminField>
-            </FullWidth>
-          </FormSection>
-          <FormSection title="Identity" cols={1}>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Name</label>
-              <input name="name" required className={inputCls} placeholder="고물 정면" />
-            </div>
-          </FormSection>
-          <FormSection title="Image" cols={1}>
-            <FullWidth>
-              <ImageUploadField name="baseImageUrl" defaultValue="" entityType="topos" entityId="new" purpose="base" />
-            </FullWidth>
-          </FormSection>
-          <FormSection title="Publishing" cols={2}>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Sort Order</label>
-              <input name="sortOrder" type="number" defaultValue="0" className={inputCls} />
-            </div>
-            <div className="flex items-end pb-1">
-              <label className="flex items-center gap-2 text-sm">
-                <input name="isPublished" type="checkbox" />
-                Published
-              </label>
-            </div>
-          </FormSection>
-          {/* Cache revalidation context */}
-          <input type="hidden" name="cragSlug" value={selectedBoulder?.cragSlug ?? ""} />
-          <div className="pt-2">
-            <button type="submit" className={btnPrimaryCls}>Create Topo</button>
-          </div>
-        </form>
-      </AdminCard>
+      {/* Cascading parent filter */}
+      <ParentFilter
+        action="/admin/content/topos"
+        current={{ areaId, cragId, sectorId, boulderId }}
+        areaOptions={areaOptions}
+        cragOptions={cragOptions}
+        sectorOptions={sectorOptions}
+        boulderOptions={boulderOptions}
+      />
 
       {/* Topos list */}
       <div className="mt-6">
@@ -120,7 +106,7 @@ export default async function AdminToposPage({ searchParams }: Props) {
                 <AdminTableCell>
                   <div className="flex flex-col gap-1">
                     <Link
-                      href={boulderId ? `?boulderId=${boulderId}&edit=${topo.id}` : `?edit=${topo.id}`}
+                      href={filterString ? `?${filterString}&edit=${topo.id}` : `?edit=${topo.id}`}
                       className={btnPrimaryCls}
                     >
                       Edit
@@ -163,6 +149,56 @@ export default async function AdminToposPage({ searchParams }: Props) {
           </AdminTable>
         </AdminCard>
       </div>
+
+      {/* Create drawer */}
+      {showCreate ? (
+        <EditDrawer title="Create Topo" closeHref={baseHref}>
+          <form action={saveTopoAction} className="space-y-2">
+            <FormSection title="Hierarchy" cols={2}>
+              <FullWidth>
+                <AdminField label="Boulder">
+                  <select name="boulderId" required defaultValue={boulderId ?? ""} className={selectCls}>
+                    <option value="">— select boulder —</option>
+                    {liveBoulders.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.cragName} / {b.sectorName} / {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </AdminField>
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Identity" cols={1}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Name</label>
+                <input name="name" required className={inputCls} placeholder="고물 정면" />
+              </div>
+            </FormSection>
+            <FormSection title="Image" cols={1}>
+              <FullWidth>
+                <ImageUploadField name="baseImageUrl" defaultValue="" entityType="topos" entityId="new" purpose="base" />
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Publishing" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Sort Order</label>
+                <input name="sortOrder" type="number" defaultValue="0" className={inputCls} />
+              </div>
+              <div className="flex items-end pb-1">
+                <label className="flex items-center gap-2 text-sm">
+                  <input name="isPublished" type="checkbox" />
+                  Published
+                </label>
+              </div>
+            </FormSection>
+            {/* Cache revalidation context */}
+            <input type="hidden" name="cragSlug" value={selectedBoulder?.cragSlug ?? ""} />
+            <div className="pt-2">
+              <button type="submit" className={btnPrimaryCls}>Create Topo</button>
+            </div>
+          </form>
+        </EditDrawer>
+      ) : null}
 
       {/* Edit drawer */}
       {editRow && (
