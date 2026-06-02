@@ -571,11 +571,11 @@ git commit -m "feat(area): top overview map with marker click → Crag card focu
 **Files:**
 - Modify: `app/(site)/c/[cragSlug]/page.tsx`
 
-- [ ] **Step 1: Read the current `BoulderListCard` definition (around line 425) and the Route tab block (around line 195).**
+- [x] **Step 1: Read the current `BoulderListCard` definition (around line 425) and the Route tab block (around line 195).**
 
 The Boulder list currently renders `BoulderListCard` as a plain `<article>` (per the Phase 4 review notes). The chevron `›` implies tappability but no `<Link>` exists. The Route tab today filters by `?q=` and `?sort=` only.
 
-- [ ] **Step 2: Wrap `BoulderListCard` content in a `<Link>` to the Route tab filtered by boulder id.**
+- [x] **Step 2: Wrap `BoulderListCard` content in a `<Link>` to the Route tab filtered by boulder id.**
 
 Modify the existing `BoulderListCard` function so the entire card is a link:
 
@@ -596,7 +596,7 @@ function BoulderListCard({ boulder, cragSlug }: { boulder: CragBoulderListItem; 
 
 Update the `<BoulderListCard />` call site (around line 188) to pass `cragSlug={crag.slug}`.
 
-- [ ] **Step 3: Read `boulderId` from `searchParams` on the Route tab and filter routes.**
+- [x] **Step 3: Read `boulderId` from `searchParams` on the Route tab and filter routes.**
 
 In the Crag page top-level component, extend `searchParams` destructuring:
 
@@ -631,7 +631,7 @@ if (activeTab === "Route") {
 
 (Verify `RouteListItem` has a `boulderId` field. If it's named differently — e.g. `boulder_id` or only `boulderName` — grep `lib/db/schema.ts` and adjust. If `boulderId` is genuinely missing, add it to the SELECT in `getCragRoutes` and update the row interface accordingly.)
 
-- [ ] **Step 4: Preserve `boulderId` when toggling `q` / `sort` on the Route tab.**
+- [x] **Step 4: Preserve `boulderId` when toggling `q` / `sort` on the Route tab.**
 
 Update `CragTabs` and the search/sort URL builders so `boulderId` is carried alongside `q` and `sort`:
 
@@ -639,7 +639,7 @@ Update `CragTabs` and the search/sort URL builders so `boulderId` is carried alo
 - `nextGradeSortHref(...)`: also propagate `boulderId`.
 - `SearchField` Route-tab usage: include `boulderId` in `hiddenFields` if set, so submitting search keeps it. The implementer should pass `boulderId` through the prop chain mirroring how `sort` flows.
 
-- [ ] **Step 5: Add a "filtered by boulder" indicator above the route list.**
+- [x] **Step 5: Add a "filtered by boulder" indicator above the route list.**
 
 When `boulderId` is set, render a small chip above the table:
 
@@ -657,17 +657,17 @@ When `boulderId` is set, render a small chip above the table:
 ) : null}
 ```
 
-- [ ] **Step 6: Run typecheck.**
+- [x] **Step 6: Run typecheck.**
 
 Run: `pnpm typecheck`
 Expected: clean. If `boulderId` is missing from `RouteListItem`, this step will fail — go back to step 3 and extend the schema/SELECT.
 
-- [ ] **Step 7: Run tests.**
+- [x] **Step 7: Run tests.**
 
 Run: `pnpm test`
 Expected: all existing tests still pass (no test changes required for this client-side filter).
 
-- [ ] **Step 8: Commit.**
+- [x] **Step 8: Commit.**
 
 ```bash
 git add app/\(site\)/c/\[cragSlug\]/page.tsx
