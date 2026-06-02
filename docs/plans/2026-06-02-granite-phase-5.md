@@ -29,20 +29,20 @@
 
 ### Product Scope
 
-- [ ] Route/Topo UI can generate and copy Instagram caption for any published Route.
-- [ ] Route/Topo UI can submit manual Beta with Instagram/YouTube URL, display name, Instagram handle, and sent date without login.
-- [ ] Manual Beta is saved as `source='manual'`, `platform='instagram'|'youtube'`, `user_id=NULL`, `claim_status='unclaimed'`, `status='pending'`.
-- [ ] Instagram webhook accepts Meta verification `GET`.
-- [ ] Instagram webhook verifies `X-Hub-Signature-256` on `POST`.
-- [ ] Instagram webhook stores original event in `webhook_inbox` with unique `external_id`.
-- [ ] Instagram webhook parses caption, matches Route by normalized Boulder/Route hashtag combination, creates unclaimed Beta on exactly one match, and marks ambiguous/missing matches as `unmatched`.
-- [ ] Admin can review webhook inbox entries, manually match to a Route, or reject.
-- [ ] Admin can review Beta records, approve, hide, or remove.
-- [ ] Public Beta grid shows only `status='approved'` Betas. `pending`, `hidden`, and `removed` never appear publicly.
-- [ ] Thumbnail collection is attempted but non-blocking; Beta creation must survive thumbnail failure.
-- [ ] Every thumbnail source from Instagram/YouTube APIs or HTML fallback is copied to R2 immediately; `betas.thumbnail_url` stores only Granite CDN URLs or `NULL`.
+- [x] Route/Topo UI can generate and copy Instagram caption for any published Route.
+- [x] Route/Topo UI can submit manual Beta with Instagram/YouTube URL, display name, Instagram handle, and sent date without login.
+- [x] Manual Beta is saved as `source='manual'`, `platform='instagram'|'youtube'`, `user_id=NULL`, `claim_status='unclaimed'`, `status='pending'`.
+- [x] Instagram webhook accepts Meta verification `GET`.
+- [x] Instagram webhook verifies `X-Hub-Signature-256` on `POST`.
+- [x] Instagram webhook stores original event in `webhook_inbox` with unique `external_id`.
+- [x] Instagram webhook parses caption, matches Route by normalized Boulder/Route hashtag combination, creates unclaimed Beta on exactly one match, and marks ambiguous/missing matches as `unmatched`.
+- [x] Admin can review webhook inbox entries, manually match to a Route, or reject.
+- [x] Admin can review Beta records, approve, hide, or remove.
+- [x] Public Beta grid shows only `status='approved'` Betas. `pending`, `hidden`, and `removed` never appear publicly.
+- [x] Thumbnail collection is attempted but non-blocking; Beta creation must survive thumbnail failure.
+- [x] Every thumbnail source from Instagram/YouTube APIs or HTML fallback is copied to R2 immediately; `betas.thumbnail_url` stores only Granite CDN URLs or `NULL`.
 - [ ] Duplicate Beta creation is prevented across manual submissions, webhook retries, and admin manual matching.
-- [ ] Admin can inspect webhook/Beta operational health: duplicate drops, invalid signatures, Graph API failures, unmatched events, and thumbnail copy failures (read-only visibility; automatic retry is out of scope for Phase 5).
+- [x] Admin can inspect webhook/Beta operational health: duplicate drops, invalid signatures, Graph API failures, unmatched events, and thumbnail copy failures (read-only visibility; automatic retry is out of scope for Phase 5).
 
 ### Out Of Scope
 
@@ -358,7 +358,7 @@ Constraints:
 - Modify: `lib/db/schema.ts`
 - Modify: `docs/DATA_MODEL.md`
 
-- [ ] **Step 1: Write migration SQL.**
+- [x] **Step 1: Write migration SQL.**
 
 Create `migrations/0004_beta_instagram.sql`:
 
@@ -453,7 +453,7 @@ CREATE INDEX IF NOT EXISTS idx_webhook_operational_events_created_at ON webhook_
 CREATE INDEX IF NOT EXISTS idx_webhook_operational_events_webhook_id ON webhook_operational_events (webhook_id);
 ```
 
-- [ ] **Step 2: Add exported TS model types.**
+- [x] **Step 2: Add exported TS model types.**
 
 Add these types to `lib/db/schema.ts`:
 
@@ -537,17 +537,17 @@ export type WebhookOperationalEvent = {
 };
 ```
 
-- [ ] **Step 3: Document the concrete columns.**
+- [x] **Step 3: Document the concrete columns.**
 
 Update `docs/DATA_MODEL.md` `betas and webhook_inbox` section to include the exact columns from `0004_beta_instagram.sql`, the unique `webhook_inbox.external_id`, and the rule that every Phase 5 Beta has `user_id = NULL` and `claim_status='unclaimed'`.
 
-- [ ] **Step 4: Run migration syntax smoke check.**
+- [x] **Step 4: Run migration syntax smoke check.**
 
 Run: `pnpm wrangler d1 migrations apply granite --local`
 
 Expected: migration applies locally without SQL syntax errors. If the local D1 database is not configured, note that and run `pnpm test` after query tests are added.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ```bash
 git add migrations/0004_beta_instagram.sql lib/db/schema.ts docs/DATA_MODEL.md
@@ -564,7 +564,7 @@ git commit -m "feat: add beta instagram schema"
 - Create: `lib/beta/caption.ts`
 - Create: `lib/beta/caption.test.ts`
 
-- [ ] **Step 1: Write normalization tests.**
+- [x] **Step 1: Write normalization tests.**
 
 Create `lib/beta/normalize.test.ts`:
 
@@ -612,7 +612,7 @@ describe("beta normalization", () => {
 });
 ```
 
-- [ ] **Step 2: Implement normalization helpers.**
+- [x] **Step 2: Implement normalization helpers.**
 
 Create `lib/beta/normalize.ts`:
 
@@ -668,7 +668,7 @@ export function normalizeYouTubeOrInstagramUrl(rawUrl: string): string {
 }
 ```
 
-- [ ] **Step 3: Write caption tests.**
+- [x] **Step 3: Write caption tests.**
 
 Create `lib/beta/caption.test.ts`:
 
@@ -693,7 +693,7 @@ describe("buildInstagramCaption", () => {
 });
 ```
 
-- [ ] **Step 4: Implement caption generation.**
+- [x] **Step 4: Implement caption generation.**
 
 Create `lib/beta/caption.ts`:
 
@@ -727,13 +727,13 @@ export function buildInstagramCaption(input: CaptionRouteContext): string {
 }
 ```
 
-- [ ] **Step 5: Verify.**
+- [x] **Step 5: Verify.**
 
 Run: `pnpm test lib/beta/normalize.test.ts lib/beta/caption.test.ts`
 
 Expected: all tests pass.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
 ```bash
 git add lib/beta/normalize.ts lib/beta/normalize.test.ts lib/beta/caption.ts lib/beta/caption.test.ts
@@ -749,7 +749,7 @@ git commit -m "feat: add beta caption helpers"
 - Create: `lib/db/beta-queries.test.ts`
 - Modify: `lib/db/repository.ts`
 
-- [ ] **Step 1: Write query tests with mocked D1 helpers.**
+- [x] **Step 1: Write query tests with mocked D1 helpers.**
 
 Create `lib/db/beta-queries.test.ts`:
 
@@ -855,7 +855,7 @@ describe("beta queries", () => {
 });
 ```
 
-- [ ] **Step 2: Implement Beta query functions.**
+- [x] **Step 2: Implement Beta query functions.**
 
 Create `lib/db/beta-queries.ts` with these exported functions:
 
@@ -1073,11 +1073,11 @@ export async function getApprovedBetaVideosByRoute(routeId: string): Promise<Arr
 }
 ```
 
-- [ ] **Step 3: Add repository helper for route caption context.**
+- [x] **Step 3: Add repository helper for route caption context.**
 
 Modify `lib/db/repository.ts` to expose `findRouteCaptionContext(routeId: string)` that joins route → topo → boulder → sector → crag and returns names, grade, and parsed boulder hashtags. Use the same published/deleted ancestor gates used by existing public route queries.
 
-- [ ] **Step 4: Add duplicate handling query helpers.**
+- [x] **Step 4: Add duplicate handling query helpers.**
 
 In `lib/db/beta-queries.ts`, add:
 - `findExistingBetaByExternalMedia(platform, externalMediaId)` for webhook and hashtag flows.
@@ -1091,13 +1091,13 @@ Expected duplicate behavior:
 - Webhook retry with an existing `platform + external_media_id` must mark the inbox row `duplicate` and point to the existing Beta.
 - Admin manual match must refuse to create a duplicate and show the existing Beta id in `/admin/webhooks`.
 
-- [ ] **Step 5: Verify.**
+- [x] **Step 5: Verify.**
 
 Run: `pnpm test lib/db/beta-queries.test.ts`
 
 Expected: all tests pass.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
 ```bash
 git add lib/db/beta-queries.ts lib/db/beta-queries.test.ts lib/db/repository.ts
@@ -1113,7 +1113,7 @@ git commit -m "feat: add beta query layer"
 - Create: `lib/actions/beta.ts`
 - Create: `lib/actions/beta.test.ts`
 
-- [ ] **Step 1: Write action tests.**
+- [x] **Step 1: Write action tests.**
 
 Create `lib/actions/beta.test.ts`:
 
@@ -1192,7 +1192,7 @@ describe("submitManualBetaAction", () => {
 });
 ```
 
-- [ ] **Step 2: Implement Zod parser.**
+- [x] **Step 2: Implement Zod parser.**
 
 Create `lib/actions/beta-schema.ts`:
 
@@ -1228,7 +1228,7 @@ export function parseManualBetaForm(raw: Record<string, FormDataEntryValue>) {
 }
 ```
 
-- [ ] **Step 3: Implement Server Action.**
+- [x] **Step 3: Implement Server Action.**
 
 Create `lib/actions/beta.ts`:
 
@@ -1269,13 +1269,13 @@ export async function submitManualBetaAction(formData: FormData): Promise<Manual
 }
 ```
 
-- [ ] **Step 4: Verify.**
+- [x] **Step 4: Verify.**
 
 Run: `pnpm test lib/actions/beta.test.ts`
 
 Expected: all tests pass.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ```bash
 git add lib/actions/beta-schema.ts lib/actions/beta.ts lib/actions/beta.test.ts
@@ -1310,7 +1310,7 @@ git commit -m "feat: add manual beta action"
 - Below CTAs: approved Beta thumbnail grid, 3 columns, square cells, 120px in the 360px Figma frame, with white 1px separators.
 - Do not implement Figma iPhone status bar in the real app; real app starts at the existing 56px app header/topo page header per project UI rules.
 
-- [ ] **Step 1: Add a client action component.**
+- [x] **Step 1: Add a client action component.**
 
 Create `components/public/beta-route-actions.tsx`:
 
@@ -1354,7 +1354,7 @@ export function BetaRouteActions({
 }
 ```
 
-- [ ] **Step 2: Add beta video thumbnail grid.**
+- [x] **Step 2: Add beta video thumbnail grid.**
 
 Create `components/public/beta-video-grid.tsx`:
 
@@ -1406,7 +1406,7 @@ export function BetaVideoGrid({ items }: { items: BetaVideoItem[] }) {
 }
 ```
 
-- [ ] **Step 3: Add Figma beta video bottom sheet.**
+- [x] **Step 3: Add Figma beta video bottom sheet.**
 
 Create `components/public/beta-video-sheet.tsx`:
 
@@ -1489,7 +1489,7 @@ export function BetaVideoSheet({
 }
 ```
 
-- [ ] **Step 4: Add manual form modal.**
+- [x] **Step 4: Add manual form modal.**
 
 Create `components/public/manual-beta-form.tsx`:
 
@@ -1554,7 +1554,7 @@ export function ManualBetaForm({
 }
 ```
 
-- [ ] **Step 5: Render Beta controls in Topo route rows.**
+- [x] **Step 5: Render Beta controls in Topo route rows.**
 
 Modify `app/(site)/t/[topoId]/page.tsx`:
 
@@ -1594,7 +1594,7 @@ Then render after the route metadata:
 <BetaRouteActions routeId={route.id} caption={caption} betaVideos={betaVideos} />
 ```
 
-- [ ] **Step 6: Verify.**
+- [x] **Step 6: Verify.**
 
 Run: `pnpm typecheck`
 
@@ -1610,7 +1610,7 @@ Manual browser QA:
 - Open `베타 영상 올리기`, submit Instagram URL, display name, handle, date.
 - Confirm row appears in `/admin/betas` after Task 7.
 
-- [ ] **Step 7: Commit.**
+- [x] **Step 7: Commit.**
 
 ```bash
 git add 'app/(site)/t/[topoId]/page.tsx' components/public/beta-route-actions.tsx components/public/beta-video-sheet.tsx components/public/beta-video-grid.tsx components/public/manual-beta-form.tsx
@@ -1631,7 +1631,7 @@ git commit -m "feat: add public beta submission ui"
 - Create: `workers/instagram-webhook/src/index.test.ts`
 - Modify: `wrangler.toml`
 
-- [ ] **Step 1: Write Worker behavior tests.**
+- [x] **Step 1: Write Worker behavior tests.**
 
 Create `workers/instagram-webhook/src/index.test.ts`:
 
@@ -1708,7 +1708,7 @@ describe("instagram webhook worker", () => {
 });
 ```
 
-- [ ] **Step 2: Implement HMAC helper.**
+- [x] **Step 2: Implement HMAC helper.**
 
 Create `workers/instagram-webhook/src/hmac.ts`:
 
@@ -1734,7 +1734,7 @@ export async function verifyMetaSignature(body: string, header: string | null, s
 }
 ```
 
-- [ ] **Step 3: Implement payload extraction.**
+- [x] **Step 3: Implement payload extraction.**
 
 Create `workers/instagram-webhook/src/payload.ts` with a narrow parser that ignores unknown changes and returns only notification ids:
 - `externalId`: `comment_id` when present, otherwise `media_id`;
@@ -1744,7 +1744,7 @@ Create `workers/instagram-webhook/src/payload.ts` with a narrow parser that igno
 
 The webhook notification does not include caption, username, media URL, thumbnail, or permalink. Those fields must be fetched in `match.ts` with Mentioned Media / Mentioned Comment API calls.
 
-- [ ] **Step 4: Implement Worker route.**
+- [x] **Step 4: Implement Worker route.**
 
 Create `workers/instagram-webhook/src/index.ts`:
 
@@ -1791,7 +1791,7 @@ export default {
 };
 ```
 
-- [ ] **Step 5: Implement matching logic.**
+- [x] **Step 5: Implement matching logic.**
 
 Create `workers/instagram-webhook/src/match.ts` so `processMentionEvent`:
 - inserts `webhook_inbox` using `external_id` with `INSERT OR IGNORE` and the raw notification payload;
@@ -1807,7 +1807,7 @@ Create `workers/instagram-webhook/src/match.ts` so `processMentionEvent`:
 - updates `webhook_inbox.status='matched'` and `matched_beta_id`;
 - if zero or many candidates exist, updates `webhook_inbox.status='unmatched'`.
 
-- [ ] **Step 6: Configure Worker.**
+- [x] **Step 6: Configure Worker.**
 
 Modify `wrangler.toml` to preserve the existing Granite resources and align binding names with the Worker `Env` interface:
 
@@ -1832,7 +1832,7 @@ bucket_name = "granite-v2"
 
 If implementation chooses to keep the current binding names `granite_v2` and `BUCKET`, update the Worker `Env` interface and all Worker code to use those exact names instead of `DB` and `BETA_THUMBNAILS`.
 
-- [ ] **Step 7: Verify.**
+- [x] **Step 7: Verify.**
 
 Run: `pnpm test workers/instagram-webhook/src/index.test.ts`
 
@@ -1842,7 +1842,7 @@ Run: `pnpm wrangler deploy --dry-run`
 
 Expected: Worker bundles without type or binding errors.
 
-- [ ] **Step 8: Commit.**
+- [x] **Step 8: Commit.**
 
 ```bash
 git add workers/instagram-webhook wrangler.toml
@@ -1859,7 +1859,7 @@ git commit -m "feat: add instagram webhook worker"
 - Create: `app/admin/(protected)/betas/page.tsx`
 - Modify: `components/admin/admin-shell.tsx`
 
-- [ ] **Step 1: Write admin action tests.**
+- [x] **Step 1: Write admin action tests.**
 
 Create `lib/actions/admin-beta.test.ts`:
 
@@ -1886,7 +1886,7 @@ describe("admin beta actions", () => {
 });
 ```
 
-- [ ] **Step 2: Implement admin action.**
+- [x] **Step 2: Implement admin action.**
 
 Create `lib/actions/admin-beta.ts`:
 
@@ -1934,7 +1934,7 @@ export async function rejectWebhookAction(formData: FormData): Promise<void> {
 }
 ```
 
-- [ ] **Step 3: Add admin Beta page.**
+- [x] **Step 3: Add admin Beta page.**
 
 Create `app/admin/(protected)/betas/page.tsx` with:
 - `getAdminBetas({ status })`;
@@ -1942,7 +1942,7 @@ Create `app/admin/(protected)/betas/page.tsx` with:
 - columns: Route, Boulder/Crag, source/platform, Instagram handle/display name, media URL, sent date, status, actions;
 - action forms calling `setBetaStatusAction` for approve/hide/remove.
 
-- [ ] **Step 4: Add admin nav.**
+- [x] **Step 4: Add admin nav.**
 
 Modify `components/admin/admin-shell.tsx` to include:
 
@@ -1953,7 +1953,7 @@ Modify `components/admin/admin-shell.tsx` to include:
 
 Use the existing nav data structure in that file.
 
-- [ ] **Step 5: Verify.**
+- [x] **Step 5: Verify.**
 
 Run: `pnpm test lib/actions/admin-beta.test.ts`
 
@@ -1963,7 +1963,7 @@ Run: `pnpm typecheck`
 
 Expected: TypeScript passes.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
 ```bash
 git add lib/actions/admin-beta.ts lib/actions/admin-beta.test.ts 'app/admin/(protected)/betas/page.tsx' components/admin/admin-shell.tsx
@@ -1979,14 +1979,14 @@ git commit -m "feat: add beta moderation admin"
 - Modify: `lib/actions/admin-beta.ts`
 - Create: `app/admin/(protected)/webhooks/page.tsx`
 
-- [ ] **Step 1: Add manual match query function.**
+- [x] **Step 1: Add manual match query function.**
 
 In `lib/db/beta-queries.ts`, add `manualMatchWebhookToRoute(input)` that:
 - loads the webhook row by id;
 - creates a `betas` row with `source='instagram_webhook'`, `platform='instagram'`, `user_id=NULL`, `status='pending'`, `claim_status='unclaimed'`;
 - updates `webhook_inbox.status='manual_matched'` and `matched_beta_id`.
 
-- [ ] **Step 2: Add manual match Server Action.**
+- [x] **Step 2: Add manual match Server Action.**
 
 In `lib/actions/admin-beta.ts`, add:
 
@@ -2018,7 +2018,7 @@ export async function manualMatchWebhookAction(formData: FormData): Promise<void
 
 Import `randomUUID` from `node:crypto` and `manualMatchWebhookToRoute` from `@/lib/db/beta-queries`.
 
-- [ ] **Step 3: Add webhook inbox page.**
+- [x] **Step 3: Add webhook inbox page.**
 
 Create `app/admin/(protected)/webhooks/page.tsx` with:
 - `getAdminWebhookInbox(status)`;
@@ -2028,7 +2028,7 @@ Create `app/admin/(protected)/webhooks/page.tsx` with:
 - route picker form calling `manualMatchWebhookAction`;
 - reject form calling `rejectWebhookAction`.
 
-- [ ] **Step 4: Verify ambiguous route workflow.**
+- [x] **Step 4: Verify ambiguous route workflow.**
 
 Run: `pnpm typecheck`
 
@@ -2039,7 +2039,7 @@ Manual QA:
 - Confirm `/admin/betas` has a pending Beta and the inbox row moved to `manual_matched`.
 - Reject another row and confirm status `rejected`.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ```bash
 git add lib/db/beta-queries.ts lib/actions/admin-beta.ts 'app/admin/(protected)/webhooks/page.tsx'
@@ -2066,7 +2066,7 @@ git commit -m "feat: add webhook inbox moderation"
 - Store only the Granite CDN URL (`${CDN_BASE_URL}/betas/{betaId}/thumb-{uuid}.{ext}`) in `betas.thumbnail_url`.
 - If source lookup, download, image validation, or R2 upload fails, keep the Beta row and leave `thumbnail_url = NULL`.
 
-- [ ] **Step 1: Write thumbnail tests.**
+- [x] **Step 1: Write thumbnail tests.**
 
 Create `lib/beta/thumbnail.test.ts`:
 
@@ -2111,7 +2111,7 @@ describe("thumbnail helpers", () => {
 });
 ```
 
-- [ ] **Step 2: Implement helper.**
+- [x] **Step 2: Implement helper.**
 
 Create `lib/beta/thumbnail.ts`:
 
@@ -2161,7 +2161,7 @@ export function inferImageExtensionFromContentType(contentType: string | null): 
 }
 ```
 
-- [ ] **Step 3: Add Instagram oEmbed then HTML fallback lookup for manual URL input.**
+- [x] **Step 3: Add Instagram oEmbed then HTML fallback lookup for manual URL input.**
 
 Create `lib/beta/instagram-oembed.ts`:
 
@@ -2215,7 +2215,7 @@ Manual URL thumbnail lookup order:
 3. Download the candidate URL and upload to R2.
 4. Update `betas.thumbnail_url` only with the Granite CDN URL.
 
-- [ ] **Step 4: Add DB helper for durable thumbnail URL update.**
+- [x] **Step 4: Add DB helper for durable thumbnail URL update.**
 
 In `lib/db/beta-queries.ts`, add:
 
@@ -2228,7 +2228,7 @@ export async function updateBetaThumbnailUrl(id: string, thumbnailUrl: string): 
 }
 ```
 
-- [ ] **Step 5: Update manual Beta action to attempt durable thumbnail after row creation.**
+- [x] **Step 5: Update manual Beta action to attempt durable thumbnail after row creation.**
 
 In `lib/actions/beta.ts`, after `createManualBeta`, attempt thumbnail acquisition:
 - for Instagram URL: oEmbed first, HTML metadata fallback second;
@@ -2241,7 +2241,7 @@ In `lib/actions/beta.ts`, after `createManualBeta`, attempt thumbnail acquisitio
 
 This should be implemented through small helpers rather than putting fetch/R2 logic directly in the action.
 
-- [ ] **Step 6: Wire Worker thumbnail attempt as best effort.**
+- [x] **Step 6: Wire Worker thumbnail attempt as best effort.**
 
 In `workers/instagram-webhook/src/thumbnail.ts`, implement a function that:
 - accepts a source thumbnail URL from `mentioned_media.thumbnail_url`, `mentioned_media.media_url`, or `top_media.media_url`;
@@ -2252,11 +2252,11 @@ In `workers/instagram-webhook/src/thumbnail.ts`, implement a function that:
 - returns `${env.CDN_BASE_URL}/betas/{betaId}/thumb-{uuid}.{ext}`;
 - catches errors and returns `null`.
 
-- [ ] **Step 7: Ensure Beta creation never depends on thumbnail success.**
+- [x] **Step 7: Ensure Beta creation never depends on thumbnail success.**
 
 In `workers/instagram-webhook/src/match.ts`, create the Beta first with `thumbnail_url = NULL`; then attempt R2 thumbnail storage and update the Beta only if a Granite CDN URL is returned. Do not store `mentioned_media.thumbnail_url`, `mentioned_media.media_url`, `top_media.media_url`, or oEmbed `thumbnail_url` directly in `betas.thumbnail_url`.
 
-- [ ] **Step 8: Verify.**
+- [x] **Step 8: Verify.**
 
 Run: `pnpm test lib/beta/thumbnail.test.ts`
 
@@ -2266,7 +2266,7 @@ Run: `pnpm test workers/instagram-webhook/src/index.test.ts`
 
 Expected: tests pass.
 
-- [ ] **Step 9: Commit.**
+- [x] **Step 9: Commit.**
 
 ```bash
 git add lib/beta/thumbnail.ts lib/beta/thumbnail.test.ts lib/beta/instagram-oembed.ts lib/beta/instagram-html.ts lib/db/beta-queries.ts lib/actions/beta.ts workers/instagram-webhook/src/thumbnail.ts workers/instagram-webhook/src/match.ts
@@ -2288,7 +2288,7 @@ git commit -m "feat: add beta thumbnail fallback"
 - Modify: `app/admin/(protected)/webhooks/page.tsx`
 - Modify: `app/admin/(protected)/betas/page.tsx`
 
-- [ ] **Step 1: Add SSRF and external fetch guard tests.**
+- [x] **Step 1: Add SSRF and external fetch guard tests.**
 
 Create `lib/beta/fetch-guard.test.ts`:
 
@@ -2315,7 +2315,7 @@ describe("external fetch guard", () => {
 });
 ```
 
-- [ ] **Step 2: Implement guarded fetch policy.**
+- [x] **Step 2: Implement guarded fetch policy.**
 
 Create `lib/beta/fetch-guard.ts`:
 
@@ -2360,7 +2360,7 @@ Every external fetch helper must:
 - reject responses larger than 5 MB before R2 upload;
 - require an allowed image content type before R2 storage.
 
-- [ ] **Step 3: Add webhook operational state transitions.**
+- [x] **Step 3: Add webhook operational state transitions.**
 
 In `workers/instagram-webhook/src/match.ts`:
 - set `webhook_inbox.status='processing'` and increment `processing_attempts` before follow-up Graph API calls;
@@ -2370,7 +2370,7 @@ In `workers/instagram-webhook/src/match.ts`:
 - on invalid signature, do not insert `webhook_inbox` and do not store the raw body. Insert a `webhook_operational_events` row with `event_type='invalid_signature'`, method/path/status code/request id, then return `401`.
 - for every `last_error_code` written on `webhook_inbox`, also insert a corresponding `webhook_operational_events` row so `/admin/webhooks` can show both current row state and recent operational events.
 
-- [ ] **Step 4: Add admin operations columns and filters.**
+- [x] **Step 4: Add admin operations columns and filters.**
 
 Update `/admin/webhooks` to show:
 - status badge for `received`, `processing`, `matched`, `unmatched`, `manual_matched`, `rejected`, `duplicate`, `failed`;
@@ -2389,7 +2389,7 @@ Update `/admin/betas` to show:
 - moderation note field;
 - public visibility rule: only `approved` is public.
 
-- [ ] **Step 5: Verify.**
+- [x] **Step 5: Verify.**
 
 Run:
 
@@ -2407,7 +2407,7 @@ Manual QA:
 - failed Graph API event is visible in `/admin/webhooks` with error code/message (no retry action in Phase 5);
 - `/admin/betas` clearly marks `approved` as public and all other statuses as not public.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
 ```bash
 git add lib/beta/fetch-guard.ts lib/beta/fetch-guard.test.ts lib/beta/instagram-html.ts lib/beta/thumbnail.ts workers/instagram-webhook/src/match.ts workers/instagram-webhook/src/thumbnail.ts lib/db/beta-queries.ts 'app/admin/(protected)/webhooks/page.tsx' 'app/admin/(protected)/betas/page.tsx'
@@ -2423,7 +2423,7 @@ git commit -m "feat: add beta operations safeguards"
 - Modify: `docs/deployment.md`
 - Modify: `docs/ROADMAP.md`
 
-- [ ] **Step 1: Write admin SOP.**
+- [x] **Step 1: Write admin SOP.**
 
 Create `docs/admin-beta-operations.md` with:
 - how to review `/admin/webhooks`;
@@ -2438,7 +2438,7 @@ Create `docs/admin-beta-operations.md` with:
 - privacy note for raw payload retention and unclaimed Beta ownership;
 - Phase 5 retry policy: there is no automatic retry. `failed` rows are operator-visible only. To re-process a failed event, the operator either redelivers from Meta App Dashboard, rejects the row, or re-creates the Beta through the manual submission form. This will be revisited in a later phase.
 
-- [ ] **Step 2: Update deployment docs.**
+- [x] **Step 2: Update deployment docs.**
 
 Modify `docs/deployment.md` to include:
 
@@ -2454,11 +2454,11 @@ Also document Meta callback URL:
 
 Use the deployed Worker URL shown by `pnpm wrangler deploy --dry-run` plus the fixed callback path `/webhooks/instagram`. If Cloudflare custom routes are configured, use the production custom route plus `/webhooks/instagram`.
 
-- [ ] **Step 3: Update roadmap.**
+- [x] **Step 3: Update roadmap.**
 
 Modify `docs/ROADMAP.md` Phase 5 section so external setup remains a launch checklist and implemented code items point to this plan.
 
-- [ ] **Step 4: Full verification.**
+- [x] **Step 4: Full verification.**
 
 Run:
 
@@ -2489,7 +2489,7 @@ Manual checklist:
 - Thumbnail failure leaves the Beta row intact.
 - Thumbnail success stores a Granite CDN URL, not an Instagram CDN URL.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
 ```bash
 git add docs/admin-beta-operations.md docs/deployment.md docs/ROADMAP.md
@@ -2498,9 +2498,733 @@ git commit -m "docs: add phase 5 beta operations"
 
 ---
 
+## Task 12: Webhook Processing Error Boundary and Stale State Visibility
+
+**Codex finding addressed:** `processMentionEvent` runs inside `ctx.waitUntil`. After it transitions `webhook_inbox.status` from `received` to `processing`, any thrown error from the Graph API helpers (`fetch` timeout, JSON parse, network exception) abandons the row in `processing`. The admin page `/admin/webhooks` does not currently expose `received` or `processing` as filter options, so stuck rows are invisible to operators. Meta has already received a 200 ACK so it will not redeliver. Net effect: silently lost beta events.
+
+**Files:**
+- Modify: `workers/instagram-webhook/src/match.ts`
+- Create: `workers/instagram-webhook/src/match.test.ts`
+- Modify: `app/admin/(protected)/webhooks/page.tsx`
+
+- [ ] **Step 1: Write a failing test for the catch path.**
+
+Create `workers/instagram-webhook/src/match.test.ts`:
+
+```ts
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("./d1", () => ({
+  insertWebhookInbox: vi.fn(),
+  setWebhookInboxStatus: vi.fn(),
+  insertWebhookOperationalEvent: vi.fn(),
+  findExistingBetaByExternalMedia: vi.fn(),
+  findPublishedRouteCandidates: vi.fn(),
+  insertWebhookBeta: vi.fn(),
+}));
+vi.mock("./graph-api", () => ({
+  fetchMentionedMedia: vi.fn(),
+  fetchMentionedComment: vi.fn(),
+}));
+vi.mock("./thumbnail", () => ({
+  attemptThumbnailCopy: vi.fn().mockResolvedValue(null),
+}));
+
+const d1 = await import("./d1");
+const graph = await import("./graph-api");
+const { processMentionEvent } = await import("./match");
+
+const env = {
+  META_APP_SECRET: "x",
+  META_WEBHOOK_VERIFY_TOKEN: "x",
+  INSTAGRAM_GRAPH_ACCESS_TOKEN: "x",
+  granite_v2: {} as unknown as D1Database,
+  BUCKET: {} as unknown as R2Bucket,
+  CDN_BASE_URL: "https://cdn.granite.kr",
+};
+
+describe("processMentionEvent error boundary", () => {
+  beforeEach(() => {
+    vi.mocked(d1.insertWebhookInbox).mockReset().mockResolvedValue({ inserted: true });
+    vi.mocked(d1.setWebhookInboxStatus).mockReset().mockResolvedValue(undefined);
+    vi.mocked(d1.insertWebhookOperationalEvent).mockReset().mockResolvedValue(undefined);
+    vi.mocked(graph.fetchMentionedMedia).mockReset();
+    vi.mocked(graph.fetchMentionedComment).mockReset();
+  });
+
+  it("marks the row failed and records an operational event when Graph API throws", async () => {
+    vi.mocked(graph.fetchMentionedMedia).mockRejectedValue(new Error("timeout"));
+
+    await processMentionEvent(
+      { externalId: "m1", igUserId: "u1", mediaId: "m1", commentId: null },
+      env,
+      "{}"
+    );
+
+    const statusCalls = vi.mocked(d1.setWebhookInboxStatus).mock.calls;
+    const finalCall = statusCalls[statusCalls.length - 1][1];
+    expect(finalCall.status).toBe("failed");
+    expect(finalCall.lastErrorCode).toBe("graph_api_exception");
+
+    const opEvents = vi.mocked(d1.insertWebhookOperationalEvent).mock.calls;
+    expect(opEvents.some((c) => c[1].eventType === "graph_api_failure")).toBe(true);
+  });
+
+  it("does not rethrow when the recovery path itself fails", async () => {
+    vi.mocked(graph.fetchMentionedMedia).mockRejectedValue(new Error("timeout"));
+    vi.mocked(d1.setWebhookInboxStatus)
+      .mockImplementationOnce(async () => undefined) // processing transition succeeds
+      .mockImplementationOnce(async () => {
+        throw new Error("d1 down");
+      }); // failed transition itself throws
+
+    await expect(
+      processMentionEvent(
+        { externalId: "m2", igUserId: "u1", mediaId: "m2", commentId: null },
+        env,
+        "{}"
+      )
+    ).resolves.toBeUndefined();
+  });
+});
+```
+
+- [ ] **Step 2: Run the test and confirm it fails.**
+
+Run: `pnpm test workers/instagram-webhook/src/match.test.ts`
+Expected: at least the first test fails because the current `processMentionEvent` does not catch async exceptions — either the rejection escapes or the `failed` status is never written.
+
+- [ ] **Step 3: Wrap the processing body in try/catch in `workers/instagram-webhook/src/match.ts`.**
+
+Read the current file. Keep the existing `insertWebhookInbox` call and the first `setWebhookInboxStatus({ id: webhookId, status: "processing", incrementAttempts: true })` call OUTSIDE the try/catch (those are the row-claim operations).
+
+Wrap everything from `if (event.commentId)` through the thumbnail copy block in a single `try/catch`. Add this catch handler:
+
+```ts
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  try {
+    await setWebhookInboxStatus(env.granite_v2, {
+      id: webhookId,
+      status: "failed",
+      lastErrorCode: "graph_api_exception",
+      lastErrorMessage: message.slice(0, 500),
+    });
+    await insertWebhookOperationalEvent(env.granite_v2, {
+      id: uuid("opev"),
+      eventType: "graph_api_failure",
+      webhookId,
+      betaId: null,
+      requestId: "",
+      method: "POST",
+      path: "/webhooks/instagram",
+      statusCode: null,
+      message: `processMentionEvent threw: ${message}`,
+      metadata: "{}",
+    });
+  } catch (recoveryError) {
+    console.error("processMentionEvent recovery failed:", recoveryError);
+  }
+}
+```
+
+The code `graph_api_exception` is intentionally distinct from the existing controlled `graph_api_failure` code (which is written when the Graph API helper returns `null` without throwing). Both surface under the `graph_api_failure` operational event type because the operator-facing impact is the same.
+
+- [ ] **Step 4: Run the test and confirm it passes.**
+
+Run: `pnpm test workers/instagram-webhook/src/match.test.ts`
+Expected: 2/2 passing.
+
+- [ ] **Step 5: Expose `received` and `processing` in admin webhook filters.**
+
+Open `app/admin/(protected)/webhooks/page.tsx`. Locate the `FILTERS` constant. Replace it with:
+
+```ts
+const FILTERS: WebhookInboxStatus[] = [
+  "received",
+  "processing",
+  "unmatched",
+  "rejected",
+  "manual_matched",
+  "matched",
+  "duplicate",
+  "failed",
+];
+```
+
+Add a one-line note under the page header (next to the existing "Phase 5에선 자동 재시도가 없으므로 …" note):
+
+```tsx
+<p className="mt-1 text-[12px] text-[#7A7A7A]">
+  `received`/`processing` 상태가 5분 이상 유지되는 행이 있으면 Worker 또는 Graph API 장애를 의심하세요.
+</p>
+```
+
+- [ ] **Step 6: Verify the full Worker test suite + typecheck + dry-run.**
+
+```
+pnpm test workers/instagram-webhook
+pnpm typecheck
+pnpm wrangler deploy --dry-run
+```
+All three must succeed.
+
+- [ ] **Step 7: Commit.**
+
+```bash
+git add workers/instagram-webhook/src/match.ts workers/instagram-webhook/src/match.test.ts 'app/admin/(protected)/webhooks/page.tsx'
+git commit -m "fix(webhook): wrap processMentionEvent in try/catch and surface stale states"
+```
+
+---
+
+## Task 13: Atomic Manual Match with Canonical Media ID
+
+**Codex finding addressed:** `manualMatchWebhookToRoute` reads a `webhook_inbox` row by id, inserts a Beta, and updates the row's status — none of these steps gate on the row still being `unmatched`, and the function is not atomic. Worse, for comment-mention webhooks the inbox `external_id` is the `comment_id`, while auto-matched betas use the parent `media_id` as `external_media_id`. So a stale form, double-click, or admin retry can produce a second Beta row for the same Instagram media without ever colliding with the existing `uniq_betas_platform_external_media` index.
+
+**Files:**
+- Create: `migrations/0005_webhook_inbox_external_media_id.sql`
+- Modify: `lib/db/schema.ts`
+- Modify: `lib/db/d1-http.ts` (add `executeD1Meta` returning row-change count)
+- Modify: `lib/db/beta-queries.ts`
+- Modify: `lib/db/beta-queries.test.ts`
+- Modify: `lib/actions/admin-beta.ts`
+- Modify: `workers/instagram-webhook/src/d1.ts`
+- Modify: `workers/instagram-webhook/src/match.ts`
+- Modify: `docs/DATA_MODEL.md`
+
+- [ ] **Step 1: Write migration `0005_webhook_inbox_external_media_id.sql`.**
+
+Create `migrations/0005_webhook_inbox_external_media_id.sql`:
+
+```sql
+-- Granite Phase 5 — store canonical Instagram media_id on the webhook_inbox row.
+-- For comment mentions, external_id is the comment_id, which is NOT the same as
+-- the media id used by betas.external_media_id. Manual matching and duplicate
+-- detection must compare on this canonical id to be safe.
+-- Roll-forward only.
+
+ALTER TABLE webhook_inbox ADD COLUMN external_media_id TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_webhook_inbox_external_media_id
+  ON webhook_inbox (external_media_id);
+```
+
+- [ ] **Step 2: Extend the `WebhookInbox` TS type.**
+
+In `lib/db/schema.ts`, add `externalMediaId: string | null;` to the `WebhookInbox` type immediately after `externalId`. Do not remove or rename any existing field.
+
+- [ ] **Step 3: Add `executeD1Meta` to `lib/db/d1-http.ts`.**
+
+The existing `executeQuery` internal helper returns rows only and discards `meta`. Refactor minimally so meta is available, then add the new export. Concrete change:
+
+(a) Extend the response envelope types:
+
+```ts
+interface D1Meta {
+  changes?: number;
+  last_row_id?: number;
+  duration?: number;
+  rows_read?: number;
+  rows_written?: number;
+}
+
+interface D1ResultEntry<T> {
+  results: T[];
+  meta?: D1Meta;
+}
+```
+
+(b) Add an internal helper `executeQueryWithMeta` and reimplement `executeQuery` as a thin wrapper. Keep the existing error-handling path unchanged:
+
+```ts
+async function executeQueryWithMeta<T>(
+  sql: string,
+  params: unknown[]
+): Promise<{ rows: T[]; meta: D1Meta }> {
+  const { url, token, databaseId } = getEnvVars();
+  const endpoint = buildEndpoint(url, databaseId);
+
+  const response = await globalThis.fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ sql, params }),
+  });
+
+  if (!response.ok) {
+    let errorDetail = "";
+    try {
+      const body = (await response.json()) as Partial<D1Envelope<T>>;
+      if (Array.isArray(body.errors) && body.errors.length > 0) {
+        errorDetail = body.errors.map((e) => e.message).join("; ");
+      }
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(
+      errorDetail
+        ? `D1 query failed (${response.status}): ${errorDetail}`
+        : `D1 query failed with HTTP ${response.status}`
+    );
+  }
+
+  const body = (await response.json()) as D1Envelope<T>;
+  if (!body.success) {
+    const errorDetail =
+      Array.isArray(body.errors) && body.errors.length > 0
+        ? body.errors.map((e) => e.message).join("; ")
+        : "unknown error";
+    throw new Error(`D1 query failed: ${errorDetail}`);
+  }
+
+  return {
+    rows: body.result?.[0]?.results ?? [],
+    meta: body.result?.[0]?.meta ?? {},
+  };
+}
+
+async function executeQuery<T>(sql: string, params: unknown[]): Promise<T[]> {
+  const { rows } = await executeQueryWithMeta<T>(sql, params);
+  return rows;
+}
+```
+
+(c) Add the new exported helper:
+
+```ts
+/**
+ * Execute a mutation (INSERT/UPDATE/DELETE) and return the number of rows changed.
+ * Use this when caller logic depends on whether a conditional UPDATE actually
+ * claimed the row (e.g. `UPDATE ... WHERE id = ? AND status = 'unmatched'`).
+ */
+export async function executeD1Meta(
+  sql: string,
+  params?: unknown[]
+): Promise<{ changes: number }> {
+  const { meta } = await executeQueryWithMeta<unknown>(sql, params ?? []);
+  return { changes: meta.changes ?? 0 };
+}
+```
+
+Do not rename or remove `queryD1`, `queryD1First`, `executeD1`, or `pingD1`. Verify with `pnpm typecheck` after this step.
+
+- [ ] **Step 4: Update `insertWebhookInbox` in `lib/db/beta-queries.ts` to accept and store `externalMediaId`.**
+
+Replace the existing `insertWebhookInbox` body with:
+
+```ts
+export async function insertWebhookInbox(input: {
+  id: string;
+  externalId: string;
+  externalMediaId: string | null;
+  igUserId: string;
+  igUsername: string;
+  caption: string;
+  mediaUrl: string;
+  thumbnailUrl: string | null;
+  rawPayload: string;
+}): Promise<void> {
+  await queryD1(
+    `INSERT OR IGNORE INTO webhook_inbox (
+       id, provider, external_id, external_media_id, ig_user_id, ig_username, caption,
+       media_url, thumbnail_url, matched_beta_id, status, raw_payload
+     ) VALUES (?, 'instagram', ?, ?, ?, ?, ?, ?, ?, NULL, 'received', ?)`,
+    [
+      input.id,
+      input.externalId,
+      input.externalMediaId,
+      input.igUserId,
+      input.igUsername,
+      input.caption,
+      input.mediaUrl,
+      input.thumbnailUrl,
+      input.rawPayload,
+    ]
+  );
+}
+```
+
+- [ ] **Step 5: Replace `manualMatchWebhookToRoute` with the atomic-claim + dedup version.**
+
+In `lib/db/beta-queries.ts`, replace the existing `manualMatchWebhookToRoute` with:
+
+```ts
+import { executeD1Meta, queryD1 } from "./d1-http"; // adjust existing import if needed
+
+export type ManualMatchOutcome =
+  | { ok: true; betaId: string }
+  | { ok: false; reason: "not_unmatched" }
+  | { ok: false; reason: "duplicate"; existingBetaId: string };
+
+export async function manualMatchWebhookToRoute(input: {
+  webhookId: string;
+  routeId: string;
+  betaId: string;
+}): Promise<ManualMatchOutcome> {
+  // 1) Atomically claim the row: unmatched -> manual_matched. matched_beta_id stays NULL
+  //    until we successfully insert the Beta in step 4.
+  const claim = await executeD1Meta(
+    `UPDATE webhook_inbox
+     SET status = 'manual_matched', updated_at = datetime('now')
+     WHERE id = ? AND status = 'unmatched'`,
+    [input.webhookId]
+  );
+  if (claim.changes === 0) {
+    return { ok: false, reason: "not_unmatched" };
+  }
+
+  // 2) Read the claimed row.
+  const rows = await queryD1<{
+    igUsername: string;
+    caption: string;
+    mediaUrl: string;
+    externalId: string;
+    externalMediaId: string | null;
+  }>(
+    `SELECT
+       ig_username AS igUsername,
+       caption,
+       media_url AS mediaUrl,
+       external_id AS externalId,
+       external_media_id AS externalMediaId
+     FROM webhook_inbox
+     WHERE id = ?
+     LIMIT 1`,
+    [input.webhookId]
+  );
+  if (rows.length === 0) {
+    // Should never happen — we just claimed the row. Revert defensively.
+    await queryD1(
+      `UPDATE webhook_inbox SET status = 'unmatched', updated_at = datetime('now') WHERE id = ?`,
+      [input.webhookId]
+    );
+    return { ok: false, reason: "not_unmatched" };
+  }
+  const row = rows[0];
+
+  // 3) Canonical media id dedup. New rows have external_media_id; legacy rows fall back to external_id.
+  const canonicalMediaId = row.externalMediaId ?? row.externalId;
+  const existing = await findExistingBetaByExternalMedia("instagram", canonicalMediaId);
+  if (existing) {
+    await queryD1(
+      `UPDATE webhook_inbox
+       SET status = 'duplicate',
+           matched_beta_id = ?,
+           last_error_code = 'duplicate_beta',
+           updated_at = datetime('now')
+       WHERE id = ?`,
+      [existing.id, input.webhookId]
+    );
+    return { ok: false, reason: "duplicate", existingBetaId: existing.id };
+  }
+
+  // 4) Insert the Beta with the canonical media id as external_media_id.
+  const today = new Date().toISOString().slice(0, 10);
+  await queryD1(
+    `INSERT INTO betas (
+       id, route_id, user_id, instagram_id, display_name, source, platform,
+       media_url, permalink_url, external_media_id, thumbnail_url, sent_at, status, claim_status
+     ) VALUES (?, ?, NULL, ?, ?, 'instagram_webhook', 'instagram', ?, NULL, ?, NULL, ?, 'pending', 'unclaimed')`,
+    [
+      input.betaId,
+      input.routeId,
+      row.igUsername,
+      row.igUsername,
+      row.mediaUrl,
+      canonicalMediaId,
+      today,
+    ]
+  );
+
+  // 5) Finalize the webhook row with the new Beta id.
+  await queryD1(
+    `UPDATE webhook_inbox
+     SET matched_beta_id = ?, updated_at = datetime('now')
+     WHERE id = ?`,
+    [input.betaId, input.webhookId]
+  );
+
+  return { ok: true, betaId: input.betaId };
+}
+```
+
+- [ ] **Step 6: Update `manualMatchWebhookAction` in `lib/actions/admin-beta.ts` to handle the three-way outcome.**
+
+Replace the existing `manualMatchWebhookAction` body with:
+
+```ts
+export async function manualMatchWebhookAction(formData: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  const parsed = manualMatchSchema.parse(Object.fromEntries(formData));
+  const result = await manualMatchWebhookToRoute({
+    webhookId: parsed.webhookId,
+    routeId: parsed.routeId,
+    betaId: `beta_${randomUUID()}`,
+  });
+
+  if (result.ok) {
+    await insertAdminAuditLog({
+      adminId: admin.adminId,
+      action: "webhook.manual_match",
+      targetType: "webhook_inbox",
+      targetId: parsed.webhookId,
+      metadata: { routeId: parsed.routeId, betaId: result.betaId },
+    });
+    revalidatePath("/admin/webhooks");
+    revalidatePath("/admin/betas");
+    return;
+  }
+
+  await insertAdminAuditLog({
+    adminId: admin.adminId,
+    action: "webhook.manual_match_skipped",
+    targetType: "webhook_inbox",
+    targetId: parsed.webhookId,
+    metadata:
+      result.reason === "duplicate"
+        ? { routeId: parsed.routeId, reason: "duplicate", existingBetaId: result.existingBetaId }
+        : { routeId: parsed.routeId, reason: result.reason },
+  });
+  revalidatePath("/admin/webhooks");
+}
+```
+
+The Server Action signature stays `Promise<void>` — the audit log records why a no-op happened. UI surfacing of these outcomes is a follow-up polish.
+
+- [ ] **Step 7: Update `lib/db/beta-queries.test.ts`.**
+
+Two changes:
+
+(a) Update the existing `insertWebhookInbox` test call to include `externalMediaId: "ig_media_1"` and assert that the SQL contains `external_media_id`:
+
+```ts
+it("inserts webhook inbox idempotency rows", async () => {
+  vi.mocked(queryD1).mockResolvedValue([]);
+  await insertWebhookInbox({
+    id: "webhook_1",
+    externalId: "ig_comment_1",
+    externalMediaId: "ig_media_1",
+    igUserId: "ig_user_1",
+    igUsername: "climber",
+    caption: "@granite.kr #큰바위 #SkyHook",
+    mediaUrl: "https://www.instagram.com/p/abc/",
+    thumbnailUrl: null,
+    rawPayload: "{}",
+  });
+
+  expect(queryD1).toHaveBeenCalledWith(
+    expect.stringContaining("INSERT OR IGNORE INTO webhook_inbox"),
+    expect.any(Array)
+  );
+  expect(queryD1).toHaveBeenCalledWith(
+    expect.stringContaining("external_media_id"),
+    expect.any(Array)
+  );
+});
+```
+
+(b) Append three new tests for `manualMatchWebhookToRoute` (also add `executeD1Meta` to the `vi.mock("./d1-http", ...)` factory at the top of the file):
+
+```ts
+import { manualMatchWebhookToRoute } from "./beta-queries"; // add to top import block
+
+// ... existing vi.mock("./d1-http", ...) must be updated to:
+// vi.mock("./d1-http", () => ({ queryD1: vi.fn(), queryD1First: vi.fn(), executeD1Meta: vi.fn() }));
+const { executeD1Meta } = await import("./d1-http");
+
+describe("manualMatchWebhookToRoute", () => {
+  beforeEach(() => {
+    vi.mocked(queryD1).mockReset();
+    vi.mocked(executeD1Meta).mockReset();
+  });
+
+  it("claims an unmatched row, dedup-checks, and inserts a beta with the canonical media id", async () => {
+    vi.mocked(executeD1Meta).mockResolvedValue({ changes: 1 });
+    vi.mocked(queryD1)
+      .mockResolvedValueOnce([
+        {
+          igUsername: "climber",
+          caption: "@granite.kr #큰바위 #SkyHook",
+          mediaUrl: "https://www.instagram.com/p/abc/",
+          externalId: "comment_1",
+          externalMediaId: "media_1",
+        },
+      ]) // SELECT
+      .mockResolvedValueOnce([]) // findExistingBetaByExternalMedia
+      .mockResolvedValueOnce([]) // INSERT betas
+      .mockResolvedValueOnce([]); // UPDATE finalize
+
+    const outcome = await manualMatchWebhookToRoute({
+      webhookId: "webhook_1",
+      routeId: "route_1",
+      betaId: "beta_new",
+    });
+
+    expect(outcome).toEqual({ ok: true, betaId: "beta_new" });
+    const insertCall = vi
+      .mocked(queryD1)
+      .mock.calls.find(
+        (c) => typeof c[0] === "string" && c[0].includes("INSERT INTO betas")
+      );
+    expect(insertCall?.[1]).toContain("media_1"); // canonical media id, not "comment_1"
+  });
+
+  it("returns not_unmatched when the row is no longer claimable", async () => {
+    vi.mocked(executeD1Meta).mockResolvedValue({ changes: 0 });
+    const outcome = await manualMatchWebhookToRoute({
+      webhookId: "webhook_1",
+      routeId: "route_1",
+      betaId: "beta_new",
+    });
+    expect(outcome).toEqual({ ok: false, reason: "not_unmatched" });
+    expect(queryD1).not.toHaveBeenCalledWith(
+      expect.stringContaining("INSERT INTO betas"),
+      expect.anything()
+    );
+  });
+
+  it("returns duplicate without inserting a new beta when canonical media exists", async () => {
+    vi.mocked(executeD1Meta).mockResolvedValue({ changes: 1 });
+    vi.mocked(queryD1)
+      .mockResolvedValueOnce([
+        {
+          igUsername: "climber",
+          caption: "@granite.kr #큰바위 #SkyHook",
+          mediaUrl: "https://www.instagram.com/p/abc/",
+          externalId: "comment_1",
+          externalMediaId: "media_1",
+        },
+      ]) // SELECT
+      .mockResolvedValueOnce([{ id: "beta_existing", status: "pending" }]) // findExisting
+      .mockResolvedValueOnce([]); // UPDATE webhook to duplicate
+
+    const outcome = await manualMatchWebhookToRoute({
+      webhookId: "webhook_1",
+      routeId: "route_1",
+      betaId: "beta_new",
+    });
+
+    expect(outcome).toEqual({
+      ok: false,
+      reason: "duplicate",
+      existingBetaId: "beta_existing",
+    });
+    const insertCalls = vi
+      .mocked(queryD1)
+      .mock.calls.filter(
+        (c) => typeof c[0] === "string" && c[0].includes("INSERT INTO betas")
+      );
+    expect(insertCalls.length).toBe(0);
+  });
+});
+```
+
+If the existing `findExistingBetaByExternalMedia` uses `queryD1First` instead of `queryD1`, adjust the second mock to use `queryD1First.mockResolvedValueOnce(...)` and supply a single object or `null`. Match the actual implementation rather than guessing.
+
+- [ ] **Step 8: Update Worker `insertWebhookInbox` signature.**
+
+In `workers/instagram-webhook/src/d1.ts`, extend the parameter shape and SQL to include `external_media_id`:
+
+```ts
+export async function insertWebhookInbox(
+  db: D1Database,
+  input: {
+    id: string;
+    externalId: string;
+    externalMediaId: string | null;
+    igUserId: string;
+    igUsername: string;
+    caption: string;
+    mediaUrl: string;
+    thumbnailUrl: string | null;
+    rawPayload: string;
+  }
+): Promise<{ inserted: boolean }> {
+  const result = await db
+    .prepare(
+      `INSERT OR IGNORE INTO webhook_inbox (
+         id, provider, external_id, external_media_id, ig_user_id, ig_username, caption,
+         media_url, thumbnail_url, matched_beta_id, status, raw_payload
+       ) VALUES (?, 'instagram', ?, ?, ?, ?, ?, ?, ?, NULL, 'received', ?)`
+    )
+    .bind(
+      input.id,
+      input.externalId,
+      input.externalMediaId,
+      input.igUserId,
+      input.igUsername,
+      input.caption,
+      input.mediaUrl,
+      input.thumbnailUrl,
+      input.rawPayload
+    )
+    .run();
+  return { inserted: (result.meta.changes ?? 0) > 0 };
+}
+```
+
+- [ ] **Step 9: Pass `externalMediaId: event.mediaId` from `workers/instagram-webhook/src/match.ts`.**
+
+In match.ts, update the single `insertWebhookInbox(env.granite_v2, { ... })` call site:
+
+```ts
+const inserted = await insertWebhookInbox(env.granite_v2, {
+  id: webhookId,
+  externalId: event.externalId,
+  externalMediaId: event.mediaId,
+  igUserId: event.igUserId,
+  igUsername: "",
+  caption: "",
+  mediaUrl: "",
+  thumbnailUrl: null,
+  rawPayload,
+});
+```
+
+For comment mentions `event.externalId` is the comment_id; for caption mentions `event.externalId === event.mediaId`. Either way `externalMediaId` is the canonical media id and is safe for duplicate detection.
+
+- [ ] **Step 10: Update `docs/DATA_MODEL.md`.**
+
+In the `webhook_inbox` table description, add a row for `external_media_id`:
+
+> `external_media_id` — Canonical Instagram `media_id`. For caption mentions equals `external_id`; for comment mentions equals the parent `media_id` while `external_id` remains the `comment_id` idempotency key. Used by admin manual matching for duplicate detection against `betas.external_media_id`. Nullable for rows created before migration `0005`.
+
+- [ ] **Step 11: Verify.**
+
+```
+pnpm test lib/db/beta-queries.test.ts
+pnpm test workers/instagram-webhook
+pnpm test lib/actions/admin-beta.test.ts
+pnpm typecheck
+pnpm wrangler deploy --dry-run
+```
+All five must succeed.
+
+- [ ] **Step 12: Mark Product Scope duplicate-prevention item complete.**
+
+In this plan file (`docs/plans/2026-06-02-granite-phase-5.md`), find:
+
+```
+- [ ] Duplicate Beta creation is prevented across manual submissions, webhook retries, and admin manual matching.
+```
+
+Change to `- [x]`.
+
+- [ ] **Step 13: Commit.**
+
+```bash
+git add migrations/0005_webhook_inbox_external_media_id.sql lib/db/schema.ts lib/db/d1-http.ts lib/db/beta-queries.ts lib/db/beta-queries.test.ts lib/actions/admin-beta.ts workers/instagram-webhook/src/d1.ts workers/instagram-webhook/src/match.ts docs/DATA_MODEL.md docs/plans/2026-06-02-granite-phase-5.md
+git commit -m "fix(webhook): atomic manual match with canonical media id"
+```
+
+---
+
 ## Self-Review
 
-- **Spec coverage:** Covers PRD P5-01 through P5-08: caption UI, Worker webhook, inbox persistence, matching, unclaimed Beta creation, admin inbox, Beta moderation, manual registration, and thumbnail fallback.
-- **Excluded intentionally:** OAuth, my records, projects, and unclaimed claims remain Phase 6.
-- **Risk areas:** Meta payload shape and permission review may require adjustment after the real app callback is approved. Worker D1/R2 binding names must be aligned with the production Cloudflare project before deploy.
-- **Verification:** Each implementation task has a focused Vitest/typecheck/build or manual QA gate. Final release requires Meta app review and production HMAC verification.
+- **Spec coverage:** Covers PRD P5-01 through P5-08: caption UI, Worker webhook, inbox persistence, matching, unclaimed Beta creation, admin inbox, Beta moderation, manual registration, and thumbnail fallback. Tasks 12 and 13 (added after Codex adversarial review) close two integrity gaps found in the implemented code: (a) async exceptions in `processMentionEvent` stranded rows in `processing` invisible to operators; (b) `manualMatchWebhookToRoute` was not atomic and used the wrong identifier for comment-mention dedup, so admins could create duplicate Betas.
+- **Excluded intentionally:** OAuth, my records, projects, and unclaimed claims remain Phase 6. Scheduled retry, manual-submission rate limit, moderation SLA, and webhook admin notification channel are also explicitly out of scope (see Out Of Scope and Future Work).
+- **Risk areas:** Meta payload shape and permission review may require adjustment after the real app callback is approved. Worker D1/R2 binding names (`granite_v2`, `BUCKET`) must remain aligned with the production Cloudflare project before deploy. D1 HTTP API lacks true transactions; Task 13's claim/insert sequence reduces but cannot fully eliminate the race window — acceptable because manual matching is admin-gated and operationally infrequent.
+- **Verification:** Each implementation task has a focused Vitest/typecheck/build or manual QA gate. Tasks 1–11 are implemented and committed on `phase5-implementation` (commits `fbb07da` through `d29ea51`, 370 tests passing). Tasks 12–13 are pending implementation. Final release requires Meta app review and production HMAC verification (Task 11 Step 5 manual QA, deferred to launch).
