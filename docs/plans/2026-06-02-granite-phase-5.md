@@ -2507,7 +2507,7 @@ git commit -m "docs: add phase 5 beta operations"
 - Create: `workers/instagram-webhook/src/match.test.ts`
 - Modify: `app/admin/(protected)/webhooks/page.tsx`
 
-- [ ] **Step 1: Write a failing test for the catch path.**
+- [x] **Step 1: Write a failing test for the catch path.**
 
 Create `workers/instagram-webhook/src/match.test.ts`:
 
@@ -2589,12 +2589,12 @@ describe("processMentionEvent error boundary", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and confirm it fails.**
+- [x] **Step 2: Run the test and confirm it fails.**
 
 Run: `pnpm test workers/instagram-webhook/src/match.test.ts`
 Expected: at least the first test fails because the current `processMentionEvent` does not catch async exceptions — either the rejection escapes or the `failed` status is never written.
 
-- [ ] **Step 3: Wrap the processing body in try/catch in `workers/instagram-webhook/src/match.ts`.**
+- [x] **Step 3: Wrap the processing body in try/catch in `workers/instagram-webhook/src/match.ts`.**
 
 Read the current file. Keep the existing `insertWebhookInbox` call and the first `setWebhookInboxStatus({ id: webhookId, status: "processing", incrementAttempts: true })` call OUTSIDE the try/catch (those are the row-claim operations).
 
@@ -2630,12 +2630,12 @@ Wrap everything from `if (event.commentId)` through the thumbnail copy block in 
 
 The code `graph_api_exception` is intentionally distinct from the existing controlled `graph_api_failure` code (which is written when the Graph API helper returns `null` without throwing). Both surface under the `graph_api_failure` operational event type because the operator-facing impact is the same.
 
-- [ ] **Step 4: Run the test and confirm it passes.**
+- [x] **Step 4: Run the test and confirm it passes.**
 
 Run: `pnpm test workers/instagram-webhook/src/match.test.ts`
 Expected: 2/2 passing.
 
-- [ ] **Step 5: Expose `received` and `processing` in admin webhook filters.**
+- [x] **Step 5: Expose `received` and `processing` in admin webhook filters.**
 
 Open `app/admin/(protected)/webhooks/page.tsx`. Locate the `FILTERS` constant. Replace it with:
 
@@ -2660,7 +2660,7 @@ Add a one-line note under the page header (next to the existing "Phase 5에선 �
 </p>
 ```
 
-- [ ] **Step 6: Verify the full Worker test suite + typecheck + dry-run.**
+- [x] **Step 6: Verify the full Worker test suite + typecheck + dry-run.**
 
 ```
 pnpm test workers/instagram-webhook
@@ -2669,7 +2669,7 @@ pnpm wrangler deploy --dry-run
 ```
 All three must succeed.
 
-- [ ] **Step 7: Commit.**
+- [x] **Step 7: Commit.**
 
 ```bash
 git add workers/instagram-webhook/src/match.ts workers/instagram-webhook/src/match.test.ts 'app/admin/(protected)/webhooks/page.tsx'
@@ -2693,7 +2693,7 @@ git commit -m "fix(webhook): wrap processMentionEvent in try/catch and surface s
 - Modify: `workers/instagram-webhook/src/match.ts`
 - Modify: `docs/DATA_MODEL.md`
 
-- [ ] **Step 1: Write migration `0005_webhook_inbox_external_media_id.sql`.**
+- [x] **Step 1: Write migration `0005_webhook_inbox_external_media_id.sql`.**
 
 Create `migrations/0005_webhook_inbox_external_media_id.sql`:
 
@@ -2710,11 +2710,11 @@ CREATE INDEX IF NOT EXISTS idx_webhook_inbox_external_media_id
   ON webhook_inbox (external_media_id);
 ```
 
-- [ ] **Step 2: Extend the `WebhookInbox` TS type.**
+- [x] **Step 2: Extend the `WebhookInbox` TS type.**
 
 In `lib/db/schema.ts`, add `externalMediaId: string | null;` to the `WebhookInbox` type immediately after `externalId`. Do not remove or rename any existing field.
 
-- [ ] **Step 3: Add `executeD1Meta` to `lib/db/d1-http.ts`.**
+- [x] **Step 3: Add `executeD1Meta` to `lib/db/d1-http.ts`.**
 
 The existing `executeQuery` internal helper returns rows only and discards `meta`. Refactor minimally so meta is available, then add the new export. Concrete change:
 
@@ -2811,7 +2811,7 @@ export async function executeD1Meta(
 
 Do not rename or remove `queryD1`, `queryD1First`, `executeD1`, or `pingD1`. Verify with `pnpm typecheck` after this step.
 
-- [ ] **Step 4: Update `insertWebhookInbox` in `lib/db/beta-queries.ts` to accept and store `externalMediaId`.**
+- [x] **Step 4: Update `insertWebhookInbox` in `lib/db/beta-queries.ts` to accept and store `externalMediaId`.**
 
 Replace the existing `insertWebhookInbox` body with:
 
@@ -2847,7 +2847,7 @@ export async function insertWebhookInbox(input: {
 }
 ```
 
-- [ ] **Step 5: Replace `manualMatchWebhookToRoute` with the atomic-claim + dedup version.**
+- [x] **Step 5: Replace `manualMatchWebhookToRoute` with the atomic-claim + dedup version.**
 
 In `lib/db/beta-queries.ts`, replace the existing `manualMatchWebhookToRoute` with:
 
@@ -2951,7 +2951,7 @@ export async function manualMatchWebhookToRoute(input: {
 }
 ```
 
-- [ ] **Step 6: Update `manualMatchWebhookAction` in `lib/actions/admin-beta.ts` to handle the three-way outcome.**
+- [x] **Step 6: Update `manualMatchWebhookAction` in `lib/actions/admin-beta.ts` to handle the three-way outcome.**
 
 Replace the existing `manualMatchWebhookAction` body with:
 
@@ -2994,7 +2994,7 @@ export async function manualMatchWebhookAction(formData: FormData): Promise<void
 
 The Server Action signature stays `Promise<void>` — the audit log records why a no-op happened. UI surfacing of these outcomes is a follow-up polish.
 
-- [ ] **Step 7: Update `lib/db/beta-queries.test.ts`.**
+- [x] **Step 7: Update `lib/db/beta-queries.test.ts`.**
 
 Two changes:
 
@@ -3124,7 +3124,7 @@ describe("manualMatchWebhookToRoute", () => {
 
 If the existing `findExistingBetaByExternalMedia` uses `queryD1First` instead of `queryD1`, adjust the second mock to use `queryD1First.mockResolvedValueOnce(...)` and supply a single object or `null`. Match the actual implementation rather than guessing.
 
-- [ ] **Step 8: Update Worker `insertWebhookInbox` signature.**
+- [x] **Step 8: Update Worker `insertWebhookInbox` signature.**
 
 In `workers/instagram-webhook/src/d1.ts`, extend the parameter shape and SQL to include `external_media_id`:
 
@@ -3166,7 +3166,7 @@ export async function insertWebhookInbox(
 }
 ```
 
-- [ ] **Step 9: Pass `externalMediaId: event.mediaId` from `workers/instagram-webhook/src/match.ts`.**
+- [x] **Step 9: Pass `externalMediaId: event.mediaId` from `workers/instagram-webhook/src/match.ts`.**
 
 In match.ts, update the single `insertWebhookInbox(env.granite_v2, { ... })` call site:
 
@@ -3186,13 +3186,13 @@ const inserted = await insertWebhookInbox(env.granite_v2, {
 
 For comment mentions `event.externalId` is the comment_id; for caption mentions `event.externalId === event.mediaId`. Either way `externalMediaId` is the canonical media id and is safe for duplicate detection.
 
-- [ ] **Step 10: Update `docs/DATA_MODEL.md`.**
+- [x] **Step 10: Update `docs/DATA_MODEL.md`.**
 
 In the `webhook_inbox` table description, add a row for `external_media_id`:
 
 > `external_media_id` — Canonical Instagram `media_id`. For caption mentions equals `external_id`; for comment mentions equals the parent `media_id` while `external_id` remains the `comment_id` idempotency key. Used by admin manual matching for duplicate detection against `betas.external_media_id`. Nullable for rows created before migration `0005`.
 
-- [ ] **Step 11: Verify.**
+- [x] **Step 11: Verify.**
 
 ```
 pnpm test lib/db/beta-queries.test.ts
@@ -3203,7 +3203,7 @@ pnpm wrangler deploy --dry-run
 ```
 All five must succeed.
 
-- [ ] **Step 12: Mark Product Scope duplicate-prevention item complete.**
+- [x] **Step 12: Mark Product Scope duplicate-prevention item complete.**
 
 In this plan file (`docs/plans/2026-06-02-granite-phase-5.md`), find:
 
@@ -3213,7 +3213,7 @@ In this plan file (`docs/plans/2026-06-02-granite-phase-5.md`), find:
 
 Change to `- [x]`.
 
-- [ ] **Step 13: Commit.**
+- [x] **Step 13: Commit.**
 
 ```bash
 git add migrations/0005_webhook_inbox_external_media_id.sql lib/db/schema.ts lib/db/d1-http.ts lib/db/beta-queries.ts lib/db/beta-queries.test.ts lib/actions/admin-beta.ts workers/instagram-webhook/src/d1.ts workers/instagram-webhook/src/match.ts docs/DATA_MODEL.md docs/plans/2026-06-02-granite-phase-5.md
