@@ -538,6 +538,16 @@ describe("getAdminSectors — areaId + cragId filters", () => {
     expect(sql).toMatch(/s\.crag_id = \?/);
     expect(params).toContain("crag-42");
   });
+
+  it("regression: filters by cragId alone without areaId", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAdminSectors({ cragId: "crag-1" });
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/s\.crag_id = \?/);
+    expect(sql).not.toMatch(/c\.area_id = \?/);
+    expect(params).toEqual(["crag-1"]);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -736,6 +746,19 @@ describe("listCragOptionsByArea", () => {
     const result = await listCragOptionsByArea("area-deleted");
     expect(result).toEqual([]);
   });
+
+  it("with no areaId returns all live crags (no area_id condition)", async () => {
+    mockQueryD1.mockResolvedValueOnce([{ id: "c1", name: "C1" }]);
+
+    const result = await listCragOptionsByArea();
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[] | undefined];
+    expect(sql).not.toMatch(/c\.area_id = \?/);
+    expect(sql).toMatch(/c\.deleted_at IS NULL/);
+    expect(sql).toMatch(/a\.deleted_at IS NULL/);
+    expect(params).toBeUndefined();
+    expect(result).toEqual([{ id: "c1", name: "C1" }]);
+  });
 });
 
 describe("listSectorOptionsByCrag", () => {
@@ -748,6 +771,19 @@ describe("listSectorOptionsByCrag", () => {
     expect(sql).toMatch(/deleted_at IS NULL/);
     expect(params).toContain("crag-1");
   });
+
+  it("with no cragId returns all live sectors (no crag_id condition)", async () => {
+    mockQueryD1.mockResolvedValueOnce([{ id: "s1", name: "S1" }]);
+
+    const result = await listSectorOptionsByCrag();
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[] | undefined];
+    expect(sql).not.toMatch(/s\.crag_id = \?/);
+    expect(sql).toMatch(/s\.deleted_at IS NULL/);
+    expect(sql).toMatch(/c\.deleted_at IS NULL/);
+    expect(params).toBeUndefined();
+    expect(result).toEqual([{ id: "s1", name: "S1" }]);
+  });
 });
 
 describe("listBoulderOptionsBySector", () => {
@@ -759,6 +795,19 @@ describe("listBoulderOptionsBySector", () => {
     expect(sql).toMatch(/FROM boulders/);
     expect(sql).toMatch(/deleted_at IS NULL/);
     expect(params).toContain("sector-1");
+  });
+
+  it("with no sectorId returns all live boulders (no sector_id condition)", async () => {
+    mockQueryD1.mockResolvedValueOnce([{ id: "b1", name: "B1" }]);
+
+    const result = await listBoulderOptionsBySector();
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[] | undefined];
+    expect(sql).not.toMatch(/b\.sector_id = \?/);
+    expect(sql).toMatch(/b\.deleted_at IS NULL/);
+    expect(sql).toMatch(/s\.deleted_at IS NULL/);
+    expect(params).toBeUndefined();
+    expect(result).toEqual([{ id: "b1", name: "B1" }]);
   });
 });
 
@@ -777,6 +826,19 @@ describe("listTopoOptionsByBoulder", () => {
     mockQueryD1.mockResolvedValueOnce([]);
     const result = await listTopoOptionsByBoulder("empty-boulder");
     expect(result).toEqual([]);
+  });
+
+  it("with no boulderId returns all live topos (no boulder_id condition)", async () => {
+    mockQueryD1.mockResolvedValueOnce([{ id: "t1", name: "T1" }]);
+
+    const result = await listTopoOptionsByBoulder();
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[] | undefined];
+    expect(sql).not.toMatch(/t\.boulder_id = \?/);
+    expect(sql).toMatch(/t\.deleted_at IS NULL/);
+    expect(sql).toMatch(/b\.deleted_at IS NULL/);
+    expect(params).toBeUndefined();
+    expect(result).toEqual([{ id: "t1", name: "T1" }]);
   });
 });
 

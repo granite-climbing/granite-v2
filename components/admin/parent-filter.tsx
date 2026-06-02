@@ -80,7 +80,7 @@ export function ParentFilter({
         </div>
       )}
 
-      {cragOptions && (
+      {cragOptions && cragOptions.length > 0 && (
         <div className="flex items-center gap-1">
           <label className="text-xs font-semibold text-[#57606A]" htmlFor="pf-crag">
             Crag
@@ -101,7 +101,7 @@ export function ParentFilter({
         </div>
       )}
 
-      {sectorOptions && (
+      {sectorOptions && sectorOptions.length > 0 && (
         <div className="flex items-center gap-1">
           <label className="text-xs font-semibold text-[#57606A]" htmlFor="pf-sector">
             Sector
@@ -122,7 +122,7 @@ export function ParentFilter({
         </div>
       )}
 
-      {boulderOptions && (
+      {boulderOptions && boulderOptions.length > 0 && (
         <div className="flex items-center gap-1">
           <label className="text-xs font-semibold text-[#57606A]" htmlFor="pf-boulder">
             Boulder
@@ -143,7 +143,7 @@ export function ParentFilter({
         </div>
       )}
 
-      {topoOptions && (
+      {topoOptions && topoOptions.length > 0 && (
         <div className="flex items-center gap-1">
           <label className="text-xs font-semibold text-[#57606A]" htmlFor="pf-topo">
             Topo

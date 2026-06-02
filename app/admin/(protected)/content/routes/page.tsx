@@ -47,10 +47,10 @@ export default async function AdminRoutesPage({ searchParams }: Props) {
       getAdminRoutes({ areaId, cragId, sectorId, boulderId, topoId }),
       getAdminTopos({ areaId, cragId, sectorId, boulderId }),
       listAreaOptions(),
-      areaId ? listCragOptionsByArea(areaId) : Promise.resolve([]),
-      cragId ? listSectorOptionsByCrag(cragId) : Promise.resolve([]),
-      sectorId ? listBoulderOptionsBySector(sectorId) : Promise.resolve([]),
-      boulderId ? listTopoOptionsByBoulder(boulderId) : Promise.resolve([]),
+      listCragOptionsByArea(areaId),
+      listSectorOptionsByCrag(cragId),
+      listBoulderOptionsBySector(sectorId),
+      listTopoOptionsByBoulder(boulderId),
     ]);
   const liveTopos = topos.filter((t) => t.deletedAt === null);
   const selectedTopo = topoId ? liveTopos.find((t) => t.id === topoId) : undefined;
@@ -90,10 +90,10 @@ export default async function AdminRoutesPage({ searchParams }: Props) {
         action="/admin/content/routes"
         current={{ areaId, cragId, sectorId, boulderId, topoId }}
         areaOptions={areaOptions}
-        cragOptions={cragOptions.length > 0 ? cragOptions : undefined}
-        sectorOptions={sectorOptions.length > 0 ? sectorOptions : undefined}
-        boulderOptions={boulderOptions.length > 0 ? boulderOptions : undefined}
-        topoOptions={topoOptions.length > 0 ? topoOptions : undefined}
+        cragOptions={cragOptions}
+        sectorOptions={sectorOptions}
+        boulderOptions={boulderOptions}
+        topoOptions={topoOptions}
       />
 
       {/* Routes list */}

@@ -35,7 +35,7 @@ export default async function AdminSectorsPage({ searchParams }: Props) {
     getAdminSectors({ areaId, cragId }),
     getAdminCrags(areaId ? { areaId } : undefined),
     listAreaOptions(),
-    areaId ? listCragOptionsByArea(areaId) : Promise.resolve([]),
+    listCragOptionsByArea(areaId),
   ]);
   const liveCrags = crags.filter((c) => c.deletedAt === null);
   const selectedCrag = cragId ? liveCrags.find((c) => c.id === cragId) : undefined;
@@ -70,7 +70,7 @@ export default async function AdminSectorsPage({ searchParams }: Props) {
         action="/admin/content/sectors"
         current={{ areaId, cragId }}
         areaOptions={areaOptions}
-        cragOptions={cragOptions.length > 0 ? cragOptions : undefined}
+        cragOptions={cragOptions}
       />
 
       {/* Sectors list */}

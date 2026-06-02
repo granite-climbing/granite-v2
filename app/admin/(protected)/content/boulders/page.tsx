@@ -36,8 +36,8 @@ export default async function AdminBouldersPage({ searchParams }: Props) {
     getAdminBoulders({ areaId, cragId, sectorId }),
     getAdminSectors({ areaId, cragId }),
     listAreaOptions(),
-    areaId ? listCragOptionsByArea(areaId) : Promise.resolve([]),
-    cragId ? listSectorOptionsByCrag(cragId) : Promise.resolve([]),
+    listCragOptionsByArea(areaId),
+    listSectorOptionsByCrag(cragId),
   ]);
   const liveSectors = sectors.filter((s) => s.deletedAt === null);
   const selectedSector = sectorId ? liveSectors.find((s) => s.id === sectorId) : undefined;
@@ -73,8 +73,8 @@ export default async function AdminBouldersPage({ searchParams }: Props) {
         action="/admin/content/boulders"
         current={{ areaId, cragId, sectorId }}
         areaOptions={areaOptions}
-        cragOptions={cragOptions.length > 0 ? cragOptions : undefined}
-        sectorOptions={sectorOptions.length > 0 ? sectorOptions : undefined}
+        cragOptions={cragOptions}
+        sectorOptions={sectorOptions}
       />
 
       {/* Boulders list */}

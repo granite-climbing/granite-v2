@@ -45,9 +45,9 @@ export default async function AdminToposPage({ searchParams }: Props) {
       getAdminTopos({ areaId, cragId, sectorId, boulderId }),
       getAdminBoulders({ areaId, cragId, sectorId }),
       listAreaOptions(),
-      areaId ? listCragOptionsByArea(areaId) : Promise.resolve([]),
-      cragId ? listSectorOptionsByCrag(cragId) : Promise.resolve([]),
-      sectorId ? listBoulderOptionsBySector(sectorId) : Promise.resolve([]),
+      listCragOptionsByArea(areaId),
+      listSectorOptionsByCrag(cragId),
+      listBoulderOptionsBySector(sectorId),
     ]);
   const liveBoulders = boulders.filter((b) => b.deletedAt === null);
   const selectedBoulder = boulderId ? liveBoulders.find((b) => b.id === boulderId) : undefined;
@@ -85,9 +85,9 @@ export default async function AdminToposPage({ searchParams }: Props) {
         action="/admin/content/topos"
         current={{ areaId, cragId, sectorId, boulderId }}
         areaOptions={areaOptions}
-        cragOptions={cragOptions.length > 0 ? cragOptions : undefined}
-        sectorOptions={sectorOptions.length > 0 ? sectorOptions : undefined}
-        boulderOptions={boulderOptions.length > 0 ? boulderOptions : undefined}
+        cragOptions={cragOptions}
+        sectorOptions={sectorOptions}
+        boulderOptions={boulderOptions}
       />
 
       {/* Topos list */}

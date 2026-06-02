@@ -743,51 +743,75 @@ export async function listAreaOptions(): Promise<ParentOption[]> {
   );
 }
 
-/** Non-deleted crags belonging to a given area. */
-export async function listCragOptionsByArea(areaId: string): Promise<ParentOption[]> {
+/** Non-deleted crags, optionally scoped to a given area. */
+export async function listCragOptionsByArea(areaId?: string): Promise<ParentOption[]> {
+  const conditions = ["c.deleted_at IS NULL", "a.deleted_at IS NULL"];
+  const params: unknown[] = [];
+  if (areaId) {
+    conditions.push("c.area_id = ?");
+    params.push(areaId);
+  }
   return queryD1<OptionSqlRow>(
     `SELECT c.id, c.name
      FROM crags c
      JOIN areas a ON a.id = c.area_id
-     WHERE c.deleted_at IS NULL AND a.deleted_at IS NULL AND c.area_id = ?
+     WHERE ${conditions.join(" AND ")}
      ORDER BY c.sort_order ASC, c.name ASC`,
-    [areaId]
+    params.length > 0 ? params : undefined
   );
 }
 
-/** Non-deleted sectors belonging to a given crag. */
-export async function listSectorOptionsByCrag(cragId: string): Promise<ParentOption[]> {
+/** Non-deleted sectors, optionally scoped to a given crag. */
+export async function listSectorOptionsByCrag(cragId?: string): Promise<ParentOption[]> {
+  const conditions = ["s.deleted_at IS NULL", "c.deleted_at IS NULL"];
+  const params: unknown[] = [];
+  if (cragId) {
+    conditions.push("s.crag_id = ?");
+    params.push(cragId);
+  }
   return queryD1<OptionSqlRow>(
     `SELECT s.id, s.name
      FROM sectors s
      JOIN crags c ON c.id = s.crag_id
-     WHERE s.deleted_at IS NULL AND c.deleted_at IS NULL AND s.crag_id = ?
+     WHERE ${conditions.join(" AND ")}
      ORDER BY s.sort_order ASC, s.name ASC`,
-    [cragId]
+    params.length > 0 ? params : undefined
   );
 }
 
-/** Non-deleted boulders belonging to a given sector. */
-export async function listBoulderOptionsBySector(sectorId: string): Promise<ParentOption[]> {
+/** Non-deleted boulders, optionally scoped to a given sector. */
+export async function listBoulderOptionsBySector(sectorId?: string): Promise<ParentOption[]> {
+  const conditions = ["b.deleted_at IS NULL", "s.deleted_at IS NULL"];
+  const params: unknown[] = [];
+  if (sectorId) {
+    conditions.push("b.sector_id = ?");
+    params.push(sectorId);
+  }
   return queryD1<OptionSqlRow>(
     `SELECT b.id, b.name
      FROM boulders b
      JOIN sectors s ON s.id = b.sector_id
-     WHERE b.deleted_at IS NULL AND s.deleted_at IS NULL AND b.sector_id = ?
+     WHERE ${conditions.join(" AND ")}
      ORDER BY b.sort_order ASC, b.name ASC`,
-    [sectorId]
+    params.length > 0 ? params : undefined
   );
 }
 
-/** Non-deleted topos belonging to a given boulder. */
-export async function listTopoOptionsByBoulder(boulderId: string): Promise<ParentOption[]> {
+/** Non-deleted topos, optionally scoped to a given boulder. */
+export async function listTopoOptionsByBoulder(boulderId?: string): Promise<ParentOption[]> {
+  const conditions = ["t.deleted_at IS NULL", "b.deleted_at IS NULL"];
+  const params: unknown[] = [];
+  if (boulderId) {
+    conditions.push("t.boulder_id = ?");
+    params.push(boulderId);
+  }
   return queryD1<OptionSqlRow>(
     `SELECT t.id, t.name
      FROM topos t
      JOIN boulders b ON b.id = t.boulder_id
-     WHERE t.deleted_at IS NULL AND b.deleted_at IS NULL AND t.boulder_id = ?
+     WHERE ${conditions.join(" AND ")}
      ORDER BY t.sort_order ASC, t.name ASC`,
-    [boulderId]
+    params.length > 0 ? params : undefined
   );
 }
 
