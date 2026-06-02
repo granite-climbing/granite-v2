@@ -144,6 +144,38 @@ export async function findPublishedRouteCandidates(db: D1Database): Promise<Rout
   return result.results;
 }
 
+// permalinkUrl is accepted but not persisted — webhook_inbox has no permalink_url column today.
+export async function hydrateWebhookInbox(
+  db: D1Database,
+  input: {
+    id: string;
+    igUsername: string;
+    caption: string;
+    mediaUrl: string;
+    permalinkUrl: string | null;
+    thumbnailUrl: string | null;
+  }
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE webhook_inbox SET
+         ig_username = ?,
+         caption = ?,
+         media_url = ?,
+         thumbnail_url = ?,
+         updated_at = datetime('now')
+       WHERE id = ?`
+    )
+    .bind(
+      input.igUsername,
+      input.caption,
+      input.mediaUrl,
+      input.thumbnailUrl,
+      input.id
+    )
+    .run();
+}
+
 export async function insertWebhookOperationalEvent(
   db: D1Database,
   input: {

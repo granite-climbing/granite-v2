@@ -7,6 +7,7 @@ vi.mock("./d1", () => ({
   findExistingBetaByExternalMedia: vi.fn(),
   findPublishedRouteCandidates: vi.fn(),
   insertWebhookBeta: vi.fn(),
+  hydrateWebhookInbox: vi.fn(),
 }));
 vi.mock("./graph-api", () => ({
   fetchMentionedMedia: vi.fn(),
@@ -71,5 +72,38 @@ describe("processMentionEvent error boundary", () => {
         "{}"
       )
     ).resolves.toBeUndefined();
+  });
+
+  it("hydrates webhook_inbox with resolved Graph API fields before transitioning status", async () => {
+    vi.mocked(graph.fetchMentionedMedia).mockResolvedValue({
+      username: "@Climber",
+      caption: "@granite.kr #큰바위 #SkyHook",
+      mediaUrl: "https://video.cdninstagram.com/abc",
+      thumbnailUrl: "https://scontent.cdninstagram.com/abc.jpg",
+      permalink: "https://www.instagram.com/p/abc/",
+    });
+    vi.mocked(d1.findPublishedRouteCandidates).mockResolvedValue([]); // force unmatched
+
+    await processMentionEvent(
+      { externalId: "m3", igUserId: "u1", mediaId: "m3", commentId: null },
+      env,
+      "{}"
+    );
+
+    expect(d1.hydrateWebhookInbox).toHaveBeenCalledWith(
+      env.granite_v2,
+      expect.objectContaining({
+        id: expect.any(String),
+        igUsername: "climber",
+        caption: "@granite.kr #큰바위 #SkyHook",
+        mediaUrl: "https://video.cdninstagram.com/abc",
+        permalinkUrl: "https://www.instagram.com/p/abc/",
+      })
+    );
+
+    const hydrateOrder = vi.mocked(d1.hydrateWebhookInbox).mock.invocationCallOrder[0];
+    const statusOrders = vi.mocked(d1.setWebhookInboxStatus).mock.invocationCallOrder;
+    const lastStatusOrder = statusOrders[statusOrders.length - 1];
+    expect(hydrateOrder).toBeLessThan(lastStatusOrder);
   });
 });

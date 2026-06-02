@@ -3232,7 +3232,7 @@ git commit -m "fix(webhook): atomic manual match with canonical media id"
 - Modify: `workers/instagram-webhook/src/match.test.ts` (assert hydrate is invoked with the resolved values)
 - Modify: `docs/plans/2026-06-02-granite-phase-5.md` (mark Task 14 step checkboxes)
 
-- [ ] **Step 1: Add the failing hydration assertion.**
+- [x] **Step 1: Add the failing hydration assertion.**
 
 Open `workers/instagram-webhook/src/match.test.ts`. Add `hydrateWebhookInbox: vi.fn()` to the `vi.mock("./d1", ...)` factory, alongside the existing helpers. Add a new test at the bottom of the `describe("processMentionEvent error boundary", ...)` block (or in a new sibling `describe` named `"processMentionEvent hydration"`):
 
@@ -3272,14 +3272,14 @@ it("hydrates webhook_inbox with resolved Graph API fields before transitioning s
 });
 ```
 
-- [ ] **Step 2: Run the test and confirm it fails.**
+- [x] **Step 2: Run the test and confirm it fails.**
 
 ```
 pnpm test workers/instagram-webhook/src/match.test.ts
 ```
 Expected: this new test fails because `hydrateWebhookInbox` does not exist yet.
 
-- [ ] **Step 3: Add `hydrateWebhookInbox` to `workers/instagram-webhook/src/d1.ts`.**
+- [x] **Step 3: Add `hydrateWebhookInbox` to `workers/instagram-webhook/src/d1.ts`.**
 
 Append next to the other inbox helpers:
 
@@ -3318,7 +3318,7 @@ export async function hydrateWebhookInbox(
 
 Note: `webhook_inbox` has no `permalink_url` column today. `permalinkUrl` is included in the helper signature for symmetry with `betas.permalink_url` and so the controller (match.ts) can pass it; we drop it in the SQL until/unless a future migration adds the column. Keeping it in the signature documents intent without a schema change.
 
-- [ ] **Step 4: Call `hydrateWebhookInbox` from `workers/instagram-webhook/src/match.ts`.**
+- [x] **Step 4: Call `hydrateWebhookInbox` from `workers/instagram-webhook/src/match.ts`.**
 
 Inside the existing `try` block (Task 12 wrapper), AFTER both `fetchMentionedComment` (if applicable) and `fetchMentionedMedia` have resolved successfully, and BEFORE the duplicate check, insert:
 
@@ -3340,14 +3340,14 @@ The existing `const igUsername = normalizeHandle(media.username);` and `if (!cap
 
 Add `hydrateWebhookInbox` to the existing `import { ... } from "./d1";` block.
 
-- [ ] **Step 5: Run the test and confirm it passes.**
+- [x] **Step 5: Run the test and confirm it passes.**
 
 ```
 pnpm test workers/instagram-webhook/src/match.test.ts
 ```
 Expected: 3/3 (or 4/4 if you added it as a new test in a sibling describe) green.
 
-- [ ] **Step 6: Full verification.**
+- [x] **Step 6: Full verification.**
 
 ```
 pnpm test workers/instagram-webhook
@@ -3356,7 +3356,7 @@ pnpm wrangler deploy --dry-run
 ```
 All three must pass.
 
-- [ ] **Step 7: Mark Task 14 step checkboxes complete in this plan file.**
+- [x] **Step 7: Mark Task 14 step checkboxes complete in this plan file.**
 
 In `docs/plans/2026-06-02-granite-phase-5.md`, change every `- [ ] **Step N:` line inside Task 14 to `- [x] **Step N:`. Include Step 7 itself (your last action before the commit step).
 

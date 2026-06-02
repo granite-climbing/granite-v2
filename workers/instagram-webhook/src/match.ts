@@ -3,6 +3,7 @@ import type { MentionEvent } from "./payload";
 import {
   findExistingBetaByExternalMedia,
   findPublishedRouteCandidates,
+  hydrateWebhookInbox,
   insertWebhookBeta,
   insertWebhookInbox,
   insertWebhookOperationalEvent,
@@ -107,6 +108,15 @@ export async function processMentionEvent(
 
   if (!captionText) captionText = media.caption;
   const igUsername = normalizeHandle(media.username);
+
+  await hydrateWebhookInbox(env.granite_v2, {
+    id: webhookId,
+    igUsername,
+    caption: captionText,
+    mediaUrl: media.mediaUrl ?? media.permalink ?? "",
+    permalinkUrl: media.permalink,
+    thumbnailUrl: media.thumbnailUrl,
+  });
 
   // Duplicate check
   const existing = await findExistingBetaByExternalMedia(env.granite_v2, event.mediaId);
