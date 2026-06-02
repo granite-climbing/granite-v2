@@ -3873,7 +3873,7 @@ Flip Step 6 checkbox.
 
 Verify Steps 1–6 are `[x]`. Flip Step 7 itself to `[x]`.
 
-- [ ] **Step 8: Commit.**
+- [x] **Step 8: Commit.**
 
 ```bash
 git add workers/instagram-webhook/src/d1.ts workers/instagram-webhook/src/match.ts workers/instagram-webhook/src/match.test.ts docs/plans/2026-06-02-granite-phase-5.md
