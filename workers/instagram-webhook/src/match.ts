@@ -45,6 +45,7 @@ export async function processMentionEvent(
     incrementAttempts: true,
   });
 
+  try {
   let captionText = "";
   if (event.commentId) {
     const comment = await fetchMentionedComment({
@@ -215,5 +216,30 @@ export async function processMentionEvent(
       message: "thumbnail download or R2 upload failed",
       metadata: "{}",
     });
+  }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    try {
+      await setWebhookInboxStatus(env.granite_v2, {
+        id: webhookId,
+        status: "failed",
+        lastErrorCode: "graph_api_exception",
+        lastErrorMessage: message.slice(0, 500),
+      });
+      await insertWebhookOperationalEvent(env.granite_v2, {
+        id: uuid("opev"),
+        eventType: "graph_api_failure",
+        webhookId,
+        betaId: null,
+        requestId: "",
+        method: "POST",
+        path: "/webhooks/instagram",
+        statusCode: null,
+        message: `processMentionEvent threw: ${message}`,
+        metadata: "{}",
+      });
+    } catch (recoveryError) {
+      console.error("processMentionEvent recovery failed:", recoveryError);
+    }
   }
 }

@@ -11,6 +11,8 @@ import type { WebhookInboxStatus } from "@/lib/db/schema";
 export const dynamic = "force-dynamic";
 
 const FILTERS: WebhookInboxStatus[] = [
+  "received",
+  "processing",
   "unmatched",
   "rejected",
   "manual_matched",
@@ -56,8 +58,11 @@ export default async function AdminWebhooksPage({
   return (
     <AdminShell>
       <h1 className="mb-2 text-2xl font-bold">Webhook Inbox</h1>
-      <p className="mb-6 text-sm text-[#6F7477]">
+      <p className="mb-2 text-sm text-[#6F7477]">
         Phase 5에선 자동 재시도가 없으므로 <code className="rounded bg-gray-100 px-1 text-xs">failed</code> 행은 운영자가 거절하거나 Meta 대시보드에서 재전송해야 합니다.
+      </p>
+      <p className="mb-6 text-[12px] text-[#7A7A7A]">
+        `received`/`processing` 상태가 5분 이상 유지되는 행이 있으면 Worker 또는 Graph API 장애를 의심하세요.
       </p>
 
       {/* Status filters */}
