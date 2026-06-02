@@ -207,4 +207,93 @@ describe("manualMatchWebhookToRoute", () => {
       );
     expect(insertCalls.length).toBe(0);
   });
+
+  it("reverts to unmatched and logs operational state when beta insert fails", async () => {
+    vi.mocked(executeD1Meta).mockResolvedValue({ changes: 1 });
+
+    const insertError = new Error("D1 UNIQUE constraint");
+    vi.mocked(queryD1)
+      .mockResolvedValueOnce([
+        {
+          igUsername: "climber",
+          caption: "@granite.kr #큰바위 #SkyHook",
+          mediaUrl: "https://www.instagram.com/p/abc/",
+          externalId: "comment_1",
+          externalMediaId: "media_1",
+        },
+      ]) // SELECT row
+      .mockRejectedValueOnce(insertError) // INSERT betas FAILS
+      .mockResolvedValueOnce([]); // compensating revert UPDATE
+    vi.mocked(queryD1First).mockResolvedValueOnce(null); // findExistingBetaByExternalMedia
+
+    const { manualMatchWebhookToRoute } = await import("./beta-queries");
+
+    const outcome = await manualMatchWebhookToRoute({
+      webhookId: "webhook_1",
+      routeId: "route_1",
+      betaId: "beta_new",
+    });
+
+    expect(outcome).toEqual({ ok: false, reason: "not_unmatched" });
+
+    // Compensating revert ran: status back to unmatched with manual_match_insert_failed error code.
+    const revertCall = vi
+      .mocked(queryD1)
+      .mock.calls.find(
+        (c) =>
+          typeof c[0] === "string" &&
+          c[0].includes("UPDATE webhook_inbox") &&
+          c[0].includes("status = 'unmatched'") &&
+          c[0].includes("manual_match_insert_failed")
+      );
+    expect(revertCall).toBeDefined();
+  });
+
+  it("logs orphan operational event when finalize update fails and rethrows", async () => {
+    vi.mocked(executeD1Meta).mockResolvedValue({ changes: 1 });
+
+    const finalizeError = new Error("D1 network blip");
+    vi.mocked(queryD1)
+      .mockResolvedValueOnce([
+        {
+          igUsername: "climber",
+          caption: "@granite.kr #큰바위 #SkyHook",
+          mediaUrl: "https://www.instagram.com/p/abc/",
+          externalId: "comment_1",
+          externalMediaId: "media_1",
+        },
+      ]) // SELECT row
+      .mockResolvedValueOnce([]) // INSERT betas (success)
+      .mockRejectedValueOnce(finalizeError) // finalize UPDATE FAILS
+      .mockResolvedValueOnce([]); // insertWebhookOperationalEvent (best-effort)
+    vi.mocked(queryD1First).mockResolvedValueOnce(null); // findExistingBetaByExternalMedia
+
+    const { manualMatchWebhookToRoute } = await import("./beta-queries");
+
+    await expect(
+      manualMatchWebhookToRoute({
+        webhookId: "webhook_1",
+        routeId: "route_1",
+        betaId: "beta_new",
+      })
+    ).rejects.toThrow(finalizeError);
+
+    // Beta was inserted before the failure
+    const insertBetaCall = vi
+      .mocked(queryD1)
+      .mock.calls.find(
+        (c) => typeof c[0] === "string" && c[0].includes("INSERT INTO betas")
+      );
+    expect(insertBetaCall).toBeDefined();
+
+    // Operational event inserted with orphan kind metadata
+    const opEventCall = vi
+      .mocked(queryD1)
+      .mock.calls.find(
+        (c) =>
+          typeof c[0] === "string" &&
+          c[0].includes("INSERT INTO webhook_operational_events")
+      );
+    expect(opEventCall).toBeDefined();
+  });
 });

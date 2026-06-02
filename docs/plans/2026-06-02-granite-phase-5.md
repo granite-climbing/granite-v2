@@ -3379,7 +3379,7 @@ git commit -m "fix(webhook): hydrate inbox with graph api response before status
 - Modify: `app/admin/(protected)/webhooks/page.tsx` (orphan callout for `manual_matched + matched_beta_id IS NULL`)
 - Modify: `docs/plans/2026-06-02-granite-phase-5.md` (mark Task 15 step checkboxes)
 
-- [ ] **Step 1: Write failing tests for partial-failure recovery.**
+- [x] **Step 1: Write failing tests for partial-failure recovery.**
 
 Open `lib/db/beta-queries.test.ts`. Add `insertWebhookOperationalEvent: vi.fn()` to the `vi.mock` factory if it's not already there. Then append these tests at the end of the existing `describe("manualMatchWebhookToRoute", ...)` block:
 
@@ -3461,14 +3461,14 @@ it("logs orphan event when finalize update fails", async () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and confirm they fail.**
+- [x] **Step 2: Run the tests and confirm they fail.**
 
 ```
 pnpm test lib/db/beta-queries.test.ts
 ```
 Expected: the two new tests fail because `manualMatchWebhookToRoute` does not compensate on partial failure.
 
-- [ ] **Step 3: Add compensating revert + orphan logging to `manualMatchWebhookToRoute`.**
+- [x] **Step 3: Add compensating revert + orphan logging to `manualMatchWebhookToRoute`.**
 
 In `lib/db/beta-queries.ts`, replace steps 4 and 5 of the existing `manualMatchWebhookToRoute` body (the INSERT-betas block and the finalize-matched_beta_id UPDATE) with a try/catch wrapper:
 
@@ -3546,14 +3546,14 @@ Note on event_type reuse: the existing CHECK constraint on `webhook_operational_
 
 Ensure `insertWebhookOperationalEvent` is imported in this file (it should already be exported from the same module per Task 3).
 
-- [ ] **Step 4: Run the tests and confirm they pass.**
+- [x] **Step 4: Run the tests and confirm they pass.**
 
 ```
 pnpm test lib/db/beta-queries.test.ts
 ```
 Expected: 7/7 or 8/8 passing (existing manualMatchWebhookToRoute tests + the two new ones).
 
-- [ ] **Step 5: Surface orphan rows in `/admin/webhooks`.**
+- [x] **Step 5: Surface orphan rows in `/admin/webhooks`.**
 
 Read `app/admin/(protected)/webhooks/page.tsx`. The page already lists `manual_matched` rows. Add a separate "고립된 매칭" section above (or below) the main table, populated by a new query that returns rows where `status = 'manual_matched' AND matched_beta_id IS NULL`. Add the query to `lib/db/beta-queries.ts`:
 
@@ -3622,7 +3622,7 @@ Above the main table render a section that's hidden when `orphans.length === 0`:
 
 Match the existing admin styles. Do not provide UI actions in this task — orphan recovery is operator-by-SQL until a follow-up phase.
 
-- [ ] **Step 6: Verify.**
+- [x] **Step 6: Verify.**
 
 ```
 pnpm test lib/db/beta-queries.test.ts
@@ -3632,7 +3632,7 @@ pnpm wrangler deploy --dry-run
 ```
 All must pass.
 
-- [ ] **Step 7: Mark Task 15 step checkboxes complete in this plan file.**
+- [x] **Step 7: Mark Task 15 step checkboxes complete in this plan file.**
 
 In `docs/plans/2026-06-02-granite-phase-5.md`, change every `- [ ] **Step N:` line inside Task 15 to `- [x] **Step N:`. Include Step 7 itself (last action before the commit step).
 

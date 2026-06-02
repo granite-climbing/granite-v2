@@ -3,7 +3,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminCard } from "@/components/admin/admin-card";
 import { AdminTable, AdminTableRow, AdminTableCell } from "@/components/admin/admin-table";
 import { btnPrimaryCls, selectCls } from "@/components/admin/admin-field";
-import { getAdminWebhookInbox, getRecentWebhookOperationalEvents } from "@/lib/db/beta-queries";
+import { getAdminWebhookInbox, getRecentWebhookOperationalEvents, getOrphanedManualMatches } from "@/lib/db/beta-queries";
 import { getAdminRoutes } from "@/lib/db/admin-read-queries";
 import { manualMatchWebhookAction, rejectWebhookAction } from "@/lib/actions/admin-beta";
 import type { WebhookInboxStatus } from "@/lib/db/schema";
@@ -49,10 +49,11 @@ export default async function AdminWebhooksPage({
 }) {
   const resolved = await searchParams;
   const status = parseStatus(resolved.status);
-  const [rows, routes, opEvents] = await Promise.all([
+  const [rows, routes, opEvents, orphans] = await Promise.all([
     getAdminWebhookInbox(status),
     getAdminRoutes(),
     getRecentWebhookOperationalEvents(50),
+    getOrphanedManualMatches(),
   ]);
 
   return (
@@ -81,6 +82,27 @@ export default async function AdminWebhooksPage({
           </Link>
         ))}
       </div>
+
+      {/* Orphaned manual matches callout */}
+      {orphans.length > 0 ? (
+        <AdminCard title={`고립된 매칭 (${orphans.length})`}>
+          <p className="mb-2 text-[12px] font-bold text-[#B53A3A]">
+            `manual_matched` 상태인데 `matched_beta_id`가 비어 있는 행입니다. 매뉴얼 매칭 finalize 단계 실패 가능성이 있습니다. 운영자가 Beta 존재 여부를 직접 확인하고 SQL로 재연결하거나 거절해 주세요.
+          </p>
+          <AdminTable headers={["Updated At", "IG User", "Caption", "Last Error"]}>
+            {orphans.map((row) => (
+              <AdminTableRow key={row.id}>
+                <AdminTableCell>{row.receivedAt}</AdminTableCell>
+                <AdminTableCell>@{row.igUsername || "-"}</AdminTableCell>
+                <AdminTableCell>
+                  <span className="line-clamp-2">{row.caption || "-"}</span>
+                </AdminTableCell>
+                <AdminTableCell>{row.lastErrorCode || "-"}</AdminTableCell>
+              </AdminTableRow>
+            ))}
+          </AdminTable>
+        </AdminCard>
+      ) : null}
 
       {/* Webhooks table */}
       <AdminCard title={`Webhooks (${status}) (${rows.length})`}>

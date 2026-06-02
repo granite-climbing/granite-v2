@@ -356,6 +356,29 @@ export async function updateBetaThumbnailUrl(id: string, thumbnailUrl: string): 
   );
 }
 
+export async function getOrphanedManualMatches(): Promise<WebhookInboxAdminRow[]> {
+  return queryD1<WebhookInboxAdminRow>(
+    `SELECT
+       id,
+       external_id AS externalId,
+       ig_username AS igUsername,
+       caption,
+       media_url AS mediaUrl,
+       thumbnail_url AS thumbnailUrl,
+       matched_beta_id AS matchedBetaId,
+       status,
+       processing_attempts AS processingAttempts,
+       last_error_code AS lastErrorCode,
+       last_error_message AS lastErrorMessage,
+       received_at AS receivedAt,
+       updated_at AS updatedAt
+     FROM webhook_inbox
+     WHERE status = 'manual_matched' AND matched_beta_id IS NULL
+     ORDER BY updated_at DESC`,
+    []
+  );
+}
+
 export type ManualMatchOutcome =
   | { ok: true; betaId: string }
   | { ok: false; reason: "not_unmatched" }
@@ -425,29 +448,70 @@ export async function manualMatchWebhookToRoute(input: {
 
   // 4) Insert the Beta with the canonical media id.
   const today = new Date().toISOString().slice(0, 10);
-  await queryD1(
-    `INSERT INTO betas (
-       id, route_id, user_id, instagram_id, display_name, source, platform,
-       media_url, permalink_url, external_media_id, thumbnail_url, sent_at, status, claim_status
-     ) VALUES (?, ?, NULL, ?, ?, 'instagram_webhook', 'instagram', ?, NULL, ?, NULL, ?, 'pending', 'unclaimed')`,
-    [
-      input.betaId,
-      input.routeId,
-      row.igUsername,
-      row.igUsername,
-      row.mediaUrl,
-      canonicalMediaId,
-      today,
-    ]
-  );
+  try {
+    await queryD1(
+      `INSERT INTO betas (
+         id, route_id, user_id, instagram_id, display_name, source, platform,
+         media_url, permalink_url, external_media_id, thumbnail_url, sent_at, status, claim_status
+       ) VALUES (?, ?, NULL, ?, ?, 'instagram_webhook', 'instagram', ?, NULL, ?, NULL, ?, 'pending', 'unclaimed')`,
+      [
+        input.betaId,
+        input.routeId,
+        row.igUsername,
+        row.igUsername,
+        row.mediaUrl,
+        canonicalMediaId,
+        today,
+      ]
+    );
+  } catch (insertError) {
+    // Compensating revert: release the claim so an operator can retry.
+    await queryD1(
+      `UPDATE webhook_inbox
+       SET status = 'unmatched',
+           last_error_code = 'manual_match_insert_failed',
+           last_error_message = ?,
+           updated_at = datetime('now')
+       WHERE id = ?`,
+      [
+        insertError instanceof Error ? insertError.message.slice(0, 500) : "insert failed",
+        input.webhookId,
+      ]
+    );
+    return { ok: false, reason: "not_unmatched" };
+  }
 
   // 5) Finalize the webhook row with the new Beta id.
-  await queryD1(
-    `UPDATE webhook_inbox
-     SET matched_beta_id = ?, updated_at = datetime('now')
-     WHERE id = ?`,
-    [input.betaId, input.webhookId]
-  );
+  try {
+    await queryD1(
+      `UPDATE webhook_inbox
+       SET matched_beta_id = ?, updated_at = datetime('now')
+       WHERE id = ?`,
+      [input.betaId, input.webhookId]
+    );
+  } catch (finalizeError) {
+    // The Beta exists but the inbox can't be back-linked. Log as orphan and rethrow.
+    try {
+      await insertWebhookOperationalEvent({
+        id: `opev_${crypto.randomUUID()}`,
+        eventType: "duplicate_beta", // closest existing event_type; metadata.kind distinguishes orphan
+        webhookId: input.webhookId,
+        betaId: input.betaId,
+        requestId: "",
+        method: "POST",
+        path: "/admin/webhooks/manual-match",
+        statusCode: null,
+        message: "manual match finalize failed; beta orphaned (inbox missing matched_beta_id)",
+        metadata: JSON.stringify({
+          kind: "orphan_beta",
+          reason: finalizeError instanceof Error ? finalizeError.message : "unknown",
+        }),
+      });
+    } catch {
+      // Best-effort: do not lose the original error if the op-event insert also fails.
+    }
+    throw finalizeError;
+  }
 
   return { ok: true, betaId: input.betaId };
 }
