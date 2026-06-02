@@ -685,9 +685,9 @@ Each page currently has a top inline `<AdminCard title="Create X">` with the cre
 
 The exact same pattern applies to all 6 pages. The example below is for Areas — replicate identically (adapting field names) for the other 5 pages.
 
-- [ ] **Step 1: Read `app/admin/(protected)/content/areas/page.tsx` to understand the current Create form structure (lines ~34-71 per the grep).**
+- [x] **Step 1: Read `app/admin/(protected)/content/areas/page.tsx` to understand the current Create form structure (lines ~34-71 per the grep).**
 
-- [ ] **Step 2: Add `new` to `searchParams` type and refactor Areas page.**
+- [x] **Step 2: Add `new` to `searchParams` type and refactor Areas page.**
 
 ```tsx
 interface Props {
@@ -732,21 +732,21 @@ export default async function AdminAreasPage({ searchParams }: Props) {
 
 Important: the inline `<AdminCard title="Create Area">` block at lines ~34-71 is REMOVED. The exact `<form action={saveAreaAction}>...</form>` is preserved verbatim inside the new `<EditDrawer title="Create Area">`. Do not change field names or the `ImageUploadField entityId="new"` value — they drive the existing Server Action.
 
-- [ ] **Step 3: Repeat for `crags/page.tsx`.**
+- [x] **Step 3: Repeat for `crags/page.tsx`.**
 
 Same pattern. `closeHref="/admin/content/crags"` (preserve current filter params via `URLSearchParams` if any are set — mirror the existing `EditDrawer closeHref` construction in the edit branch).
 
-- [ ] **Step 4: Repeat for `sectors/page.tsx`.**
+- [x] **Step 4: Repeat for `sectors/page.tsx`.**
 
 Same pattern. The create form pre-fills `cragId` from the URL filter when present (Task 10 of the original plan).
 
-- [ ] **Step 5: Repeat for `boulders/page.tsx`.**
+- [x] **Step 5: Repeat for `boulders/page.tsx`.**
 
-- [ ] **Step 6: Repeat for `topos/page.tsx`.**
+- [x] **Step 6: Repeat for `topos/page.tsx`.**
 
-- [ ] **Step 7: Repeat for `routes/page.tsx`.**
+- [x] **Step 7: Repeat for `routes/page.tsx`.**
 
-- [ ] **Step 8: Update the "+ New" link on filtered pages to preserve filter params.**
+- [x] **Step 8: Update the "+ New" link on filtered pages to preserve filter params.**
 
 For sectors/boulders/topos/routes (which have parent filters), the "+ New" link should preserve the active filter so create-form prefills work:
 
@@ -761,12 +761,12 @@ const createHref = `?${createParams.toString()}`;
 <Link href={createHref} className={btnPrimaryCls}>+ New Sector</Link>
 ```
 
-- [ ] **Step 9: Run tests + typecheck + build.**
+- [x] **Step 9: Run tests + typecheck + build.**
 
 Run: `pnpm typecheck && pnpm test && pnpm build`
 Expected: all clean. Server Action mutation tests in `lib/actions/admin-content.test.ts` should still pass unchanged (the action's form-data shape is preserved).
 
-- [ ] **Step 10: Commit.**
+- [x] **Step 10: Commit.**
 
 ```bash
 git add app/admin/\(protected\)/content/
