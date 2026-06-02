@@ -3,7 +3,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminCard } from "@/components/admin/admin-card";
 import { AdminTable, AdminTableRow, AdminTableCell } from "@/components/admin/admin-table";
 import { btnPrimaryCls, selectCls } from "@/components/admin/admin-field";
-import { getAdminWebhookInbox } from "@/lib/db/beta-queries";
+import { getAdminWebhookInbox, getRecentWebhookOperationalEvents } from "@/lib/db/beta-queries";
 import { getAdminRoutes } from "@/lib/db/admin-read-queries";
 import { manualMatchWebhookAction, rejectWebhookAction } from "@/lib/actions/admin-beta";
 import type { WebhookInboxStatus } from "@/lib/db/schema";
@@ -47,9 +47,10 @@ export default async function AdminWebhooksPage({
 }) {
   const resolved = await searchParams;
   const status = parseStatus(resolved.status);
-  const [rows, routes] = await Promise.all([
+  const [rows, routes, opEvents] = await Promise.all([
     getAdminWebhookInbox(status),
     getAdminRoutes(),
+    getRecentWebhookOperationalEvents(50),
   ]);
 
   return (
@@ -82,7 +83,7 @@ export default async function AdminWebhooksPage({
           <p className="text-sm text-[#6F7477]">No webhooks found.</p>
         ) : (
           <AdminTable
-            headers={["Received", "IG User", "Caption", "Media", "Thumbnail", "Status", "Actions"]}
+            headers={["Received", "IG User", "Caption", "Media", "Thumbnail", "Status", "Attempts", "Last Error", "Actions"]}
           >
             {rows.map((row) => (
               <AdminTableRow key={row.id}>
@@ -121,6 +122,22 @@ export default async function AdminWebhooksPage({
                 </AdminTableCell>
                 <AdminTableCell>
                   <span className={getStatusBadgeClasses(row.status)}>{row.status}</span>
+                </AdminTableCell>
+                <AdminTableCell className="text-xs text-center text-[#6F7477]">
+                  {row.processingAttempts}
+                </AdminTableCell>
+                <AdminTableCell className="max-w-[180px]">
+                  {row.lastErrorCode && (
+                    <div>
+                      <span className="rounded bg-red-50 px-1 py-0.5 text-xs font-semibold text-red-700">
+                        {row.lastErrorCode}
+                      </span>
+                      {row.lastErrorMessage && (
+                        <p className="line-clamp-2 mt-1 text-xs text-[#6F7477]">{row.lastErrorMessage}</p>
+                      )}
+                    </div>
+                  )}
+                  {!row.lastErrorCode && <span className="text-xs text-[#6F7477]">—</span>}
                 </AdminTableCell>
                 <AdminTableCell>
                   {status === "unmatched" && (
@@ -161,6 +178,47 @@ export default async function AdminWebhooksPage({
           </AdminTable>
         )}
       </AdminCard>
+
+      {/* Recent operational events */}
+      <div className="mt-8">
+        <AdminCard title={`Recent Operational Events (${opEvents.length})`}>
+          {opEvents.length === 0 ? (
+            <p className="text-sm text-[#6F7477]">No operational events recorded.</p>
+          ) : (
+            <AdminTable
+              headers={["Date", "Event Type", "Status", "Message", "Webhook ID", "Beta ID", "Metadata"]}
+            >
+              {opEvents.map((ev) => (
+                <AdminTableRow key={ev.id}>
+                  <AdminTableCell className="text-xs text-[#6F7477] whitespace-nowrap">
+                    {new Date(ev.createdAt).toLocaleDateString()}
+                  </AdminTableCell>
+                  <AdminTableCell>
+                    <span className="rounded bg-gray-100 px-1 py-0.5 text-xs font-semibold text-[#24292F]">
+                      {ev.eventType}
+                    </span>
+                  </AdminTableCell>
+                  <AdminTableCell className="text-xs text-[#6F7477]">
+                    {ev.statusCode ?? "—"}
+                  </AdminTableCell>
+                  <AdminTableCell className="max-w-xs">
+                    <p className="line-clamp-2 text-xs text-[#24292F]">{ev.message}</p>
+                  </AdminTableCell>
+                  <AdminTableCell className="text-xs text-[#6F7477]">
+                    {ev.webhookId ?? "—"}
+                  </AdminTableCell>
+                  <AdminTableCell className="text-xs text-[#6F7477]">
+                    {ev.betaId ?? "—"}
+                  </AdminTableCell>
+                  <AdminTableCell className="max-w-xs">
+                    <p className="line-clamp-2 text-xs text-[#6F7477]">{ev.metadata}</p>
+                  </AdminTableCell>
+                </AdminTableRow>
+              ))}
+            </AdminTable>
+          )}
+        </AdminCard>
+      </div>
     </AdminShell>
   );
 }

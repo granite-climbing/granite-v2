@@ -65,7 +65,13 @@ export default async function AdminBetasPage({
 
   return (
     <AdminShell>
-      <h1 className="mb-6 text-2xl font-bold">Betas</h1>
+      <h1 className="mb-2 text-2xl font-bold">Betas</h1>
+      <p className="mb-6 text-sm text-[#6F7477]">
+        공개 노출은 <code className="rounded bg-gray-100 px-1 text-xs">approved</code> 상태만 가능합니다.{" "}
+        <code className="rounded bg-gray-100 px-1 text-xs">pending</code>,{" "}
+        <code className="rounded bg-gray-100 px-1 text-xs">hidden</code>,{" "}
+        <code className="rounded bg-gray-100 px-1 text-xs">removed</code>는 비공개입니다.
+      </p>
 
       {/* Status filters */}
       <div className="mb-6 flex gap-2 overflow-x-auto">
@@ -99,7 +105,7 @@ export default async function AdminBetasPage({
         {rows.length === 0 ? (
           <p className="text-sm text-[#6F7477]">No betas found.</p>
         ) : (
-          <AdminTable headers={["Route", "Source", "Instagram", "Media", "Sent", "Status", "Actions"]}>
+          <AdminTable headers={["Route", "Source / Platform", "Instagram", "Media / Permalink", "External ID", "Thumbnail", "Sent", "Status", "Note", "Actions"]}>
             {rows.map((row) => (
               <AdminTableRow key={row.id}>
                 <AdminTableCell>
@@ -110,8 +116,9 @@ export default async function AdminBetasPage({
                 </AdminTableCell>
                 <AdminTableCell>
                   <div className="text-xs text-[#6F7477] capitalize">
-                    {row.source} · {row.platform}
+                    {row.source}
                   </div>
+                  <div className="text-xs text-[#6F7477]">{row.platform}</div>
                 </AdminTableCell>
                 <AdminTableCell>
                   <div className="text-xs font-semibold text-[#111827]">@{row.instagramId}</div>
@@ -125,8 +132,38 @@ export default async function AdminBetasPage({
                       rel="noreferrer"
                       className="text-xs text-[#0969DA] hover:underline"
                     >
-                      Link
+                      Media
                     </a>
+                  )}
+                  {row.permalinkUrl && (
+                    <a
+                      href={row.permalinkUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="ml-2 text-xs text-[#0969DA] hover:underline"
+                    >
+                      Permalink
+                    </a>
+                  )}
+                </AdminTableCell>
+                <AdminTableCell className="max-w-[120px]">
+                  {row.externalMediaId ? (
+                    <span className="block truncate text-xs text-[#6F7477]" title={row.externalMediaId}>
+                      {row.externalMediaId}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-[#6F7477]">—</span>
+                  )}
+                </AdminTableCell>
+                <AdminTableCell>
+                  {row.thumbnailUrl ? (
+                    <span className="rounded bg-green-50 px-1 py-0.5 text-xs font-semibold text-green-700">
+                      R2 stored
+                    </span>
+                  ) : (
+                    <span className="rounded bg-gray-100 px-1 py-0.5 text-xs text-[#6F7477]">
+                      missing
+                    </span>
                   )}
                 </AdminTableCell>
                 <AdminTableCell className="text-xs text-[#6F7477]">
@@ -136,6 +173,13 @@ export default async function AdminBetasPage({
                   <span className={getStatusBadgeClasses(row.status)}>
                     {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
                   </span>
+                </AdminTableCell>
+                <AdminTableCell className="max-w-[150px]">
+                  {row.moderationNote ? (
+                    <p className="line-clamp-2 text-xs text-[#6F7477]">{row.moderationNote}</p>
+                  ) : (
+                    <span className="text-xs text-[#6F7477]">—</span>
+                  )}
                 </AdminTableCell>
                 <AdminTableCell>
                   <div className="flex flex-wrap gap-1">

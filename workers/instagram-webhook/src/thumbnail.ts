@@ -2,6 +2,21 @@ import type { MentionedMedia } from "./graph-api";
 
 const MAX_THUMBNAIL_BYTES = 5 * 1024 * 1024;
 
+const ALLOWED_IMAGE_HOSTS = new Set(["img.youtube.com"]);
+const ALLOWED_IMAGE_HOST_SUFFIXES = [".cdninstagram.com", ".fbcdn.net"];
+
+function isAllowedImageUrl(rawUrl: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "https:") return false;
+  const host = url.hostname.toLowerCase();
+  return ALLOWED_IMAGE_HOSTS.has(host) || ALLOWED_IMAGE_HOST_SUFFIXES.some((suffix) => host.endsWith(suffix));
+}
+
 function inferExtension(contentType: string | null): "jpg" | "png" | "webp" | "gif" | null {
   const normalized = contentType?.split(";")[0]?.trim().toLowerCase();
   if (normalized === "image/jpeg") return "jpg";
@@ -18,7 +33,7 @@ export async function attemptThumbnailCopy(
   media: MentionedMedia
 ): Promise<string | null> {
   const source = media.thumbnailUrl ?? media.mediaUrl;
-  if (!source) return null;
+  if (!source || !isAllowedImageUrl(source)) return null;
 
   let response: Response;
   try {

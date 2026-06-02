@@ -2,6 +2,7 @@ import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { fetchInstagramOEmbed } from "./instagram-oembed";
 import { fetchInstagramHtmlThumbnail } from "./instagram-html";
 import { extractYouTubeThumbnailUrl, inferImageExtensionFromContentType } from "./thumbnail";
+import { assertAllowedExternalFetchUrl, isAllowedImageContentType } from "./fetch-guard";
 
 const MAX_THUMBNAIL_BYTES = 5 * 1024 * 1024; // 5 MB
 
@@ -59,6 +60,11 @@ export async function acquireAndStoreBetaThumbnail(input: {
 }): Promise<string | null> {
   const source = await resolveThumbnailSourceUrl({ platform: input.platform, postUrl: input.postUrl });
   if (!source) return null;
+  try {
+    assertAllowedExternalFetchUrl(source, "image");
+  } catch {
+    return null;
+  }
 
   let response: Response;
   try {
@@ -70,6 +76,7 @@ export async function acquireAndStoreBetaThumbnail(input: {
   if (!response.ok) return null;
 
   const contentType = response.headers.get("content-type");
+  if (!isAllowedImageContentType(contentType)) return null;
   const extension = inferImageExtensionFromContentType(contentType);
   if (!extension) return null;
 

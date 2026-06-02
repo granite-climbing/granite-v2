@@ -29,6 +29,7 @@ export type AdminBetaRow = CreateManualBetaInput & {
   thumbnailUrl: string | null;
   status: BetaStatus;
   claimStatus: "unclaimed" | "claimed" | "verified" | "revoked";
+  moderationNote: string;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -43,6 +44,9 @@ export type WebhookInboxAdminRow = {
   thumbnailUrl: string | null;
   matchedBetaId: string | null;
   status: WebhookInboxStatus;
+  processingAttempts: number;
+  lastErrorCode: string | null;
+  lastErrorMessage: string | null;
   receivedAt: string;
   updatedAt: string;
 };
@@ -118,6 +122,7 @@ export async function getAdminBetas(filters: { status?: BetaStatus } = {}): Prom
        be.sent_at AS sentAt,
        be.status,
        be.claim_status AS claimStatus,
+       be.moderation_note AS moderationNote,
        be.created_at AS createdAt,
        be.updated_at AS updatedAt,
        be.deleted_at AS deletedAt
@@ -172,6 +177,9 @@ export async function getAdminWebhookInbox(status: WebhookInboxStatus = "unmatch
        thumbnail_url AS thumbnailUrl,
        matched_beta_id AS matchedBetaId,
        status,
+       processing_attempts AS processingAttempts,
+       last_error_code AS lastErrorCode,
+       last_error_message AS lastErrorMessage,
        received_at AS receivedAt,
        updated_at AS updatedAt
      FROM webhook_inbox

@@ -10,6 +10,7 @@ import {
 } from "./d1";
 import { fetchMentionedComment, fetchMentionedMedia } from "./graph-api";
 import { extractHashtags, normalizeHandle, normalizeToken } from "./normalize";
+import { attemptThumbnailCopy } from "./thumbnail";
 
 function uuid(prefix: string): string {
   return `${prefix}_${crypto.randomUUID()}`;
@@ -189,14 +190,30 @@ export async function processMentionEvent(
     matchedBetaId: betaId,
   });
 
-  // Thumbnail copy (Task 9 will implement; stub returns null in Task 6)
-  const cdnUrl = await import("./thumbnail").then((m) =>
-    m.attemptThumbnailCopy(env.BUCKET, env.CDN_BASE_URL, betaId, media)
-  );
+  // Thumbnail copy
+  const cdnUrl = await attemptThumbnailCopy(env.BUCKET, env.CDN_BASE_URL, betaId, media);
   if (cdnUrl) {
     await env.granite_v2
       .prepare(`UPDATE betas SET thumbnail_url = ?, updated_at = datetime('now') WHERE id = ?`)
       .bind(cdnUrl, betaId)
       .run();
+  } else {
+    // Thumbnail copy failed; primary status (matched) stays.
+    await env.granite_v2
+      .prepare(`UPDATE webhook_inbox SET last_error_code = 'thumbnail_copy_failed', last_error_message = 'thumbnail download or R2 upload failed', updated_at = datetime('now') WHERE id = ?`)
+      .bind(webhookId)
+      .run();
+    await insertWebhookOperationalEvent(env.granite_v2, {
+      id: uuid("opev"),
+      eventType: "thumbnail_copy_failed",
+      webhookId,
+      betaId,
+      requestId: "",
+      method: "POST",
+      path: "/webhooks/instagram",
+      statusCode: null,
+      message: "thumbnail download or R2 upload failed",
+      metadata: "{}",
+    });
   }
 }

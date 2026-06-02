@@ -1,6 +1,7 @@
 import { verifyMetaSignature } from "./hmac";
 import { extractMentionEvents } from "./payload";
 import { processMentionEvent } from "./match";
+import { insertWebhookOperationalEvent } from "./d1";
 
 export interface Env {
   META_APP_SECRET: string;
@@ -30,7 +31,23 @@ export default {
 
     const body = await request.text();
     const valid = await verifyMetaSignature(body, request.headers.get("X-Hub-Signature-256"), env.META_APP_SECRET);
-    if (!valid) return new Response("Invalid signature", { status: 401 });
+    if (!valid) {
+      ctx.waitUntil(
+        insertWebhookOperationalEvent(env.granite_v2, {
+          id: `opev_${crypto.randomUUID()}`,
+          eventType: "invalid_signature",
+          webhookId: null,
+          betaId: null,
+          requestId: request.headers.get("cf-request-id") ?? "",
+          method: "POST",
+          path: "/webhooks/instagram",
+          statusCode: 401,
+          message: "Meta HMAC mismatch",
+          metadata: "{}",
+        })
+      );
+      return new Response("Invalid signature", { status: 401 });
+    }
 
     let payload: unknown;
     try {
