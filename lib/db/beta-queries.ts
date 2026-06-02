@@ -382,7 +382,31 @@ export async function getOrphanedManualMatches(): Promise<WebhookInboxAdminRow[]
 export type ManualMatchOutcome =
   | { ok: true; betaId: string }
   | { ok: false; reason: "not_unmatched" }
-  | { ok: false; reason: "duplicate"; existingBetaId: string };
+  | { ok: false; reason: "duplicate"; existingBetaId: string }
+  | { ok: false; reason: "needs_rehydration" };
+
+function extractMediaIdFromRawPayload(rawPayload: string): string | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawPayload);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null) return null;
+  const root = parsed as Record<string, unknown>;
+  const entry = root.entry;
+  if (!Array.isArray(entry) || entry.length === 0) return null;
+  const e0 = entry[0];
+  if (typeof e0 !== "object" || e0 === null) return null;
+  const changes = (e0 as Record<string, unknown>).changes;
+  if (!Array.isArray(changes) || changes.length === 0) return null;
+  const c0 = changes[0];
+  if (typeof c0 !== "object" || c0 === null) return null;
+  const value = (c0 as Record<string, unknown>).value;
+  if (typeof value !== "object" || value === null) return null;
+  const mediaId = (value as Record<string, unknown>).media_id;
+  return typeof mediaId === "string" && mediaId.length > 0 ? mediaId : null;
+}
 
 export async function manualMatchWebhookToRoute(input: {
   webhookId: string;
@@ -408,13 +432,15 @@ export async function manualMatchWebhookToRoute(input: {
     mediaUrl: string;
     externalId: string;
     externalMediaId: string | null;
+    rawPayload: string;
   }>(
     `SELECT
        ig_username AS igUsername,
        caption,
        media_url AS mediaUrl,
        external_id AS externalId,
-       external_media_id AS externalMediaId
+       external_media_id AS externalMediaId,
+       raw_payload AS rawPayload
      FROM webhook_inbox
      WHERE id = ?
      LIMIT 1`,
@@ -430,8 +456,26 @@ export async function manualMatchWebhookToRoute(input: {
   }
   const row = rows[0];
 
-  // 3) Canonical media id dedup. New rows have external_media_id; legacy rows fall back to external_id.
-  const canonicalMediaId = row.externalMediaId ?? row.externalId;
+  // 3) Canonical media id dedup. New rows have external_media_id; legacy comment-mention rows
+  //    may have it NULL (pre-migration-0005). Parse from raw_payload as a safe fallback.
+  //    If we still cannot resolve a canonical media id, refuse the match so we don't poison
+  //    the uniqueness key with a comment_id.
+  let canonicalMediaId: string | null = row.externalMediaId;
+  if (!canonicalMediaId) {
+    canonicalMediaId = extractMediaIdFromRawPayload(row.rawPayload);
+  }
+  if (!canonicalMediaId) {
+    await queryD1(
+      `UPDATE webhook_inbox
+       SET status = 'unmatched',
+           last_error_code = 'needs_rehydration',
+           last_error_message = 'raw_payload missing entry[0].changes[0].value.media_id',
+           updated_at = datetime('now')
+       WHERE id = ?`,
+      [input.webhookId]
+    );
+    return { ok: false, reason: "needs_rehydration" };
+  }
   const existing = await findExistingBetaByExternalMedia("instagram", canonicalMediaId);
   if (existing) {
     await queryD1(

@@ -136,6 +136,8 @@ Instagram Meta에서 웹훅을 재전송하거나 사용자가 같은 영상을 
 
 - **`thumbnail_copy_failed`** — R2에 썸네일 업로드 중 실패. 인프라 문제(R2 S3 자격증명 만료, 네트워크 단절, 용량 부족). Beta는 생성되나 `thumbnail_url=NULL`. R2 권한, 네트워크, 버킷 설정 확인.
 
+- **`needs_rehydration`** — 수동 매칭 대상 행에 `external_media_id`가 비어 있고 `raw_payload`에서 `media_id`를 추출할 수 없는 경우. 마이그레이션 `0005` 이전에 들어온 댓글 멘션 행에서 발생 가능. 운영자 대응: (a) Meta App Dashboard에서 동일 이벤트를 재배달하여 hydration 경로를 재실행하거나 (b) 거절 후 사용자에게 수동 등록 폼 안내.
+
 ---
 
 ## Graph API 토큰 라이프사이클

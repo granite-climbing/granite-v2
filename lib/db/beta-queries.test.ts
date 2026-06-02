@@ -125,6 +125,7 @@ describe("manualMatchWebhookToRoute", () => {
           mediaUrl: "https://www.instagram.com/p/abc/",
           externalId: "comment_1",
           externalMediaId: "media_1",
+          rawPayload: "{}",
         },
       ]) // SELECT row
       .mockResolvedValueOnce([]) // INSERT betas
@@ -179,6 +180,7 @@ describe("manualMatchWebhookToRoute", () => {
           mediaUrl: "https://www.instagram.com/p/abc/",
           externalId: "comment_1",
           externalMediaId: "media_1",
+          rawPayload: "{}",
         },
       ]) // SELECT row
       .mockResolvedValueOnce([]); // UPDATE webhook to duplicate
@@ -220,6 +222,7 @@ describe("manualMatchWebhookToRoute", () => {
           mediaUrl: "https://www.instagram.com/p/abc/",
           externalId: "comment_1",
           externalMediaId: "media_1",
+          rawPayload: "{}",
         },
       ]) // SELECT row
       .mockRejectedValueOnce(insertError) // INSERT betas FAILS
@@ -261,6 +264,7 @@ describe("manualMatchWebhookToRoute", () => {
           mediaUrl: "https://www.instagram.com/p/abc/",
           externalId: "comment_1",
           externalMediaId: "media_1",
+          rawPayload: "{}",
         },
       ]) // SELECT row
       .mockResolvedValueOnce([]) // INSERT betas (success)
@@ -295,5 +299,90 @@ describe("manualMatchWebhookToRoute", () => {
           c[0].includes("INSERT INTO webhook_operational_events")
       );
     expect(opEventCall).toBeDefined();
+  });
+
+  it("uses media_id parsed from raw_payload when external_media_id is null (legacy comment mention)", async () => {
+    vi.mocked(executeD1Meta).mockResolvedValue({ changes: 1 });
+    const legacyRawPayload = JSON.stringify({
+      entry: [
+        {
+          id: "ig_user_1",
+          changes: [
+            {
+              field: "mentions",
+              value: { media_id: "media_from_payload", comment_id: "comment_1" },
+            },
+          ],
+        },
+      ],
+    });
+    vi.mocked(queryD1)
+      .mockResolvedValueOnce([
+        {
+          igUsername: "climber",
+          caption: "@granite.kr #큰바위 #SkyHook",
+          mediaUrl: "https://www.instagram.com/p/abc/",
+          externalId: "comment_1",
+          externalMediaId: null,
+          rawPayload: legacyRawPayload,
+        },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    vi.mocked(queryD1First).mockResolvedValueOnce(null);
+
+    const { manualMatchWebhookToRoute } = await import("./beta-queries");
+
+    const outcome = await manualMatchWebhookToRoute({
+      webhookId: "webhook_1",
+      routeId: "route_1",
+      betaId: "beta_new",
+    });
+
+    expect(outcome).toEqual({ ok: true, betaId: "beta_new" });
+    const insertCall = vi
+      .mocked(queryD1)
+      .mock.calls.find(
+        (c) => typeof c[0] === "string" && c[0].includes("INSERT INTO betas")
+      );
+    expect(insertCall?.[1]).toContain("media_from_payload");
+    expect(insertCall?.[1]).not.toContain("comment_1");
+  });
+
+  it("refuses manual match and surfaces needs_rehydration when raw_payload has no media_id", async () => {
+    vi.mocked(executeD1Meta).mockResolvedValue({ changes: 1 });
+    vi.mocked(queryD1)
+      .mockResolvedValueOnce([
+        {
+          igUsername: "climber",
+          caption: "",
+          mediaUrl: "",
+          externalId: "comment_only",
+          externalMediaId: null,
+          rawPayload: "{}",
+        },
+      ])
+      .mockResolvedValueOnce([]); // revert UPDATE
+
+    const { manualMatchWebhookToRoute } = await import("./beta-queries");
+
+    const outcome = await manualMatchWebhookToRoute({
+      webhookId: "webhook_1",
+      routeId: "route_1",
+      betaId: "beta_new",
+    });
+
+    expect(outcome).toEqual({ ok: false, reason: "needs_rehydration" });
+
+    const revertCall = vi
+      .mocked(queryD1)
+      .mock.calls.find(
+        (c) =>
+          typeof c[0] === "string" &&
+          c[0].includes("UPDATE webhook_inbox") &&
+          c[0].includes("status = 'unmatched'") &&
+          c[0].includes("needs_rehydration")
+      );
+    expect(revertCall).toBeDefined();
   });
 });

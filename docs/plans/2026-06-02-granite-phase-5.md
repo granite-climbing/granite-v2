@@ -3906,7 +3906,7 @@ If parsing fails or the payload lacks a `media_id`, manual match is refused and 
 - Modify: `docs/admin-beta-operations.md` (operator SOP entry for the new error code)
 - Modify: `docs/plans/2026-06-02-granite-phase-5.md` (checkboxes)
 
-- [ ] **Step 1: Write failing tests for the raw_payload fallback path.**
+- [x] **Step 1: Write failing tests for the raw_payload fallback path.**
 
 Open `lib/db/beta-queries.test.ts`. Inside the existing `describe("manualMatchWebhookToRoute", ...)` block, append:
 
@@ -4001,7 +4001,7 @@ Update the SELECT mock for the EXISTING happy-path and partial-failure tests to 
 
 Flip Step 1 checkbox.
 
-- [ ] **Step 2: Run tests, confirm the two new tests fail.**
+- [x] **Step 2: Run tests, confirm the two new tests fail.**
 
 ```
 pnpm test lib/db/beta-queries.test.ts
@@ -4010,7 +4010,7 @@ Expected: the two new tests fail.
 
 Flip Step 2 checkbox.
 
-- [ ] **Step 3: Update `manualMatchWebhookToRoute` in `lib/db/beta-queries.ts`.**
+- [x] **Step 3: Update `manualMatchWebhookToRoute` in `lib/db/beta-queries.ts`.**
 
 Three edits to the existing function:
 
@@ -4103,7 +4103,7 @@ Keep the existing duplicate check, INSERT, and finalize logic — they now use t
 
 Flip Step 3 checkbox.
 
-- [ ] **Step 4: Run tests, confirm pass.**
+- [x] **Step 4: Run tests, confirm pass.**
 
 ```
 pnpm test lib/db/beta-queries.test.ts
@@ -4112,7 +4112,7 @@ Expected: all `manualMatchWebhookToRoute` tests pass, including the two new fall
 
 Flip Step 4 checkbox.
 
-- [ ] **Step 5: Update `manualMatchWebhookAction` in `lib/actions/admin-beta.ts` to record the new outcome.**
+- [x] **Step 5: Update `manualMatchWebhookAction` in `lib/actions/admin-beta.ts` to record the new outcome.**
 
 Locate the existing skipped-outcome audit log block. Extend the `metadata` conditional to record `needs_rehydration`:
 
@@ -4136,7 +4136,7 @@ No new UI is added in this task — operators will see the row reappear as `unma
 
 Flip Step 5 checkbox.
 
-- [ ] **Step 6: Add SOP entry to `docs/admin-beta-operations.md`.**
+- [x] **Step 6: Add SOP entry to `docs/admin-beta-operations.md`.**
 
 Find the "운영 이벤트 오류 코드 가이드" / operational error code section. Add an entry for `needs_rehydration`:
 
@@ -4148,7 +4148,7 @@ Adjust the exact wording to match the existing list style.
 
 Flip Step 6 checkbox.
 
-- [ ] **Step 7: Full verification.**
+- [x] **Step 7: Full verification.**
 
 ```
 pnpm test lib/db/beta-queries.test.ts
@@ -4160,7 +4160,7 @@ All must pass.
 
 Flip Step 7 checkbox.
 
-- [ ] **Step 8: Mark Task 17 step checkboxes complete in this plan file.**
+- [x] **Step 8: Mark Task 17 step checkboxes complete in this plan file.**
 
 Verify Steps 1–7 are `[x]`. Flip Step 8 itself to `[x]`.
 
