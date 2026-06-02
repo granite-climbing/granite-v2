@@ -3636,7 +3636,7 @@ All must pass.
 
 In `docs/plans/2026-06-02-granite-phase-5.md`, change every `- [ ] **Step N:` line inside Task 15 to `- [x] **Step N:`. Include Step 7 itself (last action before the commit step).
 
-- [ ] **Step 8: Commit.**
+- [x] **Step 8: Commit.**
 
 ```bash
 git add lib/db/beta-queries.ts lib/db/beta-queries.test.ts 'app/admin/(protected)/webhooks/page.tsx' docs/plans/2026-06-02-granite-phase-5.md
