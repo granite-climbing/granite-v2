@@ -209,6 +209,7 @@ Phase 3까지 확보한 DB-backed public UI와 관리자 운영 UI를 실제 Pha
 - [ ] `META_APP_SECRET`, `META_WEBHOOK_VERIFY_TOKEN` 발급 + Worker secret 등록
 - [ ] 캡션 정규화 규칙과 동명 Boulder/Route 처리 정책 확정
 - [ ] 웹훅 raw payload 보관 기간 확정
+- [ ] 운영 SOP: [Admin Beta Operations](admin-beta-operations.md) 작성 — Phase 5 출시 직전 검토
 
 ### 개발 범위
 
@@ -220,6 +221,7 @@ Phase 3까지 확보한 DB-backed public UI와 관리자 운영 UI를 실제 Pha
 - 관리자 베타 숨김/삭제 모더레이션
 - 썸네일 수집과 실패 폴백
 - Route 상세의 캡션 생성/복사 UI
+- 구현 상세는 [Phase 5 Plan](plans/2026-06-02-granite-phase-5.md) 참고
 
 ### 출시 게이트
 
@@ -229,6 +231,7 @@ Phase 3까지 확보한 DB-backed public UI와 관리자 운영 UI를 실제 Pha
 - [ ] 동명 Boulder/Route 케이스가 unmatched로 떨어지는지 확인
 - [ ] 관리자 인박스 SOP 문서화
 - [ ] 썸네일 수집 실패 시 Beta 생성이 유지되는지 확인
+- [ ] 운영 SOP 문서(`docs/admin-beta-operations.md`) 검토 완료
 
 ---
 
