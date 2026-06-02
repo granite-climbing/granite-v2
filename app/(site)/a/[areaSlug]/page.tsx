@@ -115,7 +115,7 @@ export default async function AreaPage({ params, searchParams }: AreaPageProps) 
       </section>
 
       {/* Crag list */}
-      <section className="mt-6 space-y-3 px-4">
+      <section className="mt-6 flex flex-col items-center gap-4 px-4">
         {filteredCrags.length > 0 ? (
           filteredCrags.map((crag) => (
             <CragCard
