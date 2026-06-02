@@ -229,9 +229,9 @@ git commit -m "feat(home): drag-to-scroll on Area/Crag sliders with edge padding
 
 The Crag list on the Area page currently stacks `<CragCard>` left-aligned. `CragCard` has a fixed `w-[270px]`, which leaves visible right whitespace. Center each card horizontally within its column.
 
-- [ ] **Step 1: Read the current Crag list block in `app/(site)/a/[areaSlug]/page.tsx`.** Identify the wrapper that maps `area.crags.map(...)`.
+- [x] **Step 1: Read the current Crag list block in `app/(site)/a/[areaSlug]/page.tsx`.** Identify the wrapper that maps `area.crags.map(...)`.
 
-- [ ] **Step 2: Add `items-center` (flex) or `mx-auto` (block) wrapper around each card.**
+- [x] **Step 2: Add `items-center` (flex) or `mx-auto` (block) wrapper around each card.**
 
 Replace the existing crag list rendering with:
 
@@ -247,12 +247,12 @@ Replace the existing crag list rendering with:
 
 (Use the actual variable name from the file — likely `filteredCrags` or similar. The key change is `flex flex-col items-center` on the container, replacing whatever non-centered container exists today.)
 
-- [ ] **Step 3: Run typecheck + build.**
+- [x] **Step 3: Run typecheck + build.**
 
 Run: `pnpm typecheck && pnpm build`
 Expected: clean.
 
-- [ ] **Step 4: Commit.**
+- [x] **Step 4: Commit.**
 
 ```bash
 git add app/\(site\)/a/\[areaSlug\]/page.tsx
