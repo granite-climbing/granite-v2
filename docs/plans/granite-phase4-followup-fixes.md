@@ -137,7 +137,7 @@ The section titles use `px-4` (16px). Today the slider container also uses `px-4
 
 In addition, both sliders should be wrapped with `<DragScroller>` so desktop users can drag.
 
-- [ ] **Step 1: Read current home page slider markup.**
+- [x] **Step 1: Read current home page slider markup.**
 
 The Area slider section in `app/(site)/(public)/page.tsx`:
 
@@ -156,7 +156,7 @@ The Area slider section in `app/(site)/(public)/page.tsx`:
 </section>
 ```
 
-- [ ] **Step 2: Replace Area slider scroll container with DragScroller and keep edge padding.**
+- [x] **Step 2: Replace Area slider scroll container with DragScroller and keep edge padding.**
 
 ```tsx
 import { DragScroller } from "@/components/public/drag-scroller";
@@ -179,11 +179,11 @@ import { DragScroller } from "@/components/public/drag-scroller";
 
 The added `scroll-px-4` keeps the snap origin inset by 16px so first/last cards have breathing room after a snap. `px-4` already provides the title-aligned edge gap.
 
-- [ ] **Step 3: Read current `CragCarousel`.**
+- [x] **Step 3: Read current `CragCarousel`.**
 
 `components/public/crag-carousel.tsx` currently wraps a `<div className="... overflow-x-auto px-4 ...">` containing each crag card. Capture its exact JSX before modifying.
 
-- [ ] **Step 4: Update `CragCarousel` to use `DragScroller` and keep `px-4 scroll-px-4`.**
+- [x] **Step 4: Update `CragCarousel` to use `DragScroller` and keep `px-4 scroll-px-4`.**
 
 Replace the outer scroll `<div>` with `<DragScroller className="...">` using the same classes plus `scroll-px-4`:
 
@@ -208,12 +208,12 @@ export function CragCarousel({ crags }: CragCarouselProps) {
 
 (Adjust to match the file's actual existing structure — keep the inner cards/wrappers untouched. Only the outermost scroll container changes.)
 
-- [ ] **Step 5: Run typecheck + build.**
+- [x] **Step 5: Run typecheck + build.**
 
 Run: `pnpm typecheck && pnpm build`
 Expected: clean.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
 ```bash
 git add app/\(site\)/\(public\)/page.tsx components/public/crag-carousel.tsx
