@@ -4164,7 +4164,7 @@ Flip Step 7 checkbox.
 
 Verify Steps 1–7 are `[x]`. Flip Step 8 itself to `[x]`.
 
-- [ ] **Step 9: Commit.**
+- [x] **Step 9: Commit.**
 
 ```bash
 git add lib/db/beta-queries.ts lib/db/beta-queries.test.ts lib/actions/admin-beta.ts docs/admin-beta-operations.md docs/plans/2026-06-02-granite-phase-5.md
