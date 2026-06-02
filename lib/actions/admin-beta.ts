@@ -4,7 +4,8 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/admin";
 import { insertAdminAuditLog } from "@/lib/db/admin-queries";
-import { markWebhookRejected, updateBetaStatus } from "@/lib/db/beta-queries";
+import { randomUUID } from "node:crypto";
+import { manualMatchWebhookToRoute, markWebhookRejected, updateBetaStatus } from "@/lib/db/beta-queries";
 
 const betaStatusSchema = z.object({
   id: z.string().min(1),
@@ -38,4 +39,28 @@ export async function rejectWebhookAction(formData: FormData): Promise<void> {
     metadata: {},
   });
   revalidatePath("/admin/webhooks");
+}
+
+const manualMatchSchema = z.object({
+  webhookId: z.string().min(1),
+  routeId: z.string().min(1),
+});
+
+export async function manualMatchWebhookAction(formData: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  const parsed = manualMatchSchema.parse(Object.fromEntries(formData));
+  await manualMatchWebhookToRoute({
+    webhookId: parsed.webhookId,
+    routeId: parsed.routeId,
+    betaId: `beta_${randomUUID()}`,
+  });
+  await insertAdminAuditLog({
+    adminId: admin.adminId,
+    action: "webhook.manual_match",
+    targetType: "webhook_inbox",
+    targetId: parsed.webhookId,
+    metadata: { routeId: parsed.routeId },
+  });
+  revalidatePath("/admin/webhooks");
+  revalidatePath("/admin/betas");
 }

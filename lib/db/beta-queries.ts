@@ -338,3 +338,57 @@ export async function getRecentWebhookOperationalEvents(
     [limit]
   );
 }
+
+export async function manualMatchWebhookToRoute(input: {
+  webhookId: string;
+  routeId: string;
+  betaId: string;
+}): Promise<void> {
+  // 1) Read the webhook row (we need username + media_url + caption + external_id to populate the Beta).
+  const webhook = await queryD1<{
+    igUsername: string;
+    caption: string;
+    mediaUrl: string;
+    externalId: string;
+  }>(
+    `SELECT
+       ig_username AS igUsername,
+       caption,
+       media_url AS mediaUrl,
+       external_id AS externalId
+     FROM webhook_inbox
+     WHERE id = ?
+     LIMIT 1`,
+    [input.webhookId]
+  );
+  if (webhook.length === 0) {
+    throw new Error("webhook not found");
+  }
+  const row = webhook[0];
+
+  // 2) Insert the Beta as an instagram_webhook source. Use today's date as sent_at.
+  const today = new Date().toISOString().slice(0, 10);
+  await queryD1(
+    `INSERT INTO betas (
+       id, route_id, user_id, instagram_id, display_name, source, platform,
+       media_url, permalink_url, external_media_id, thumbnail_url, sent_at, status, claim_status
+     ) VALUES (?, ?, NULL, ?, ?, 'instagram_webhook', 'instagram', ?, NULL, ?, NULL, ?, 'pending', 'unclaimed')`,
+    [
+      input.betaId,
+      input.routeId,
+      row.igUsername,
+      row.igUsername, // displayName falls back to username
+      row.mediaUrl,
+      row.externalId,
+      today,
+    ]
+  );
+
+  // 3) Mark the webhook row as manually matched.
+  await queryD1(
+    `UPDATE webhook_inbox
+     SET status = 'manual_matched', matched_beta_id = ?, updated_at = datetime('now')
+     WHERE id = ?`,
+    [input.betaId, input.webhookId]
+  );
+}
