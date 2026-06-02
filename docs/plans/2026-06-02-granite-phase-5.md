@@ -3360,7 +3360,7 @@ All three must pass.
 
 In `docs/plans/2026-06-02-granite-phase-5.md`, change every `- [ ] **Step N:` line inside Task 14 to `- [x] **Step N:`. Include Step 7 itself (your last action before the commit step).
 
-- [ ] **Step 8: Commit.**
+- [x] **Step 8: Commit.**
 
 ```bash
 git add workers/instagram-webhook/src/d1.ts workers/instagram-webhook/src/match.ts workers/instagram-webhook/src/match.test.ts docs/plans/2026-06-02-granite-phase-5.md
