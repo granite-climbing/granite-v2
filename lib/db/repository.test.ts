@@ -24,6 +24,7 @@ vi.mock("./queries", () => ({
   getAreaBySlug: vi.fn(),
   getAreaStats: vi.fn(),
   getAreaGradeDistribution: vi.fn(),
+  getAreaCragsWithCoords: vi.fn(),
   // Announcements
   getPublishedAnnouncements: vi.fn(),
   // Crag detail
@@ -605,6 +606,11 @@ const GRADE_DIST_WITH_ROUTES = [
 ];
 
 describe("findAreaDetailBySlug", () => {
+  beforeEach(() => {
+    // Default: no crags with coordinates. Individual tests can override.
+    vi.mocked(queries.getAreaCragsWithCoords).mockResolvedValue([]);
+  });
+
   it("returns null when area slug does not exist", async () => {
     vi.mocked(queries.getAreaBySlug).mockResolvedValue(null);
 
@@ -693,7 +699,7 @@ describe("findAreaDetailBySlug", () => {
     expect(result!.crags).toHaveLength(0);
   });
 
-  it("uses getAreaBySlug, getAreaStats, getAreaGradeDistribution, getCragsByAreaId, getCragStats", async () => {
+  it("uses getAreaBySlug, getAreaStats, getAreaGradeDistribution, getCragsByAreaId, getCragStats, getAreaCragsWithCoords", async () => {
     vi.mocked(queries.getAreaBySlug).mockResolvedValue(AREA_1);
     vi.mocked(queries.getAreaStats).mockResolvedValue({ crags: 0, sectors: 0, boulders: 0, routes: 0 });
     vi.mocked(queries.getAreaGradeDistribution).mockResolvedValue(ZERO_GRADE_DIST);
@@ -707,5 +713,41 @@ describe("findAreaDetailBySlug", () => {
     expect(vi.mocked(queries.getAreaGradeDistribution)).toHaveBeenCalledWith("area-1");
     expect(vi.mocked(queries.getCragsByAreaId)).toHaveBeenCalledWith("area-1");
     expect(vi.mocked(queries.getCragStats)).toHaveBeenCalledWith("crag-1");
+    expect(vi.mocked(queries.getAreaCragsWithCoords)).toHaveBeenCalledWith("area-1");
+  });
+
+  it("returns cragLocations from getAreaCragsWithCoords in the result", async () => {
+    const locations = [
+      { id: "crag-1", slug: "moraksan", name: "모락산", lat: 37.4, lng: 127.0 },
+      { id: "crag-2", slug: "anyang", name: "안양", lat: 37.39, lng: 126.95 },
+    ];
+    vi.mocked(queries.getAreaBySlug).mockResolvedValue(AREA_1);
+    vi.mocked(queries.getAreaStats).mockResolvedValue({ crags: 2, sectors: 4, boulders: 8, routes: 20 });
+    vi.mocked(queries.getAreaGradeDistribution).mockResolvedValue(ZERO_GRADE_DIST);
+    vi.mocked(queries.getCragsByAreaId).mockResolvedValue([CRAG_1, CRAG_2]);
+    vi.mocked(queries.getCragStats)
+      .mockResolvedValueOnce({ sectors: 2, boulders: 3, routes: 5 })
+      .mockResolvedValueOnce({ sectors: 2, boulders: 5, routes: 15 });
+    vi.mocked(queries.getAreaCragsWithCoords).mockResolvedValue(locations);
+
+    const result = await findAreaDetailBySlug("seoul");
+
+    expect(result).not.toBeNull();
+    expect(result!.cragLocations).toEqual(locations);
+    expect(result!.cragLocations).toHaveLength(2);
+  });
+
+  it("returns cragLocations as empty array when no crags have coordinates", async () => {
+    vi.mocked(queries.getAreaBySlug).mockResolvedValue(AREA_1);
+    vi.mocked(queries.getAreaStats).mockResolvedValue({ crags: 1, sectors: 1, boulders: 1, routes: 0 });
+    vi.mocked(queries.getAreaGradeDistribution).mockResolvedValue(ZERO_GRADE_DIST);
+    vi.mocked(queries.getCragsByAreaId).mockResolvedValue([CRAG_1]);
+    vi.mocked(queries.getCragStats).mockResolvedValue({ sectors: 1, boulders: 1, routes: 0 });
+    // getAreaCragsWithCoords already defaulted to [] by beforeEach
+
+    const result = await findAreaDetailBySlug("seoul");
+
+    expect(result).not.toBeNull();
+    expect(result!.cragLocations).toEqual([]);
   });
 });

@@ -35,6 +35,7 @@ import {
   getAreaBySlug,
   getAreaStats,
   getAreaGradeDistribution,
+  getAreaCragsWithCoords,
 } from "./queries";
 
 // ---------------------------------------------------------------------------
@@ -1048,5 +1049,74 @@ describe("getAreaGradeDistribution", () => {
     expect(v12Band).toBeDefined();
     expect(v12Band!.count).toBe(7);
     expect(v12Band!.max).toBe(99);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getAreaCragsWithCoords — non-null lat/lng filter + ancestor published check
+// ---------------------------------------------------------------------------
+
+describe("getAreaCragsWithCoords", () => {
+  it("passes areaId as a bound param (not interpolated)", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAreaCragsWithCoords("area-1");
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(params).toEqual(["area-1"]);
+    expect(sql).toMatch(/\?/);
+    expect(sql).not.toContain("area-1");
+  });
+
+  it("SQL filters out crags without lat/lng", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAreaCragsWithCoords("area-1");
+
+    const [sql] = mockQueryD1.mock.calls[0] as [string, unknown];
+    expect(sql).toMatch(/c\.lat IS NOT NULL AND c\.lng IS NOT NULL/);
+  });
+
+  it("SQL requires ancestor (area) to be published and not soft-deleted", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAreaCragsWithCoords("area-1");
+
+    const [sql] = mockQueryD1.mock.calls[0] as [string, unknown];
+    expect(sql).toMatch(/a\.is_published = 1/);
+    expect(sql).toMatch(/a\.deleted_at IS NULL/);
+  });
+
+  it("SQL requires crags to be published and not soft-deleted", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAreaCragsWithCoords("area-1");
+
+    const [sql] = mockQueryD1.mock.calls[0] as [string, unknown];
+    expect(sql).toMatch(/c\.is_published = 1/);
+    expect(sql).toMatch(/c\.deleted_at IS NULL/);
+  });
+
+  it("SQL orders by c.sort_order ASC, c.id ASC", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAreaCragsWithCoords("area-1");
+
+    const [sql] = mockQueryD1.mock.calls[0] as [string, unknown];
+    expect(sql).toMatch(/ORDER BY c\.sort_order ASC, c\.id ASC/);
+  });
+
+  it("returns CragLocation rows as-is (no boolean mapping needed)", async () => {
+    mockQueryD1.mockResolvedValueOnce([
+      { id: "crag-1", slug: "moraksan", name: "모락산", lat: 37.4, lng: 127.0 },
+      { id: "crag-2", slug: "anyang", name: "안양", lat: 37.39, lng: 126.95 },
+    ]);
+
+    const result = await getAreaCragsWithCoords("area-1");
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({ id: "crag-1", slug: "moraksan", name: "모락산", lat: 37.4, lng: 127.0 });
+    expect(result[1]).toEqual({ id: "crag-2", slug: "anyang", name: "안양", lat: 37.39, lng: 126.95 });
+  });
+
+  it("returns empty array when no crags have coordinates", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    const result = await getAreaCragsWithCoords("area-empty");
+    expect(result).toEqual([]);
   });
 });

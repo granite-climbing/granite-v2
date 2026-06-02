@@ -22,6 +22,7 @@ import type {
   Area,
   Boulder,
   Crag,
+  CragLocation,
   GradeBand,
   RouteListItem,
   Route,
@@ -1106,7 +1107,31 @@ export async function getAreaGradeDistribution(
 }
 
 // ---------------------------------------------------------------------------
-// 12. Route by id
+// 12. Area crags with coordinates (for overview map)
+// ---------------------------------------------------------------------------
+
+/**
+ * Published Crags within an Area that have non-null coordinates.
+ * Used by the Area overview map. Excludes Crags without lat/lng (they'd render at (0,0)).
+ * Ancestor published check: area must also be published and non-soft-deleted.
+ */
+export async function getAreaCragsWithCoords(areaId: string): Promise<CragLocation[]> {
+  const rows = await queryD1<CragLocation>(
+    `SELECT c.id, c.slug, c.name, c.lat AS lat, c.lng AS lng
+       FROM crags c
+       JOIN areas a ON a.id = c.area_id
+      WHERE c.area_id = ?
+        AND c.is_published = 1 AND c.deleted_at IS NULL
+        AND a.is_published = 1 AND a.deleted_at IS NULL
+        AND c.lat IS NOT NULL AND c.lng IS NOT NULL
+      ORDER BY c.sort_order ASC, c.id ASC`,
+    [areaId]
+  );
+  return rows;
+}
+
+// ---------------------------------------------------------------------------
+// 13. Route by id
 // ---------------------------------------------------------------------------
 
 export async function getRouteById(id: string): Promise<RouteListItem | null> {

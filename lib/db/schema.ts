@@ -149,8 +149,17 @@ export type GradeBand = {
   count: number;
 };
 
+export type CragLocation = {
+  id: string;
+  slug: string;
+  name: string;
+  lat: number;
+  lng: number;
+};
+
 export type AreaDetail = Area & {
   stats: Stats;
   gradeDistribution: GradeBand[];
   crags: Array<Crag & { stats: Omit<Stats, "crags"> }>;
+  cragLocations: CragLocation[];
 };

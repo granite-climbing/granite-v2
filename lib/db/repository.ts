@@ -14,6 +14,7 @@ import {
   getAreaBySlug,
   getAreaStats,
   getAreaGradeDistribution,
+  getAreaCragsWithCoords,
   getRouteById,
   getSectorBySlug,
   getSectorRoutes,
@@ -58,10 +59,11 @@ async function loadAreaBySlug(slug: string): Promise<AreaDetail | null> {
   const area = await getAreaBySlug(slug);
   if (!area) return null;
 
-  const [stats, gradeDistribution, areaCrags] = await Promise.all([
+  const [stats, gradeDistribution, areaCrags, cragLocations] = await Promise.all([
     getAreaStats(area.id),
     getAreaGradeDistribution(area.id),
     getCragsByAreaId(area.id),
+    getAreaCragsWithCoords(area.id),
   ]);
 
   const cragStats = await Promise.all(
@@ -76,6 +78,7 @@ async function loadAreaBySlug(slug: string): Promise<AreaDetail | null> {
       ...crag,
       stats: cragStats[i] ?? { sectors: 0, boulders: 0, routes: 0 },
     })),
+    cragLocations,
   };
 }
 

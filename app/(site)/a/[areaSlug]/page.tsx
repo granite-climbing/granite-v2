@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { AppHeader } from "@/components/layout/app-header";
+import { AreaOverviewMap } from "@/components/public/area-overview-map";
 import { CragCard } from "@/components/public/crag-card";
 import { StatBar } from "@/components/public/stat-bar";
 import { findAreaDetailBySlug } from "@/lib/db/repository";
@@ -114,14 +115,23 @@ export default async function AreaPage({ params, searchParams }: AreaPageProps) 
         </form>
       </section>
 
+      {/* Overview map — only rendered when at least one crag has coordinates */}
+      {area.cragLocations.length > 0 ? (
+        <div className="mt-6 px-4">
+          <AreaOverviewMap
+            markers={area.cragLocations}
+            className="h-[240px] w-full overflow-hidden rounded-lg md:h-[360px]"
+          />
+        </div>
+      ) : null}
+
       {/* Crag list */}
       <section className="mt-6 flex flex-col items-center gap-4 px-4">
         {filteredCrags.length > 0 ? (
           filteredCrags.map((crag) => (
-            <CragCard
-              key={crag.id}
-              crag={crag}
-            />
+            <div key={crag.id} id={`crag-card-${crag.id}`} className="rounded-lg transition-shadow">
+              <CragCard crag={crag} />
+            </div>
           ))
         ) : (
           <p className="py-8 text-center text-[14px] text-[#7A7A7A]">
