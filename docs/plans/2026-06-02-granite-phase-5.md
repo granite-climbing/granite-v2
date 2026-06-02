@@ -3645,9 +3645,544 @@ git commit -m "fix(webhook): manual match partial-failure recovery and orphan vi
 
 ---
 
+## Task 16: State-Aware Webhook Idempotency for Meta Redelivery
+
+**Codex finding addressed:** `processMentionEvent` uses `INSERT OR IGNORE` for idempotency. When Meta redelivers a webhook whose `external_id` already exists, the early `return` runs regardless of the existing row's status. This makes the documented recovery path — "operator redelivers from Meta App Dashboard" (Task 11 SOP) — a silent no-op for `failed` / `received` / `processing` / `unmatched` rows. The webhook fix that Phase 5 relies on for recoverable beta loss is therefore broken.
+
+The fix is state-aware idempotency:
+- Terminal statuses (`matched`, `duplicate`, `rejected`, `manual_matched`) → continue to no-op. These are the genuine "already done" cases.
+- Non-terminal statuses (`received`, `processing`, `failed`, `unmatched`) → atomically reclaim the existing row to `processing` and re-run the full pipeline using the existing webhook id.
+
+`unmatched` reclaim is intentional: operators may publish a new Route after the first attempt, in which case a redelivery should succeed. The cost of an extra Graph API call for unrecoverable `unmatched` rows is bounded by the Meta dashboard's manual redelivery rate.
+
+**Files:**
+- Modify: `workers/instagram-webhook/src/d1.ts` (add `tryReclaimWebhookForRetry`)
+- Modify: `workers/instagram-webhook/src/match.ts` (replace early-return with state-aware reclaim)
+- Modify: `workers/instagram-webhook/src/match.test.ts` (3 new tests)
+- Modify: `docs/plans/2026-06-02-granite-phase-5.md` (checkboxes)
+
+- [ ] **Step 1: Write failing tests for the redelivery scenarios.**
+
+Open `workers/instagram-webhook/src/match.test.ts`. Add `tryReclaimWebhookForRetry: vi.fn()` to the existing `vi.mock("./d1", ...)` factory. Append three tests at the end of the `describe("processMentionEvent error boundary", ...)` block (or in a sibling `describe("processMentionEvent redelivery")`):
+
+```ts
+it("no-ops when Meta redelivers a terminal-state row", async () => {
+  // First call inserted=false (existing row), reclaim returns null (terminal).
+  vi.mocked(d1.insertWebhookInbox).mockResolvedValueOnce({ inserted: false });
+  vi.mocked(d1.tryReclaimWebhookForRetry).mockResolvedValueOnce(null);
+
+  await processMentionEvent(
+    { externalId: "m_terminal", igUserId: "u1", mediaId: "m_terminal", commentId: null },
+    env,
+    "{}"
+  );
+
+  // Graph API must NOT be called for terminal rows.
+  expect(graph.fetchMentionedMedia).not.toHaveBeenCalled();
+  // No status transitions either (the existing terminal status is preserved).
+  expect(d1.setWebhookInboxStatus).not.toHaveBeenCalled();
+});
+
+it("reprocesses a failed row when Meta redelivers", async () => {
+  vi.mocked(d1.insertWebhookInbox).mockResolvedValueOnce({ inserted: false });
+  vi.mocked(d1.tryReclaimWebhookForRetry).mockResolvedValueOnce({
+    webhookId: "webhook_existing",
+    currentStatus: "failed",
+  });
+  vi.mocked(graph.fetchMentionedMedia).mockResolvedValueOnce({
+    username: "@Climber",
+    caption: "@granite.kr #큰바위 #SkyHook",
+    mediaUrl: "https://video.cdninstagram.com/abc",
+    thumbnailUrl: "https://scontent.cdninstagram.com/abc.jpg",
+    permalink: "https://www.instagram.com/p/abc/",
+  });
+  vi.mocked(d1.findPublishedRouteCandidates).mockResolvedValueOnce([]); // force unmatched
+
+  await processMentionEvent(
+    { externalId: "m_failed", igUserId: "u1", mediaId: "m_failed", commentId: null },
+    env,
+    "{}"
+  );
+
+  // Hydration uses the EXISTING webhook id (not a new one).
+  expect(d1.hydrateWebhookInbox).toHaveBeenCalledWith(
+    env.granite_v2,
+    expect.objectContaining({ id: "webhook_existing" })
+  );
+});
+
+it("uses the new row id when insert succeeds (first delivery)", async () => {
+  vi.mocked(d1.insertWebhookInbox).mockResolvedValueOnce({ inserted: true });
+  vi.mocked(graph.fetchMentionedMedia).mockResolvedValueOnce({
+    username: "@Climber",
+    caption: "@granite.kr #큰바위 #SkyHook",
+    mediaUrl: "https://video.cdninstagram.com/abc",
+    thumbnailUrl: null,
+    permalink: null,
+  });
+  vi.mocked(d1.findPublishedRouteCandidates).mockResolvedValueOnce([]);
+
+  await processMentionEvent(
+    { externalId: "m_new", igUserId: "u1", mediaId: "m_new", commentId: null },
+    env,
+    "{}"
+  );
+
+  // tryReclaim must NOT be called when insert succeeded.
+  expect(d1.tryReclaimWebhookForRetry).not.toHaveBeenCalled();
+});
+```
+
+If `tryReclaimWebhookForRetry` is not yet in the mock factory, add it. Reset all four mocks (`insertWebhookInbox`, `tryReclaimWebhookForRetry`, `setWebhookInboxStatus`, `hydrateWebhookInbox`, `findPublishedRouteCandidates`, `fetchMentionedMedia`) in `beforeEach`.
+
+After completing this step, flip Step 1's checkbox to `[x]` in the plan file.
+
+- [ ] **Step 2: Run the tests and confirm they fail.**
+
+```
+pnpm test workers/instagram-webhook/src/match.test.ts
+```
+Expected: at least the terminal no-op test and the failed-reclaim test fail because `tryReclaimWebhookForRetry` doesn't exist and `processMentionEvent` doesn't branch on insertion result.
+
+Flip Step 2 checkbox.
+
+- [ ] **Step 3: Add `tryReclaimWebhookForRetry` to `workers/instagram-webhook/src/d1.ts`.**
+
+```ts
+export async function tryReclaimWebhookForRetry(
+  db: D1Database,
+  externalId: string
+): Promise<{ webhookId: string; currentStatus: string } | null> {
+  // Atomically transition any non-terminal row to processing and increment attempt count.
+  // Terminal statuses (matched, duplicate, rejected, manual_matched) are NOT touched.
+  const updateResult = await db
+    .prepare(
+      `UPDATE webhook_inbox
+       SET status = 'processing',
+           processing_attempts = processing_attempts + 1,
+           updated_at = datetime('now')
+       WHERE external_id = ?
+         AND status IN ('received', 'processing', 'failed', 'unmatched')`
+    )
+    .bind(externalId)
+    .run();
+
+  if ((updateResult.meta.changes ?? 0) === 0) {
+    return null;
+  }
+
+  const row = await db
+    .prepare(
+      `SELECT id AS webhookId, status AS currentStatus
+       FROM webhook_inbox
+       WHERE external_id = ?
+       LIMIT 1`
+    )
+    .bind(externalId)
+    .first<{ webhookId: string; currentStatus: string }>();
+
+  return row;
+}
+```
+
+Flip Step 3 checkbox.
+
+- [ ] **Step 4: Replace the early-return idempotency in `workers/instagram-webhook/src/match.ts`.**
+
+Read the current file. Find the existing block (around the top of `processMentionEvent`):
+
+```ts
+const webhookId = uuid("webhook");
+
+const inserted = await insertWebhookInbox(env.granite_v2, { ... });
+
+if (!inserted.inserted) {
+  return;
+}
+
+await setWebhookInboxStatus(env.granite_v2, {
+  id: webhookId,
+  status: "processing",
+  incrementAttempts: true,
+});
+```
+
+Replace with:
+
+```ts
+const newWebhookId = uuid("webhook");
+
+const inserted = await insertWebhookInbox(env.granite_v2, {
+  id: newWebhookId,
+  externalId: event.externalId,
+  externalMediaId: event.mediaId,
+  igUserId: event.igUserId,
+  igUsername: "",
+  caption: "",
+  mediaUrl: "",
+  thumbnailUrl: null,
+  rawPayload,
+});
+
+let webhookId: string;
+if (inserted.inserted) {
+  webhookId = newWebhookId;
+  await setWebhookInboxStatus(env.granite_v2, {
+    id: webhookId,
+    status: "processing",
+    incrementAttempts: true,
+  });
+} else {
+  const reclaim = await tryReclaimWebhookForRetry(env.granite_v2, event.externalId);
+  if (!reclaim) {
+    // Existing row is in a terminal status — true idempotent no-op.
+    return;
+  }
+  webhookId = reclaim.webhookId;
+  // tryReclaimWebhookForRetry already set status='processing' + incremented attempts.
+}
+```
+
+Then keep the rest of the function body unchanged — `webhookId` still names the variable used downstream. Replace any other use of the original `webhookId` declaration if needed so the rest of the function reads the rebound variable.
+
+Add `tryReclaimWebhookForRetry` to the `import { ... } from "./d1";` block.
+
+Flip Step 4 checkbox.
+
+- [ ] **Step 5: Run the tests and confirm they pass.**
+
+```
+pnpm test workers/instagram-webhook/src/match.test.ts
+```
+Expected: all tests (Task 12, 14, and Task 16's 3 new) green.
+
+Flip Step 5 checkbox.
+
+- [ ] **Step 6: Full verification.**
+
+```
+pnpm test workers/instagram-webhook
+pnpm typecheck
+pnpm wrangler deploy --dry-run
+```
+All three must pass.
+
+Flip Step 6 checkbox.
+
+- [ ] **Step 7: Mark Task 16 step checkboxes complete in this plan file.**
+
+Verify Steps 1–6 are `[x]`. Flip Step 7 itself to `[x]`.
+
+- [ ] **Step 8: Commit.**
+
+```bash
+git add workers/instagram-webhook/src/d1.ts workers/instagram-webhook/src/match.ts workers/instagram-webhook/src/match.test.ts docs/plans/2026-06-02-granite-phase-5.md
+git commit -m "fix(webhook): state-aware idempotency for Meta redelivery of non-terminal rows"
+```
+
+After commit, flip Step 8 and follow up:
+
+```bash
+git add docs/plans/2026-06-02-granite-phase-5.md
+git commit -m "docs(phase5): mark Task 16 Step 8 complete"
+```
+
+---
+
+## Task 17: Reject Manual Match for Rows Without a Canonical Media ID
+
+**Codex finding addressed:** Migration 0005 added `webhook_inbox.external_media_id` but did NOT backfill it for pre-existing rows. `manualMatchWebhookToRoute` then falls back to `external_id` when `external_media_id IS NULL`. For caption mentions this is harmless (the two values are equal). For COMMENT mentions, `external_id` is the comment_id — using it as the canonical media id misses real duplicates (an auto-matched Beta keyed by `media_id` and a legacy-comment manual match keyed by `comment_id` coexist), and poisons the `external_media_id` uniqueness key.
+
+Two viable fixes:
+- **Option A** — 0006 backfill migration parsing `raw_payload` JSON via SQLite's `json_extract`.
+- **Option C (chosen)** — at manual-match time, fall back to parsing `media_id` from the row's `raw_payload`. Refuse the match if parsing fails (new outcome `needs_rehydration`). Lower migration risk, deterministic, and the raw payload is already retained.
+
+If parsing fails or the payload lacks a `media_id`, manual match is refused and the row is left visible to the operator with `last_error_code='needs_rehydration'` so they can investigate or reject. No new migration.
+
+**Files:**
+- Modify: `lib/db/beta-queries.ts` (raw_payload fallback + new outcome)
+- Modify: `lib/db/beta-queries.test.ts` (2 new tests)
+- Modify: `lib/actions/admin-beta.ts` (handle `needs_rehydration` outcome in audit log)
+- Modify: `docs/admin-beta-operations.md` (operator SOP entry for the new error code)
+- Modify: `docs/plans/2026-06-02-granite-phase-5.md` (checkboxes)
+
+- [ ] **Step 1: Write failing tests for the raw_payload fallback path.**
+
+Open `lib/db/beta-queries.test.ts`. Inside the existing `describe("manualMatchWebhookToRoute", ...)` block, append:
+
+```ts
+it("uses media_id parsed from raw_payload when external_media_id is null (legacy comment mention)", async () => {
+  vi.mocked(executeD1Meta).mockResolvedValue({ changes: 1 });
+  const legacyRawPayload = JSON.stringify({
+    entry: [
+      {
+        id: "ig_user_1",
+        changes: [
+          {
+            field: "mentions",
+            value: { media_id: "media_from_payload", comment_id: "comment_1" },
+          },
+        ],
+      },
+    ],
+  });
+  vi.mocked(queryD1)
+    .mockResolvedValueOnce([
+      {
+        igUsername: "climber",
+        caption: "@granite.kr #큰바위 #SkyHook",
+        mediaUrl: "https://www.instagram.com/p/abc/",
+        externalId: "comment_1",
+        externalMediaId: null, // legacy: not backfilled
+        rawPayload: legacyRawPayload,
+      },
+    ]) // SELECT row
+    .mockResolvedValueOnce([]) // INSERT betas
+    .mockResolvedValueOnce([]); // finalize UPDATE
+  vi.mocked(queryD1First).mockResolvedValueOnce(null); // findExistingBetaByExternalMedia
+
+  const { manualMatchWebhookToRoute } = await import("./beta-queries");
+
+  const outcome = await manualMatchWebhookToRoute({
+    webhookId: "webhook_1",
+    routeId: "route_1",
+    betaId: "beta_new",
+  });
+
+  expect(outcome).toEqual({ ok: true, betaId: "beta_new" });
+  const insertCall = vi
+    .mocked(queryD1)
+    .mock.calls.find(
+      (c) => typeof c[0] === "string" && c[0].includes("INSERT INTO betas")
+    );
+  expect(insertCall?.[1]).toContain("media_from_payload"); // canonical, parsed from raw_payload
+  expect(insertCall?.[1]).not.toContain("comment_1"); // NOT the external_id (comment_id) fallback
+});
+
+it("refuses manual match and surfaces needs_rehydration when raw_payload has no media_id", async () => {
+  vi.mocked(executeD1Meta).mockResolvedValue({ changes: 1 });
+  vi.mocked(queryD1)
+    .mockResolvedValueOnce([
+      {
+        igUsername: "climber",
+        caption: "",
+        mediaUrl: "",
+        externalId: "comment_only",
+        externalMediaId: null,
+        rawPayload: "{}", // malformed / no media_id
+      },
+    ]) // SELECT row
+    .mockResolvedValueOnce([]); // revert UPDATE
+
+  const { manualMatchWebhookToRoute } = await import("./beta-queries");
+
+  const outcome = await manualMatchWebhookToRoute({
+    webhookId: "webhook_1",
+    routeId: "route_1",
+    betaId: "beta_new",
+  });
+
+  expect(outcome).toEqual({ ok: false, reason: "needs_rehydration" });
+
+  const revertCall = vi
+    .mocked(queryD1)
+    .mock.calls.find(
+      (c) =>
+        typeof c[0] === "string" &&
+        c[0].includes("UPDATE webhook_inbox") &&
+        c[0].includes("status = 'unmatched'") &&
+        c[0].includes("needs_rehydration")
+    );
+  expect(revertCall).toBeDefined();
+});
+```
+
+Update the SELECT mock for the EXISTING happy-path and partial-failure tests to also return `rawPayload` (you'll be adding it to the actual SELECT in Step 3). The simplest update: add `rawPayload: "{}"` (or a representative JSON string) to every existing mocked row.
+
+Flip Step 1 checkbox.
+
+- [ ] **Step 2: Run tests, confirm the two new tests fail.**
+
+```
+pnpm test lib/db/beta-queries.test.ts
+```
+Expected: the two new tests fail.
+
+Flip Step 2 checkbox.
+
+- [ ] **Step 3: Update `manualMatchWebhookToRoute` in `lib/db/beta-queries.ts`.**
+
+Three edits to the existing function:
+
+(a) Extend `ManualMatchOutcome`:
+
+```ts
+export type ManualMatchOutcome =
+  | { ok: true; betaId: string }
+  | { ok: false; reason: "not_unmatched" }
+  | { ok: false; reason: "duplicate"; existingBetaId: string }
+  | { ok: false; reason: "needs_rehydration" };
+```
+
+(b) Add a top-level helper just below the type definition (in the same file):
+
+```ts
+function extractMediaIdFromRawPayload(rawPayload: string): string | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawPayload);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null) return null;
+  const root = parsed as Record<string, unknown>;
+  const entry = root.entry;
+  if (!Array.isArray(entry) || entry.length === 0) return null;
+  const e0 = entry[0];
+  if (typeof e0 !== "object" || e0 === null) return null;
+  const changes = (e0 as Record<string, unknown>).changes;
+  if (!Array.isArray(changes) || changes.length === 0) return null;
+  const c0 = changes[0];
+  if (typeof c0 !== "object" || c0 === null) return null;
+  const value = (c0 as Record<string, unknown>).value;
+  if (typeof value !== "object" || value === null) return null;
+  const mediaId = (value as Record<string, unknown>).media_id;
+  return typeof mediaId === "string" && mediaId.length > 0 ? mediaId : null;
+}
+```
+
+(c) In `manualMatchWebhookToRoute`, update the SELECT to fetch `raw_payload`, and replace the existing `canonicalMediaId` derivation with the new fallback logic. The relevant changes:
+
+```ts
+const rows = await queryD1<{
+  igUsername: string;
+  caption: string;
+  mediaUrl: string;
+  externalId: string;
+  externalMediaId: string | null;
+  rawPayload: string;
+}>(
+  `SELECT
+     ig_username AS igUsername,
+     caption,
+     media_url AS mediaUrl,
+     external_id AS externalId,
+     external_media_id AS externalMediaId,
+     raw_payload AS rawPayload
+   FROM webhook_inbox
+   WHERE id = ?
+   LIMIT 1`,
+  [input.webhookId]
+);
+```
+
+Replace the existing `const canonicalMediaId = row.externalMediaId ?? row.externalId;` block with:
+
+```ts
+let canonicalMediaId: string | null = row.externalMediaId;
+if (!canonicalMediaId) {
+  canonicalMediaId = extractMediaIdFromRawPayload(row.rawPayload);
+}
+if (!canonicalMediaId) {
+  // Cannot safely identify the Instagram media. Refuse the match and surface
+  // the state so an operator can decide between rehydration or rejection.
+  await queryD1(
+    `UPDATE webhook_inbox
+     SET status = 'unmatched',
+         last_error_code = 'needs_rehydration',
+         last_error_message = 'raw_payload missing entry[0].changes[0].value.media_id',
+         updated_at = datetime('now')
+     WHERE id = ?`,
+    [input.webhookId]
+  );
+  return { ok: false, reason: "needs_rehydration" };
+}
+```
+
+Keep the existing duplicate check, INSERT, and finalize logic — they now use the safer `canonicalMediaId`.
+
+Flip Step 3 checkbox.
+
+- [ ] **Step 4: Run tests, confirm pass.**
+
+```
+pnpm test lib/db/beta-queries.test.ts
+```
+Expected: all `manualMatchWebhookToRoute` tests pass, including the two new fallback cases.
+
+Flip Step 4 checkbox.
+
+- [ ] **Step 5: Update `manualMatchWebhookAction` in `lib/actions/admin-beta.ts` to record the new outcome.**
+
+Locate the existing skipped-outcome audit log block. Extend the `metadata` conditional to record `needs_rehydration`:
+
+```ts
+await insertAdminAuditLog({
+  adminId: admin.adminId,
+  action: "webhook.manual_match_skipped",
+  targetType: "webhook_inbox",
+  targetId: parsed.webhookId,
+  metadata:
+    result.reason === "duplicate"
+      ? { routeId: parsed.routeId, reason: "duplicate", existingBetaId: result.existingBetaId }
+      : result.reason === "needs_rehydration"
+      ? { routeId: parsed.routeId, reason: "needs_rehydration" }
+      : { routeId: parsed.routeId, reason: result.reason },
+});
+revalidatePath("/admin/webhooks");
+```
+
+No new UI is added in this task — operators will see the row reappear as `unmatched` with `last_error_code='needs_rehydration'` via the existing webhook table.
+
+Flip Step 5 checkbox.
+
+- [ ] **Step 6: Add SOP entry to `docs/admin-beta-operations.md`.**
+
+Find the "운영 이벤트 오류 코드 가이드" / operational error code section. Add an entry for `needs_rehydration`:
+
+```
+- `needs_rehydration` — 수동 매칭 대상 행에 `external_media_id`가 비어 있고 `raw_payload`에서 `media_id`를 추출할 수 없는 경우. 마이그레이션 0005 이전에 들어온 댓글 멘션 행에서 발생 가능. 운영자 대응: (a) Meta App Dashboard에서 동일 이벤트를 재배달하여 hydration 경로를 재실행하거나 (b) 거절 후 사용자에게 수동 등록 폼 안내.
+```
+
+Adjust the exact wording to match the existing list style.
+
+Flip Step 6 checkbox.
+
+- [ ] **Step 7: Full verification.**
+
+```
+pnpm test lib/db/beta-queries.test.ts
+pnpm test lib/actions/admin-beta.test.ts
+pnpm typecheck
+pnpm build
+```
+All must pass.
+
+Flip Step 7 checkbox.
+
+- [ ] **Step 8: Mark Task 17 step checkboxes complete in this plan file.**
+
+Verify Steps 1–7 are `[x]`. Flip Step 8 itself to `[x]`.
+
+- [ ] **Step 9: Commit.**
+
+```bash
+git add lib/db/beta-queries.ts lib/db/beta-queries.test.ts lib/actions/admin-beta.ts docs/admin-beta-operations.md docs/plans/2026-06-02-granite-phase-5.md
+git commit -m "fix(webhook): refuse manual match without canonical media id (legacy comment mentions)"
+```
+
+After commit, follow up:
+
+```bash
+git add docs/plans/2026-06-02-granite-phase-5.md
+git commit -m "docs(phase5): mark Task 17 Step 9 complete"
+```
+
+---
+
 ## Self-Review
 
-- **Spec coverage:** Covers PRD P5-01 through P5-08: caption UI, Worker webhook, inbox persistence, matching, unclaimed Beta creation, admin inbox, Beta moderation, manual registration, and thumbnail fallback. Tasks 12 and 13 (first Codex adversarial review) close two integrity gaps in the implemented code: (a) async exceptions in `processMentionEvent` stranded rows in `processing` invisible to operators; (b) `manualMatchWebhookToRoute` was not atomic and used the wrong identifier for comment-mention dedup, so admins could create duplicate Betas. Tasks 14 and 15 (second Codex adversarial review) close two follow-ups: (c) `webhook_inbox` was never hydrated with the Graph API response so manual matching produced blank Betas; (d) `manualMatchWebhookToRoute` lacked compensating actions for INSERT/finalize partial failures.
+- **Spec coverage:** Covers PRD P5-01 through P5-08: caption UI, Worker webhook, inbox persistence, matching, unclaimed Beta creation, admin inbox, Beta moderation, manual registration, and thumbnail fallback. Codex adversarial review iterations 1–3 added Tasks 12–17 to close concrete recoverability and integrity gaps: (12) `processMentionEvent` async exceptions stranded `processing` rows; (13) `manualMatchWebhookToRoute` was non-atomic and used the wrong identifier for comment mentions; (14) `webhook_inbox` was never hydrated with the Graph API response; (15) `manualMatchWebhookToRoute` had no compensating action for INSERT/finalize partial failures; (16) `INSERT OR IGNORE` early-return made Meta dashboard redelivery a silent no-op for failed/processing/unmatched rows; (17) `external_media_id` fallback to `external_id` was unsafe for legacy comment-mention rows.
 - **Excluded intentionally:** OAuth, my records, projects, and unclaimed claims remain Phase 6. Scheduled retry, manual-submission rate limit, moderation SLA, and webhook admin notification channel are also explicitly out of scope (see Out Of Scope and Future Work).
 - **Risk areas:** Meta payload shape and permission review may require adjustment after the real app callback is approved. Worker D1/R2 binding names (`granite_v2`, `BUCKET`) must remain aligned with the production Cloudflare project before deploy. D1 HTTP API lacks true transactions; Task 13's claim/insert sequence reduces but cannot fully eliminate the race window — acceptable because manual matching is admin-gated and operationally infrequent.
 - **Verification:** Each implementation task has a focused Vitest/typecheck/build or manual QA gate. Tasks 1–11 are implemented and committed on `phase5-implementation` (commits `fbb07da` through `d29ea51`, 370 tests passing). Tasks 12–13 are pending implementation. Final release requires Meta app review and production HMAC verification (Task 11 Step 5 manual QA, deferred to launch).
