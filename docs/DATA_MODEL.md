@@ -247,6 +247,7 @@ Instagram webhook ingestion log. Tracks incoming webhook payloads for matching, 
 | `id` | `TEXT` | yes | Stable generated ID |
 | `provider` | `TEXT` | yes | Always `instagram` |
 | `external_id` | `TEXT` | yes | Unique external event ID from provider |
+| `external_media_id` | `TEXT` | no | Canonical Instagram `media_id`. For caption mentions equals `external_id`; for comment mentions equals the parent `media_id` while `external_id` remains the `comment_id` idempotency key. Used by admin manual matching for duplicate detection against `betas.external_media_id`. Nullable for rows created before migration `0005`. |
 | `ig_user_id` | `TEXT` | yes | Instagram user ID, can be empty during parse |
 | `ig_username` | `TEXT` | yes | Instagram handle, can be empty during parse |
 | `caption` | `TEXT` | yes | Post caption text, can be empty |

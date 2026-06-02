@@ -204,6 +204,7 @@ export type WebhookInbox = {
   id: string;
   provider: "instagram";
   externalId: string;
+  externalMediaId: string | null;
   igUserId: string;
   igUsername: string;
   caption: string;

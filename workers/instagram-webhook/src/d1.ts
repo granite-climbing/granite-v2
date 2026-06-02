@@ -10,6 +10,7 @@ export async function insertWebhookInbox(
   input: {
     id: string;
     externalId: string;
+    externalMediaId: string | null;
     igUserId: string;
     igUsername: string;
     caption: string;
@@ -21,13 +22,14 @@ export async function insertWebhookInbox(
   const result = await db
     .prepare(
       `INSERT OR IGNORE INTO webhook_inbox (
-         id, provider, external_id, ig_user_id, ig_username, caption,
+         id, provider, external_id, external_media_id, ig_user_id, ig_username, caption,
          media_url, thumbnail_url, matched_beta_id, status, raw_payload
-       ) VALUES (?, 'instagram', ?, ?, ?, ?, ?, ?, NULL, 'received', ?)`
+       ) VALUES (?, 'instagram', ?, ?, ?, ?, ?, ?, ?, NULL, 'received', ?)`
     )
     .bind(
       input.id,
       input.externalId,
+      input.externalMediaId,
       input.igUserId,
       input.igUsername,
       input.caption,

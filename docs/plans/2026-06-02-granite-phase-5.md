@@ -41,7 +41,7 @@
 - [x] Public Beta grid shows only `status='approved'` Betas. `pending`, `hidden`, and `removed` never appear publicly.
 - [x] Thumbnail collection is attempted but non-blocking; Beta creation must survive thumbnail failure.
 - [x] Every thumbnail source from Instagram/YouTube APIs or HTML fallback is copied to R2 immediately; `betas.thumbnail_url` stores only Granite CDN URLs or `NULL`.
-- [ ] Duplicate Beta creation is prevented across manual submissions, webhook retries, and admin manual matching.
+- [x] Duplicate Beta creation is prevented across manual submissions, webhook retries, and admin manual matching.
 - [x] Admin can inspect webhook/Beta operational health: duplicate drops, invalid signatures, Graph API failures, unmatched events, and thumbnail copy failures (read-only visibility; automatic retry is out of scope for Phase 5).
 
 ### Out Of Scope

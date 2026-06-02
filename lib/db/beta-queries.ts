@@ -1,4 +1,4 @@
-import { queryD1, queryD1First } from "./d1-http";
+import { queryD1, queryD1First, executeD1Meta } from "./d1-http";
 import type { BetaPlatform, BetaStatus, WebhookInboxStatus } from "./schema";
 
 export type CreateManualBetaInput = {
@@ -141,6 +141,7 @@ export async function getAdminBetas(filters: { status?: BetaStatus } = {}): Prom
 export async function insertWebhookInbox(input: {
   id: string;
   externalId: string;
+  externalMediaId: string | null;
   igUserId: string;
   igUsername: string;
   caption: string;
@@ -150,12 +151,13 @@ export async function insertWebhookInbox(input: {
 }): Promise<void> {
   await queryD1(
     `INSERT OR IGNORE INTO webhook_inbox (
-       id, provider, external_id, ig_user_id, ig_username, caption,
+       id, provider, external_id, external_media_id, ig_user_id, ig_username, caption,
        media_url, thumbnail_url, matched_beta_id, status, raw_payload
-     ) VALUES (?, 'instagram', ?, ?, ?, ?, ?, ?, NULL, 'received', ?)`,
+     ) VALUES (?, 'instagram', ?, ?, ?, ?, ?, ?, ?, NULL, 'received', ?)`,
     [
       input.id,
       input.externalId,
+      input.externalMediaId,
       input.igUserId,
       input.igUsername,
       input.caption,
@@ -354,34 +356,74 @@ export async function updateBetaThumbnailUrl(id: string, thumbnailUrl: string): 
   );
 }
 
+export type ManualMatchOutcome =
+  | { ok: true; betaId: string }
+  | { ok: false; reason: "not_unmatched" }
+  | { ok: false; reason: "duplicate"; existingBetaId: string };
+
 export async function manualMatchWebhookToRoute(input: {
   webhookId: string;
   routeId: string;
   betaId: string;
-}): Promise<void> {
-  // 1) Read the webhook row (we need username + media_url + caption + external_id to populate the Beta).
-  const webhook = await queryD1<{
+}): Promise<ManualMatchOutcome> {
+  // 1) Atomically claim the row: unmatched -> manual_matched. matched_beta_id stays NULL
+  //    until we successfully insert the Beta in step 4.
+  const claim = await executeD1Meta(
+    `UPDATE webhook_inbox
+     SET status = 'manual_matched', updated_at = datetime('now')
+     WHERE id = ? AND status = 'unmatched'`,
+    [input.webhookId]
+  );
+  if (claim.changes === 0) {
+    return { ok: false, reason: "not_unmatched" };
+  }
+
+  // 2) Read the claimed row.
+  const rows = await queryD1<{
     igUsername: string;
     caption: string;
     mediaUrl: string;
     externalId: string;
+    externalMediaId: string | null;
   }>(
     `SELECT
        ig_username AS igUsername,
        caption,
        media_url AS mediaUrl,
-       external_id AS externalId
+       external_id AS externalId,
+       external_media_id AS externalMediaId
      FROM webhook_inbox
      WHERE id = ?
      LIMIT 1`,
     [input.webhookId]
   );
-  if (webhook.length === 0) {
-    throw new Error("webhook not found");
+  if (rows.length === 0) {
+    // Defensive: revert if the row somehow vanished.
+    await queryD1(
+      `UPDATE webhook_inbox SET status = 'unmatched', updated_at = datetime('now') WHERE id = ?`,
+      [input.webhookId]
+    );
+    return { ok: false, reason: "not_unmatched" };
   }
-  const row = webhook[0];
+  const row = rows[0];
 
-  // 2) Insert the Beta as an instagram_webhook source. Use today's date as sent_at.
+  // 3) Canonical media id dedup. New rows have external_media_id; legacy rows fall back to external_id.
+  const canonicalMediaId = row.externalMediaId ?? row.externalId;
+  const existing = await findExistingBetaByExternalMedia("instagram", canonicalMediaId);
+  if (existing) {
+    await queryD1(
+      `UPDATE webhook_inbox
+       SET status = 'duplicate',
+           matched_beta_id = ?,
+           last_error_code = 'duplicate_beta',
+           updated_at = datetime('now')
+       WHERE id = ?`,
+      [existing.id, input.webhookId]
+    );
+    return { ok: false, reason: "duplicate", existingBetaId: existing.id };
+  }
+
+  // 4) Insert the Beta with the canonical media id.
   const today = new Date().toISOString().slice(0, 10);
   await queryD1(
     `INSERT INTO betas (
@@ -392,18 +434,20 @@ export async function manualMatchWebhookToRoute(input: {
       input.betaId,
       input.routeId,
       row.igUsername,
-      row.igUsername, // displayName falls back to username
+      row.igUsername,
       row.mediaUrl,
-      row.externalId,
+      canonicalMediaId,
       today,
     ]
   );
 
-  // 3) Mark the webhook row as manually matched.
+  // 5) Finalize the webhook row with the new Beta id.
   await queryD1(
     `UPDATE webhook_inbox
-     SET status = 'manual_matched', matched_beta_id = ?, updated_at = datetime('now')
+     SET matched_beta_id = ?, updated_at = datetime('now')
      WHERE id = ?`,
     [input.betaId, input.webhookId]
   );
+
+  return { ok: true, betaId: input.betaId };
 }

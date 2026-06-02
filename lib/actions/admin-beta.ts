@@ -49,18 +49,34 @@ const manualMatchSchema = z.object({
 export async function manualMatchWebhookAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const parsed = manualMatchSchema.parse(Object.fromEntries(formData));
-  await manualMatchWebhookToRoute({
+  const result = await manualMatchWebhookToRoute({
     webhookId: parsed.webhookId,
     routeId: parsed.routeId,
     betaId: `beta_${randomUUID()}`,
   });
+
+  if (result.ok) {
+    await insertAdminAuditLog({
+      adminId: admin.adminId,
+      action: "webhook.manual_match",
+      targetType: "webhook_inbox",
+      targetId: parsed.webhookId,
+      metadata: { routeId: parsed.routeId, betaId: result.betaId },
+    });
+    revalidatePath("/admin/webhooks");
+    revalidatePath("/admin/betas");
+    return;
+  }
+
   await insertAdminAuditLog({
     adminId: admin.adminId,
-    action: "webhook.manual_match",
+    action: "webhook.manual_match_skipped",
     targetType: "webhook_inbox",
     targetId: parsed.webhookId,
-    metadata: { routeId: parsed.routeId },
+    metadata:
+      result.reason === "duplicate"
+        ? { routeId: parsed.routeId, reason: "duplicate", existingBetaId: result.existingBetaId }
+        : { routeId: parsed.routeId, reason: result.reason },
   });
   revalidatePath("/admin/webhooks");
-  revalidatePath("/admin/betas");
 }

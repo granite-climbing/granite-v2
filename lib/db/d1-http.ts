@@ -12,8 +12,17 @@ interface D1ErrorEntry {
   message: string;
 }
 
+interface D1Meta {
+  changes?: number;
+  last_row_id?: number;
+  duration?: number;
+  rows_read?: number;
+  rows_written?: number;
+}
+
 interface D1ResultEntry<T> {
   results: T[];
+  meta?: D1Meta;
 }
 
 interface D1Envelope<T> {
@@ -55,10 +64,10 @@ function buildEndpoint(url: string, databaseId: string): string {
   return `${url.replace(/\/$/, "")}/${databaseId}/query`;
 }
 
-async function executeQuery<T>(
+async function executeQueryWithMeta<T>(
   sql: string,
   params: unknown[]
-): Promise<T[]> {
+): Promise<{ rows: T[]; meta: D1Meta }> {
   const { url, token, databaseId } = getEnvVars();
   const endpoint = buildEndpoint(url, databaseId);
 
@@ -72,7 +81,6 @@ async function executeQuery<T>(
   });
 
   if (!response.ok) {
-    // Try to parse body for CF error messages; fall back gracefully.
     let errorDetail = "";
     try {
       const body = (await response.json()) as Partial<D1Envelope<T>>;
@@ -99,7 +107,15 @@ async function executeQuery<T>(
     throw new Error(`D1 query failed: ${errorDetail}`);
   }
 
-  return body.result?.[0]?.results ?? [];
+  return {
+    rows: body.result?.[0]?.results ?? [],
+    meta: body.result?.[0]?.meta ?? {},
+  };
+}
+
+async function executeQuery<T>(sql: string, params: unknown[]): Promise<T[]> {
+  const { rows } = await executeQueryWithMeta<T>(sql, params);
+  return rows;
 }
 
 // ---------------------------------------------------------------------------
@@ -149,4 +165,17 @@ export async function pingD1(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Execute a mutation (INSERT/UPDATE/DELETE) and return the number of rows changed.
+ * Use this when caller logic depends on whether a conditional UPDATE actually
+ * claimed the row (e.g. `UPDATE ... WHERE id = ? AND status = 'unmatched'`).
+ */
+export async function executeD1Meta(
+  sql: string,
+  params?: unknown[]
+): Promise<{ changes: number }> {
+  const { meta } = await executeQueryWithMeta<unknown>(sql, params ?? []);
+  return { changes: meta.changes ?? 0 };
 }

@@ -26,6 +26,7 @@ export async function processMentionEvent(
   const inserted = await insertWebhookInbox(env.granite_v2, {
     id: webhookId,
     externalId: event.externalId,
+    externalMediaId: event.mediaId,
     igUserId: event.igUserId,
     igUsername: "",
     caption: "",
