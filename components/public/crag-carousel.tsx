@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { Crag } from "@/lib/db/schema";
 import { CragCard } from "./crag-card";
+import { DragScroller } from "./drag-scroller";
 
 type CragCarouselProps = {
   crags: Array<Crag & { stats: { sectors: number; boulders: number; routes: number } }>;
@@ -35,9 +36,9 @@ export function CragCarousel({ crags }: CragCarouselProps) {
 
   return (
     <>
-      <div
+      <DragScroller
         ref={scrollerRef}
-        className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-3"
+        className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-4 px-4 pb-3"
         onScroll={updateActiveIndex}
       >
         {crags.map((crag) => (
@@ -45,7 +46,7 @@ export function CragCarousel({ crags }: CragCarouselProps) {
             <CragCard crag={crag} />
           </div>
         ))}
-      </div>
+      </DragScroller>
       {indicators.length > 1 ? (
         <div className="mt-[17px] flex justify-center gap-2">
           {indicators.map((indicator, index) => (

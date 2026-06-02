@@ -1,12 +1,13 @@
 // components/public/drag-scroller.tsx
 "use client";
 
-import { useRef, type PointerEvent, type ReactNode } from "react";
+import { forwardRef, useImperativeHandle, useRef, type PointerEvent, type ReactNode, type UIEvent } from "react";
 
 type DragScrollerProps = {
   /** Tailwind/CSS classes applied to the scroll container. Must include `overflow-x-auto`. */
   className?: string;
   children: ReactNode;
+  onScroll?: (e: UIEvent<HTMLDivElement>) => void;
 };
 
 /**
@@ -14,8 +15,12 @@ type DragScrollerProps = {
  * Native touch scrolling on mobile is preserved (we only intercept mouse/pen pointers).
  * The component is a leaf client wrapper; children may be Server Components rendered up the tree.
  */
-export function DragScroller({ className, children }: DragScrollerProps) {
+export const DragScroller = forwardRef<HTMLDivElement, DragScrollerProps>(function DragScroller(
+  { className, children, onScroll },
+  forwardedRef
+) {
   const ref = useRef<HTMLDivElement | null>(null);
+  useImperativeHandle(forwardedRef, () => ref.current!);
   const drag = useRef<{ startX: number; startScroll: number; pointerId: number } | null>(null);
 
   function onPointerDown(e: PointerEvent<HTMLDivElement>) {
@@ -50,9 +55,10 @@ export function DragScroller({ className, children }: DragScrollerProps) {
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
+      onScroll={onScroll}
       style={{ cursor: "grab", touchAction: "pan-y" }}
     >
       {children}
     </div>
   );
-}
+});

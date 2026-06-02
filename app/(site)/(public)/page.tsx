@@ -2,6 +2,7 @@ import { AppHeader } from "@/components/layout/app-header";
 import { AdSlot } from "@/components/public/ad-slot";
 import { AreaCard } from "@/components/public/area-card";
 import { CragCarousel } from "@/components/public/crag-carousel";
+import { DragScroller } from "@/components/public/drag-scroller";
 import { getHomeModel } from "@/lib/db/repository";
 
 export const dynamic = "force-dynamic";
@@ -44,13 +45,13 @@ export default async function HomePage() {
         <div className="mb-5 px-4">
           <h2 className="text-[20px] font-bold leading-7 text-[#090909]">Area</h2>
         </div>
-        <div className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-3">
+        <DragScroller className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-4 px-4 pb-3">
           {model.areas.map((area) => (
             <div key={area.id} className="w-[270px] shrink-0 snap-start">
               <AreaCard area={area} href={`/a/${area.slug}`} />
             </div>
           ))}
-        </div>
+        </DragScroller>
       </section>
 
       <div className="mt-10">
