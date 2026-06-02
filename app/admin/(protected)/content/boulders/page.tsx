@@ -26,11 +26,12 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 interface Props {
-  searchParams: Promise<{ areaId?: string; cragId?: string; sectorId?: string; edit?: string }>;
+  searchParams: Promise<{ areaId?: string; cragId?: string; sectorId?: string; edit?: string; new?: string }>;
 }
 
 export default async function AdminBouldersPage({ searchParams }: Props) {
-  const { areaId, cragId, sectorId, edit } = await searchParams;
+  const { areaId, cragId, sectorId, edit, new: isNew } = await searchParams;
+  const showCreate = isNew === "true";
   const [boulders, sectors, areaOptions, cragOptions, sectorOptions] = await Promise.all([
     getAdminBoulders({ areaId, cragId, sectorId }),
     getAdminSectors({ areaId, cragId }),
@@ -52,9 +53,20 @@ export default async function AdminBouldersPage({ searchParams }: Props) {
     ? `/admin/content/boulders?${filterString}`
     : "/admin/content/boulders";
 
+  // Build create href preserving filter + new=true
+  const createParams = new URLSearchParams();
+  if (areaId) createParams.set("areaId", areaId);
+  if (cragId) createParams.set("cragId", cragId);
+  if (sectorId) createParams.set("sectorId", sectorId);
+  createParams.set("new", "true");
+  const createHref = `?${createParams.toString()}`;
+
   return (
     <AdminShell>
-      <h1 className="mb-6 text-2xl font-bold">Boulders</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Boulders</h1>
+        <Link href={createHref} className={btnPrimaryCls}>+ New Boulder</Link>
+      </div>
 
       {/* Cascading parent filter */}
       <ParentFilter
@@ -64,75 +76,6 @@ export default async function AdminBouldersPage({ searchParams }: Props) {
         cragOptions={cragOptions.length > 0 ? cragOptions : undefined}
         sectorOptions={sectorOptions.length > 0 ? sectorOptions : undefined}
       />
-
-      {/* Create form */}
-      <AdminCard title="Create Boulder">
-        <form action={saveBoulderAction} className="space-y-2">
-          <FormSection title="Hierarchy" cols={2}>
-            <FullWidth>
-              <AdminField label="Sector">
-                <select name="sectorId" required defaultValue={sectorId ?? ""} className={selectCls}>
-                  <option value="">— select sector —</option>
-                  {liveSectors.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.cragName} / {s.name}
-                    </option>
-                  ))}
-                </select>
-              </AdminField>
-            </FullWidth>
-          </FormSection>
-          <FormSection title="Identity" cols={2}>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Name</label>
-              <input name="name" required className={inputCls} placeholder="고물 볼더" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Slug</label>
-              <input name="slug" required className={inputCls} placeholder="gomul_boulder" />
-            </div>
-          </FormSection>
-          <FormSection title="Location" cols={2}>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Lat (required)</label>
-              <input name="lat" type="number" step="any" required className={inputCls} placeholder="37.42" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Lng (required)</label>
-              <input name="lng" type="number" step="any" required className={inputCls} placeholder="126.92" />
-            </div>
-          </FormSection>
-          <FormSection title="Tags" cols={1}>
-            <FullWidth>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Hashtags</label>
-              <input name="hashtags" className={inputCls} placeholder="#모락산, 슬랩" />
-            </FullWidth>
-          </FormSection>
-          <FormSection title="Image" cols={1}>
-            <FullWidth>
-              <ImageUploadField name="coverImageUrl" defaultValue="" entityType="boulders" entityId="new" purpose="cover" />
-            </FullWidth>
-          </FormSection>
-          <FormSection title="Publishing" cols={2}>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Sort Order</label>
-              <input name="sortOrder" type="number" defaultValue="0" className={inputCls} />
-            </div>
-            <div className="flex items-end pb-1">
-              <label className="flex items-center gap-2 text-sm">
-                <input name="isPublished" type="checkbox" />
-                Published
-              </label>
-            </div>
-          </FormSection>
-          {/* Cache revalidation context */}
-          <input type="hidden" name="cragSlug" value={selectedSector?.cragSlug ?? ""} />
-          <input type="hidden" name="sectorSlug" value={selectedSector?.slug ?? ""} />
-          <div className="pt-2">
-            <button type="submit" className={btnPrimaryCls}>Create Boulder</button>
-          </div>
-        </form>
-      </AdminCard>
 
       {/* Boulders list */}
       <div className="mt-6">
@@ -197,6 +140,77 @@ export default async function AdminBouldersPage({ searchParams }: Props) {
           </AdminTable>
         </AdminCard>
       </div>
+
+      {/* Create drawer */}
+      {showCreate ? (
+        <EditDrawer title="Create Boulder" closeHref={baseHref}>
+          <form action={saveBoulderAction} className="space-y-2">
+            <FormSection title="Hierarchy" cols={2}>
+              <FullWidth>
+                <AdminField label="Sector">
+                  <select name="sectorId" required defaultValue={sectorId ?? ""} className={selectCls}>
+                    <option value="">— select sector —</option>
+                    {liveSectors.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.cragName} / {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </AdminField>
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Identity" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Name</label>
+                <input name="name" required className={inputCls} placeholder="고물 볼더" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Slug</label>
+                <input name="slug" required className={inputCls} placeholder="gomul_boulder" />
+              </div>
+            </FormSection>
+            <FormSection title="Location" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Lat (required)</label>
+                <input name="lat" type="number" step="any" required className={inputCls} placeholder="37.42" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Lng (required)</label>
+                <input name="lng" type="number" step="any" required className={inputCls} placeholder="126.92" />
+              </div>
+            </FormSection>
+            <FormSection title="Tags" cols={1}>
+              <FullWidth>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Hashtags</label>
+                <input name="hashtags" className={inputCls} placeholder="#모락산, 슬랩" />
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Image" cols={1}>
+              <FullWidth>
+                <ImageUploadField name="coverImageUrl" defaultValue="" entityType="boulders" entityId="new" purpose="cover" />
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Publishing" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Sort Order</label>
+                <input name="sortOrder" type="number" defaultValue="0" className={inputCls} />
+              </div>
+              <div className="flex items-end pb-1">
+                <label className="flex items-center gap-2 text-sm">
+                  <input name="isPublished" type="checkbox" />
+                  Published
+                </label>
+              </div>
+            </FormSection>
+            {/* Cache revalidation context */}
+            <input type="hidden" name="cragSlug" value={selectedSector?.cragSlug ?? ""} />
+            <input type="hidden" name="sectorSlug" value={selectedSector?.slug ?? ""} />
+            <div className="pt-2">
+              <button type="submit" className={btnPrimaryCls}>Create Boulder</button>
+            </div>
+          </form>
+        </EditDrawer>
+      ) : null}
 
       {/* Edit drawer */}
       {editRow && (

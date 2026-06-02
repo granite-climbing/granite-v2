@@ -35,11 +35,13 @@ interface Props {
     boulderId?: string;
     topoId?: string;
     edit?: string;
+    new?: string;
   }>;
 }
 
 export default async function AdminRoutesPage({ searchParams }: Props) {
-  const { areaId, cragId, sectorId, boulderId, topoId, edit } = await searchParams;
+  const { areaId, cragId, sectorId, boulderId, topoId, edit, new: isNew } = await searchParams;
+  const showCreate = isNew === "true";
   const [routes, topos, areaOptions, cragOptions, sectorOptions, boulderOptions, topoOptions] =
     await Promise.all([
       getAdminRoutes({ areaId, cragId, sectorId, boulderId, topoId }),
@@ -66,9 +68,22 @@ export default async function AdminRoutesPage({ searchParams }: Props) {
     ? `/admin/content/routes?${filterString}`
     : "/admin/content/routes";
 
+  // Build create href preserving filter + new=true
+  const createParams = new URLSearchParams();
+  if (areaId) createParams.set("areaId", areaId);
+  if (cragId) createParams.set("cragId", cragId);
+  if (sectorId) createParams.set("sectorId", sectorId);
+  if (boulderId) createParams.set("boulderId", boulderId);
+  if (topoId) createParams.set("topoId", topoId);
+  createParams.set("new", "true");
+  const createHref = `?${createParams.toString()}`;
+
   return (
     <AdminShell>
-      <h1 className="mb-6 text-2xl font-bold">Routes</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Routes</h1>
+        <Link href={createHref} className={btnPrimaryCls}>+ New Route</Link>
+      </div>
 
       {/* Cascading parent filter */}
       <ParentFilter
@@ -80,78 +95,6 @@ export default async function AdminRoutesPage({ searchParams }: Props) {
         boulderOptions={boulderOptions.length > 0 ? boulderOptions : undefined}
         topoOptions={topoOptions.length > 0 ? topoOptions : undefined}
       />
-
-      {/* Create form */}
-      <AdminCard title="Create Route">
-        <form action={saveRouteAction} className="space-y-2">
-          <FormSection title="Hierarchy" cols={2}>
-            <FullWidth>
-              <AdminField label="Topo">
-                <select name="topoId" required defaultValue={topoId ?? ""} className={selectCls}>
-                  <option value="">— select topo —</option>
-                  {liveTopos.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.boulderName} / {t.name}
-                    </option>
-                  ))}
-                </select>
-              </AdminField>
-            </FullWidth>
-          </FormSection>
-          <FormSection title="Identity" cols={2}>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Name</label>
-              <input name="name" required className={inputCls} placeholder="아나콘다" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Slug</label>
-              <input name="slug" required className={inputCls} placeholder="anaconda" />
-            </div>
-          </FormSection>
-          <FormSection title="Grade" cols={2}>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Grade</label>
-              <input name="grade" required className={inputCls} placeholder="V5" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Grade Num</label>
-              <input name="gradeNum" type="number" className={inputCls} placeholder="auto-derived" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">FA</label>
-              <input name="fa" className={inputCls} placeholder="홍길동" />
-            </div>
-          </FormSection>
-          <FormSection title="Description" cols={1}>
-            <FullWidth>
-              <textarea name="description" className={textareaCls} rows={2} />
-            </FullWidth>
-          </FormSection>
-          <FormSection title="Image" cols={1}>
-            <FullWidth>
-              <ImageUploadField name="lineImageUrl" defaultValue="" entityType="routes" entityId="new" purpose="line" />
-            </FullWidth>
-          </FormSection>
-          <FormSection title="Publishing" cols={2}>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Sort Order</label>
-              <input name="sortOrder" type="number" defaultValue="0" className={inputCls} />
-            </div>
-            <div className="flex items-end pb-1">
-              <label className="flex items-center gap-2 text-sm">
-                <input name="isPublished" type="checkbox" />
-                Published
-              </label>
-            </div>
-          </FormSection>
-          {/* Cache revalidation context */}
-          <input type="hidden" name="cragSlug" value={selectedTopo?.cragSlug ?? ""} />
-          <input type="hidden" name="boulderId" value={selectedTopo?.boulderId ?? ""} />
-          <div className="pt-2">
-            <button type="submit" className={btnPrimaryCls}>Create Route</button>
-          </div>
-        </form>
-      </AdminCard>
 
       {/* Routes list */}
       <div className="mt-6">
@@ -219,6 +162,80 @@ export default async function AdminRoutesPage({ searchParams }: Props) {
           </AdminTable>
         </AdminCard>
       </div>
+
+      {/* Create drawer */}
+      {showCreate ? (
+        <EditDrawer title="Create Route" closeHref={baseHref}>
+          <form action={saveRouteAction} className="space-y-2">
+            <FormSection title="Hierarchy" cols={2}>
+              <FullWidth>
+                <AdminField label="Topo">
+                  <select name="topoId" required defaultValue={topoId ?? ""} className={selectCls}>
+                    <option value="">— select topo —</option>
+                    {liveTopos.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.boulderName} / {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </AdminField>
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Identity" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Name</label>
+                <input name="name" required className={inputCls} placeholder="아나콘다" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Slug</label>
+                <input name="slug" required className={inputCls} placeholder="anaconda" />
+              </div>
+            </FormSection>
+            <FormSection title="Grade" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Grade</label>
+                <input name="grade" required className={inputCls} placeholder="V5" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Grade Num</label>
+                <input name="gradeNum" type="number" className={inputCls} placeholder="auto-derived" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">FA</label>
+                <input name="fa" className={inputCls} placeholder="홍길동" />
+              </div>
+            </FormSection>
+            <FormSection title="Description" cols={1}>
+              <FullWidth>
+                <textarea name="description" className={textareaCls} rows={2} />
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Image" cols={1}>
+              <FullWidth>
+                <ImageUploadField name="lineImageUrl" defaultValue="" entityType="routes" entityId="new" purpose="line" />
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Publishing" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Sort Order</label>
+                <input name="sortOrder" type="number" defaultValue="0" className={inputCls} />
+              </div>
+              <div className="flex items-end pb-1">
+                <label className="flex items-center gap-2 text-sm">
+                  <input name="isPublished" type="checkbox" />
+                  Published
+                </label>
+              </div>
+            </FormSection>
+            {/* Cache revalidation context */}
+            <input type="hidden" name="cragSlug" value={selectedTopo?.cragSlug ?? ""} />
+            <input type="hidden" name="boulderId" value={selectedTopo?.boulderId ?? ""} />
+            <div className="pt-2">
+              <button type="submit" className={btnPrimaryCls}>Create Route</button>
+            </div>
+          </form>
+        </EditDrawer>
+      ) : null}
 
       {/* Edit drawer */}
       {editRow && (

@@ -25,11 +25,12 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 interface Props {
-  searchParams: Promise<{ areaId?: string; cragId?: string; edit?: string }>;
+  searchParams: Promise<{ areaId?: string; cragId?: string; edit?: string; new?: string }>;
 }
 
 export default async function AdminSectorsPage({ searchParams }: Props) {
-  const { areaId, cragId, edit } = await searchParams;
+  const { areaId, cragId, edit, new: isNew } = await searchParams;
+  const showCreate = isNew === "true";
   const [sectors, crags, areaOptions, cragOptions] = await Promise.all([
     getAdminSectors({ areaId, cragId }),
     getAdminCrags(areaId ? { areaId } : undefined),
@@ -50,9 +51,19 @@ export default async function AdminSectorsPage({ searchParams }: Props) {
     ? `/admin/content/sectors?${filterString}`
     : "/admin/content/sectors";
 
+  // Build create href preserving filter + new=true
+  const createParams = new URLSearchParams();
+  if (areaId) createParams.set("areaId", areaId);
+  if (cragId) createParams.set("cragId", cragId);
+  createParams.set("new", "true");
+  const createHref = `?${createParams.toString()}`;
+
   return (
     <AdminShell>
-      <h1 className="mb-6 text-2xl font-bold">Sectors</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Sectors</h1>
+        <Link href={createHref} className={btnPrimaryCls}>+ New Sector</Link>
+      </div>
 
       {/* Cascading parent filter */}
       <ParentFilter
@@ -61,80 +72,6 @@ export default async function AdminSectorsPage({ searchParams }: Props) {
         areaOptions={areaOptions}
         cragOptions={cragOptions.length > 0 ? cragOptions : undefined}
       />
-
-      {/* Create form */}
-      <AdminCard title="Create Sector">
-        <form action={saveSectorAction} className="space-y-2">
-          <FormSection title="Hierarchy" cols={2}>
-            <FullWidth>
-              <AdminField label="Crag">
-                <select name="cragId" required defaultValue={cragId ?? ""} className={selectCls}>
-                  <option value="">— select crag —</option>
-                  {liveCrags.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </AdminField>
-            </FullWidth>
-          </FormSection>
-          <FormSection title="Identity" cols={2}>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Name</label>
-              <input name="name" required className={inputCls} placeholder="앤틱 구역" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Name (EN)</label>
-              <input name="nameEn" className={inputCls} placeholder="Antique Zone" />
-            </div>
-            <FullWidth>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Slug</label>
-              <input name="slug" required className={inputCls} placeholder="anyang_antique" />
-            </FullWidth>
-          </FormSection>
-          <FormSection title="Location" cols={2}>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Lat</label>
-              <input name="lat" type="number" step="any" className={inputCls} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Lng</label>
-              <input name="lng" type="number" step="any" className={inputCls} />
-            </div>
-          </FormSection>
-          <FormSection title="Content" cols={1}>
-            <FullWidth>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Description</label>
-              <textarea name="description" className={textareaCls} rows={2} />
-            </FullWidth>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Season</label>
-              <input name="season" className={inputCls} />
-            </div>
-          </FormSection>
-          <FormSection title="Image" cols={1}>
-            <FullWidth>
-              <ImageUploadField name="coverImageUrl" defaultValue="" entityType="sectors" entityId="new" purpose="cover" />
-            </FullWidth>
-          </FormSection>
-          <FormSection title="Publishing" cols={2}>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[#374151]">Sort Order</label>
-              <input name="sortOrder" type="number" defaultValue="0" className={inputCls} />
-            </div>
-            <div className="flex items-end pb-1">
-              <label className="flex items-center gap-2 text-sm">
-                <input name="isPublished" type="checkbox" />
-                Published
-              </label>
-            </div>
-          </FormSection>
-          {/* cragSlug for revalidation — empty on create since we don't know slug yet */}
-          <input type="hidden" name="cragSlug" value={selectedCrag?.slug ?? ""} />
-          <div className="pt-2">
-            <button type="submit" className={btnPrimaryCls}>Create Sector</button>
-          </div>
-        </form>
-      </AdminCard>
 
       {/* Sectors list */}
       <div className="mt-6">
@@ -199,6 +136,82 @@ export default async function AdminSectorsPage({ searchParams }: Props) {
           </AdminTable>
         </AdminCard>
       </div>
+
+      {/* Create drawer */}
+      {showCreate ? (
+        <EditDrawer title="Create Sector" closeHref={baseHref}>
+          <form action={saveSectorAction} className="space-y-2">
+            <FormSection title="Hierarchy" cols={2}>
+              <FullWidth>
+                <AdminField label="Crag">
+                  <select name="cragId" required defaultValue={cragId ?? ""} className={selectCls}>
+                    <option value="">— select crag —</option>
+                    {liveCrags.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </AdminField>
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Identity" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Name</label>
+                <input name="name" required className={inputCls} placeholder="앤틱 구역" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Name (EN)</label>
+                <input name="nameEn" className={inputCls} placeholder="Antique Zone" />
+              </div>
+              <FullWidth>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Slug</label>
+                <input name="slug" required className={inputCls} placeholder="anyang_antique" />
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Location" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Lat</label>
+                <input name="lat" type="number" step="any" className={inputCls} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Lng</label>
+                <input name="lng" type="number" step="any" className={inputCls} />
+              </div>
+            </FormSection>
+            <FormSection title="Content" cols={1}>
+              <FullWidth>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Description</label>
+                <textarea name="description" className={textareaCls} rows={2} />
+              </FullWidth>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Season</label>
+                <input name="season" className={inputCls} />
+              </div>
+            </FormSection>
+            <FormSection title="Image" cols={1}>
+              <FullWidth>
+                <ImageUploadField name="coverImageUrl" defaultValue="" entityType="sectors" entityId="new" purpose="cover" />
+              </FullWidth>
+            </FormSection>
+            <FormSection title="Publishing" cols={2}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[#374151]">Sort Order</label>
+                <input name="sortOrder" type="number" defaultValue="0" className={inputCls} />
+              </div>
+              <div className="flex items-end pb-1">
+                <label className="flex items-center gap-2 text-sm">
+                  <input name="isPublished" type="checkbox" />
+                  Published
+                </label>
+              </div>
+            </FormSection>
+            {/* cragSlug for revalidation — empty on create since we don't know slug yet */}
+            <input type="hidden" name="cragSlug" value={selectedCrag?.slug ?? ""} />
+            <div className="pt-2">
+              <button type="submit" className={btnPrimaryCls}>Create Sector</button>
+            </div>
+          </form>
+        </EditDrawer>
+      ) : null}
 
       {/* Edit drawer */}
       {editRow && (
