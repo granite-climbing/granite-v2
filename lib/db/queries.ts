@@ -121,6 +121,7 @@ interface RouteRow {
 }
 
 interface RouteListItemRow extends RouteRow {
+  boulderId: string;
   boulderName: string;
   sectorName: string;
   cragName: string;
@@ -576,6 +577,7 @@ export async function getCragRoutes(
        r.line_image_url   AS lineImageUrl,
        r.is_published     AS isPublished,
        r.sort_order       AS sortOrder,
+       b.id               AS boulderId,
        b.name             AS boulderName,
        s.name             AS sectorName,
        c.name             AS cragName,
@@ -664,6 +666,7 @@ export async function getSectorRoutes(
        r.line_image_url   AS lineImageUrl,
        r.is_published     AS isPublished,
        r.sort_order       AS sortOrder,
+       b.id               AS boulderId,
        b.name             AS boulderName,
        s.name             AS sectorName,
        c.name             AS cragName,
@@ -1148,6 +1151,7 @@ export async function getRouteById(id: string): Promise<RouteListItem | null> {
        r.line_image_url   AS lineImageUrl,
        r.is_published     AS isPublished,
        r.sort_order       AS sortOrder,
+       b.id               AS boulderId,
        b.name             AS boulderName,
        s.name             AS sectorName,
        c.name             AS cragName,

@@ -18,7 +18,7 @@ function parseGradeSort(raw: string | undefined): GradeSort {
 
 type CragPageProps = {
   params: Promise<{ cragSlug: string }>;
-  searchParams?: Promise<{ tab?: string; q?: string; sort?: string }>;
+  searchParams?: Promise<{ tab?: string; q?: string; sort?: string; boulderId?: string }>;
 };
 
 export default async function CragPage({ params, searchParams }: CragPageProps) {
@@ -36,14 +36,15 @@ export default async function CragPage({ params, searchParams }: CragPageProps) 
 
   const query = resolvedSearchParams?.q?.trim() ?? "";
   const sort = parseGradeSort(resolvedSearchParams?.sort);
+  const boulderId = resolvedSearchParams?.boulderId?.trim() ?? "";
   const basePath = `/c/${crag.slug}`;
 
   return (
     <main className="min-h-screen bg-white pb-10 text-[#090909]">
       <AppHeader />
       <CragHero crag={crag} />
-      <CragTabs crag={crag} activeTab={activeTab} query={query} sort={sort} />
-      <CragTabPanel crag={crag} activeTab={activeTab} query={query} sort={sort} basePath={basePath} />
+      <CragTabs crag={crag} activeTab={activeTab} query={query} sort={sort} boulderId={boulderId} />
+      <CragTabPanel crag={crag} activeTab={activeTab} query={query} sort={sort} boulderId={boulderId} basePath={basePath} />
     </main>
   );
 }
@@ -68,11 +69,13 @@ function CragTabs({
   activeTab,
   query,
   sort,
+  boulderId,
 }: {
   crag: CragDetail;
   activeTab: TabName;
   query: string;
   sort: GradeSort;
+  boulderId: string;
 }) {
   return (
     <nav className="flex h-14 justify-center gap-4 pt-3" aria-label="Crag 상세 탭">
@@ -80,13 +83,16 @@ function CragTabs({
         const active = tab === activeTab;
         const tabLower = tab.toLowerCase();
         // Preserve ?q= when switching between search-bearing tabs.
-        // Preserve ?sort= only when navigating to/staying on the Route tab.
+        // Preserve ?sort= and ?boulderId= only when navigating to/staying on the Route tab.
         const params = new URLSearchParams({ tab: tabLower });
         if (query && ["Sector", "Boulder", "Route"].includes(tab)) {
           params.set("q", query);
         }
         if (sort && tab === "Route") {
           params.set("sort", sort);
+        }
+        if (boulderId && tab === "Route") {
+          params.set("boulderId", boulderId);
         }
         const href = `/c/${crag.slug}?${params.toString()}`;
         return (
@@ -114,12 +120,14 @@ function CragTabPanel({
   activeTab,
   query,
   sort,
+  boulderId,
   basePath,
 }: {
   crag: CragDetail;
   activeTab: TabName;
   query: string;
   sort: GradeSort;
+  boulderId: string;
   basePath: string;
 }) {
   if (activeTab === "Info") {
@@ -185,7 +193,7 @@ function CragTabPanel({
             <EmptyResult query={query} />
           ) : (
             filtered.map((boulder) => (
-              <BoulderListCard key={boulder.id} boulder={boulder} />
+              <BoulderListCard key={boulder.id} boulder={boulder} cragSlug={crag.slug} />
             ))
           )}
         </div>
@@ -194,9 +202,15 @@ function CragTabPanel({
   }
 
   if (activeTab === "Route") {
-    // 1. Filter by search query
+    // 1. Filter by boulderId first
+    let routes = crag.routes;
+    if (boulderId) {
+      routes = routes.filter((r) => r.boulderId === boulderId);
+    }
+
+    // 2. Then filter by search query
     const filtered = query
-      ? crag.routes.filter((r) => {
+      ? routes.filter((r) => {
           const q = query.toLowerCase();
           return (
             r.name.toLowerCase().includes(q) ||
@@ -204,31 +218,48 @@ function CragTabPanel({
             r.grade.toLowerCase().includes(q)
           );
         })
-      : crag.routes;
+      : routes;
 
-    // 2. Sort after filtering
+    // 3. Sort after filtering
     const sorted = sort === "grade:asc"
       ? [...filtered].sort((a, b) => a.gradeNum - b.gradeNum || a.grade.localeCompare(b.grade))
       : sort === "grade:desc"
         ? [...filtered].sort((a, b) => b.gradeNum - a.gradeNum || b.grade.localeCompare(a.grade))
         : filtered;
 
+    // Build the "clear filter" href (removes boulderId but keeps q and sort)
+    const clearFilterParams = new URLSearchParams({ tab: "route" });
+    if (query) clearFilterParams.set("q", query);
+    if (sort) clearFilterParams.set("sort", sort);
+    const clearFilterHref = `${basePath}?${clearFilterParams.toString()}`;
+
     return (
       <section className="pt-4">
         <SectionHeading />
+        {boulderId ? (
+          <div className="mb-3 mt-3 flex items-center justify-center gap-2 px-4 text-[12px] text-[#7A7A7A]">
+            <span>볼더 필터 적용 중</span>
+            <Link href={clearFilterHref} className="underline">
+              필터 해제
+            </Link>
+          </div>
+        ) : null}
         <div className="mt-4">
           <SearchField
             defaultValue={query || undefined}
             placeholder="루트 이름 검색, 난이도 검색"
             action={basePath}
-            hiddenFields={{ tab: "route" }}
+            hiddenFields={{
+              tab: "route",
+              ...(boulderId ? { boulderId } : {}),
+            }}
           />
         </div>
         <div className="mt-4 px-4">
           {sorted.length === 0 ? (
             <EmptyResult query={query} />
           ) : (
-            <RouteTable routes={sorted} sort={sort} query={query} basePath={basePath} />
+            <RouteTable routes={sorted} sort={sort} query={query} boulderId={boulderId} basePath={basePath} />
           )}
         </div>
       </section>
@@ -424,14 +455,19 @@ function SectorCard({
 
 function BoulderListCard({
   boulder,
+  cragSlug,
 }: {
   boulder: CragDetail["boulders"][number];
+  cragSlug: string;
 }) {
   return (
-    <article className="flex h-[100px] overflow-hidden rounded-[8px] bg-white shadow-[0_0_6px_2px_rgba(0,0,0,0.1)]">
+    <Link
+      href={`/c/${cragSlug}?tab=route&boulderId=${encodeURIComponent(boulder.id)}`}
+      className="flex h-[100px] items-center overflow-hidden rounded-[8px] bg-white shadow-[0_0_6px_2px_rgba(0,0,0,0.06)] transition-shadow hover:shadow-[0_0_6px_2px_rgba(0,0,0,0.1)]"
+    >
       {/* Thumbnail */}
       <div
-        className="size-[84px] shrink-0 self-center rounded-[4px] bg-[#D9D9D9] bg-cover bg-center ml-2"
+        className="ml-2 size-[84px] shrink-0 self-center rounded-[4px] bg-[#D9D9D9] bg-cover bg-center"
         style={
           boulder.coverImageUrl
             ? { backgroundImage: `url("${boulder.coverImageUrl}")` }
@@ -459,7 +495,7 @@ function BoulderListCard({
       <div className="flex shrink-0 items-center pr-2">
         <span className="text-[18px] leading-none text-[#7A7A7A]">›</span>
       </div>
-    </article>
+    </Link>
   );
 }
 
@@ -468,18 +504,22 @@ function BoulderListCard({
 // ---------------------------------------------------------------------------
 
 /** Compute the next ?sort value and full href when the Grade header is clicked. */
-function nextGradeSortHref(currentSort: string, basePath: string, query: string): string {
-  let nextSort: string;
-  if (currentSort === "grade:asc") {
-    nextSort = "grade:desc";
-  } else if (currentSort === "grade:desc") {
-    nextSort = "";
-  } else {
-    nextSort = "grade:asc";
-  }
+function nextGradeSortHref({
+  basePath,
+  query,
+  sort,
+  boulderId,
+}: {
+  basePath: string;
+  query: string;
+  sort: GradeSort;
+  boulderId: string;
+}): string {
+  const nextSort: GradeSort = sort === "" ? "grade:asc" : sort === "grade:asc" ? "grade:desc" : "";
   const params = new URLSearchParams({ tab: "route" });
   if (query) params.set("q", query);
   if (nextSort) params.set("sort", nextSort);
+  if (boulderId) params.set("boulderId", boulderId);
   return `${basePath}?${params.toString()}`;
 }
 
@@ -528,15 +568,17 @@ function RouteTable({
   routes,
   sort,
   query,
+  boulderId,
   basePath,
 }: {
   routes: RouteListItem[];
   sort: GradeSort;
   query: string;
+  boulderId: string;
   basePath: string;
 }) {
   if (routes.length === 0) return null;
-  const gradeHref = nextGradeSortHref(sort, basePath, query);
+  const gradeHref = nextGradeSortHref({ basePath, query, sort, boulderId });
   return (
     <div>
       <div className="grid h-10 grid-cols-[1fr_80px_80px] items-center bg-[#F7F8F8] px-2 text-[14px] font-medium leading-5 text-[#090909]">

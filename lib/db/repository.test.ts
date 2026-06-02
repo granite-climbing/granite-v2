@@ -186,6 +186,7 @@ const ROUTE_1 = {
 
 const ROUTE_LIST_ITEM_1: queries.RouteListItem = {
   ...ROUTE_1,
+  boulderId: "boulder-1",
   boulderName: "큰바위",
   sectorName: "감자",
   cragName: "모락산",

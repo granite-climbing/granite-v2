@@ -96,6 +96,7 @@ export type Stats = {
 };
 
 export type RouteListItem = Route & {
+  boulderId: string;
   boulderName: string;
   sectorName: string;
   cragName: string;
