@@ -273,7 +273,7 @@ git commit -m "fix(area): center-align Crag cards on Area detail page"
 - Test: `lib/db/queries.test.ts`
 - Test: `lib/db/repository.test.ts`
 
-- [ ] **Step 1: Extend `KakaoMap` to support multiple markers + click callback (backward-compatible).**
+- [x] **Step 1: Extend `KakaoMap` to support multiple markers + click callback (backward-compatible).**
 
 Edit `components/public/kakao-map.tsx`:
 
@@ -346,7 +346,7 @@ export function KakaoMap(props: KakaoMapProps) {
 }
 ```
 
-- [ ] **Step 2: Add the `getAreaCragsWithCoords` query.**
+- [x] **Step 2: Add the `getAreaCragsWithCoords` query.**
 
 Append to `lib/db/queries.ts`:
 
@@ -379,7 +379,7 @@ export async function getAreaCragsWithCoords(areaId: string): Promise<CragLocati
 }
 ```
 
-- [ ] **Step 3: Write the failing test for `getAreaCragsWithCoords`.**
+- [x] **Step 3: Write the failing test for `getAreaCragsWithCoords`.**
 
 Append to `lib/db/queries.test.ts`:
 
@@ -408,12 +408,12 @@ describe("getAreaCragsWithCoords", () => {
 
 (Match the existing test pattern in the file — most tests in this file spy on `queryD1` and assert SQL via regex. Mirror that style; do not add new infra.)
 
-- [ ] **Step 4: Run the new test — should pass with the query in step 2.**
+- [x] **Step 4: Run the new test — should pass with the query in step 2.**
 
 Run: `pnpm test lib/db/queries.test.ts -t getAreaCragsWithCoords`
 Expected: PASS.
 
-- [ ] **Step 5: Extend `AreaDetail` type with `cragLocations`.**
+- [x] **Step 5: Extend `AreaDetail` type with `cragLocations`.**
 
 Edit `lib/db/schema.ts`:
 
@@ -442,7 +442,7 @@ export type CragLocation = {
 };
 ```
 
-- [ ] **Step 6: Populate `cragLocations` in `loadAreaBySlug`.**
+- [x] **Step 6: Populate `cragLocations` in `loadAreaBySlug`.**
 
 Edit `lib/db/repository.ts`:
 
@@ -475,16 +475,16 @@ async function loadAreaBySlug(slug: string): Promise<AreaDetail | null> {
 
 Also add `getAreaCragsWithCoords` to the top-of-file import list from `./queries`.
 
-- [ ] **Step 7: Update the repository test.**
+- [x] **Step 7: Update the repository test.**
 
 Edit `lib/db/repository.test.ts`. Mock `getAreaCragsWithCoords` and assert that `findAreaDetailBySlug` returns the `cragLocations` array. Keep the existing assertions intact.
 
-- [ ] **Step 8: Run repository tests.**
+- [x] **Step 8: Run repository tests.**
 
 Run: `pnpm test lib/db/repository.test.ts`
 Expected: all pass (existing + new).
 
-- [ ] **Step 9: Create `AreaOverviewMap` client component.**
+- [x] **Step 9: Create `AreaOverviewMap` client component.**
 
 `components/public/area-overview-map.tsx`:
 
@@ -520,7 +520,7 @@ export function AreaOverviewMap({ markers, className }: AreaOverviewMapProps) {
 }
 ```
 
-- [ ] **Step 10: Mount `AreaOverviewMap` on the Area page above the Crag list and add `id` to each Crag card wrapper.**
+- [x] **Step 10: Mount `AreaOverviewMap` on the Area page above the Crag list and add `id` to each Crag card wrapper.**
 
 In `app/(site)/a/[areaSlug]/page.tsx`:
 
@@ -549,12 +549,12 @@ import { AreaOverviewMap } from "@/components/public/area-overview-map";
 </div>
 ```
 
-- [ ] **Step 11: Run typecheck + build.**
+- [x] **Step 11: Run typecheck + build.**
 
 Run: `pnpm typecheck && pnpm build`
 Expected: clean.
 
-- [ ] **Step 12: Commit.**
+- [x] **Step 12: Commit.**
 
 ```bash
 git add components/public/kakao-map.tsx components/public/area-overview-map.tsx \
