@@ -4454,7 +4454,7 @@ Flip Step 7 checkbox.
 
 Verify Steps 1–7 are `[x]`. Flip Step 8 itself.
 
-- [ ] **Step 9: Commit.**
+- [x] **Step 9: Commit.**
 
 ```bash
 git add workers/instagram-webhook/src/match.ts workers/instagram-webhook/src/match.test.ts lib/db/beta-queries.ts 'app/admin/(protected)/webhooks/page.tsx' docs/plans/2026-06-02-granite-phase-5.md
