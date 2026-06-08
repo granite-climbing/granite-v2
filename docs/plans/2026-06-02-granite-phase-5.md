@@ -58,6 +58,7 @@
 ### Future Work (Phase 6+)
 
 - **Webhook admin notification channel.** Push notifications to admins (email or Slack incoming webhook) when `webhook_inbox` rows land in `unmatched` or `failed` so operators do not need to poll `/admin/webhooks`. Trigger: insert/update transitions into those statuses. Not implemented in Phase 5; defer to Phase 6 or a dedicated ops follow-up.
+- **Cross-flow canonical media id alignment.** Webhook stores Instagram numeric `media_id` (from Graph API) in `external_media_id`; manual submissions store the alphanumeric URL shortcode. Same media submitted via both paths will NOT cross-deduplicate. Phase 6 should align by either (a) Worker extracting the shortcode from `mentioned_media.permalink` and storing that, or (b) manual flow resolving the URL via Graph API to a media_id.
 
 ---
 
@@ -4486,7 +4487,7 @@ Fix: derive a canonical `externalMediaId` from the URL at submission time (YouTu
 - Modify: `lib/actions/beta.test.ts`
 - Modify: `docs/plans/2026-06-02-granite-phase-5.md` (checkboxes; add Future Work note)
 
-- [ ] **Step 1: Write failing tests for `extractCanonicalMediaId`.**
+- [x] **Step 1: Write failing tests for `extractCanonicalMediaId`.**
 
 In `lib/beta/normalize.test.ts`, append a new `describe`:
 
@@ -4524,7 +4525,7 @@ describe("extractCanonicalMediaId", () => {
 
 Flip Step 1 checkbox.
 
-- [ ] **Step 2: Run the test, confirm it fails.**
+- [x] **Step 2: Run the test, confirm it fails.**
 
 ```
 pnpm test lib/beta/normalize.test.ts
@@ -4533,7 +4534,7 @@ Expected: new tests fail (function does not exist yet).
 
 Flip Step 2 checkbox.
 
-- [ ] **Step 3: Implement `extractCanonicalMediaId` in `lib/beta/normalize.ts`.**
+- [x] **Step 3: Implement `extractCanonicalMediaId` in `lib/beta/normalize.ts`.**
 
 Append to the file:
 
@@ -4576,7 +4577,7 @@ export function extractCanonicalMediaId(rawUrl: string, platform: BetaPlatform):
 
 Flip Step 3 checkbox.
 
-- [ ] **Step 4: Run tests, confirm pass.**
+- [x] **Step 4: Run tests, confirm pass.**
 
 ```
 pnpm test lib/beta/normalize.test.ts
@@ -4585,7 +4586,7 @@ All extractCanonicalMediaId tests pass.
 
 Flip Step 4 checkbox.
 
-- [ ] **Step 5: Update `lib/actions/beta-schema.ts` to populate `externalMediaId`.**
+- [x] **Step 5: Update `lib/actions/beta-schema.ts` to populate `externalMediaId`.**
 
 Update imports:
 
@@ -4618,7 +4619,7 @@ This is null-safe: if the URL doesn't match a known pattern, `externalMediaId` s
 
 Flip Step 5 checkbox.
 
-- [ ] **Step 6: Write a failing test for variant-URL dedup.**
+- [x] **Step 6: Write a failing test for variant-URL dedup.**
 
 In `lib/actions/beta.test.ts`, add `findExistingBetaByExternalMedia: vi.fn()` to the `vi.mock("@/lib/db/beta-queries", ...)` factory (alongside the existing `findExistingBetaByPermalink`).
 
@@ -4653,7 +4654,7 @@ it("rejects a second submission that resolves to the same canonical media id", a
 
 Flip Step 6 checkbox.
 
-- [ ] **Step 7: Update `lib/actions/beta.ts` for two-tier dedup.**
+- [x] **Step 7: Update `lib/actions/beta.ts` for two-tier dedup.**
 
 Update imports:
 
@@ -4685,7 +4686,7 @@ The downstream `createManualBeta` call already receives `externalMediaId` and pe
 
 Flip Step 7 checkbox.
 
-- [ ] **Step 8: Update existing `lib/actions/beta.test.ts` tests for the new flow.**
+- [x] **Step 8: Update existing `lib/actions/beta.test.ts` tests for the new flow.**
 
 The existing happy-path test asserted `createManualBeta` was called with `externalMediaId: null`. Update it to expect the canonical id extracted from the test's Instagram URL:
 
@@ -4723,7 +4724,7 @@ All must pass, including the new Step 6 test.
 
 Flip Step 8 checkbox.
 
-- [ ] **Step 9: Full verification.**
+- [x] **Step 9: Full verification.**
 
 ```
 pnpm test
@@ -4735,7 +4736,7 @@ All must pass.
 
 Flip Step 9 checkbox.
 
-- [ ] **Step 10: Add Future Work note to plan + Mark Task 19 step checkboxes complete.**
+- [x] **Step 10: Add Future Work note to plan + Mark Task 19 step checkboxes complete.**
 
 In the "### Future Work (Phase 6+)" section of this plan file, append:
 

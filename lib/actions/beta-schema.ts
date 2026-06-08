@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   detectMediaPlatform,
+  extractCanonicalMediaId,
   normalizeHandle,
   normalizeYouTubeOrInstagramUrl,
 } from "@/lib/beta/normalize";
@@ -16,14 +17,15 @@ const manualBetaSchema = z.object({
 export function parseManualBetaForm(raw: Record<string, FormDataEntryValue>) {
   const parsed = manualBetaSchema.parse(raw);
   const mediaUrl = normalizeYouTubeOrInstagramUrl(parsed.mediaUrl);
+  const platform = detectMediaPlatform(mediaUrl);
   return {
     routeId: parsed.routeId,
     mediaUrl,
     permalinkUrl: mediaUrl,
-    externalMediaId: null,
+    externalMediaId: extractCanonicalMediaId(mediaUrl, platform),
     displayName: parsed.displayName.trim(),
     instagramId: normalizeHandle(parsed.instagramId),
-    platform: detectMediaPlatform(mediaUrl),
+    platform,
     sentAt: parsed.sentAt,
   };
 }

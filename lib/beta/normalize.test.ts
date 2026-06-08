@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   detectMediaPlatform,
+  extractCanonicalMediaId,
   extractHashtags,
   normalizeHandle,
   normalizeToken,
@@ -37,5 +38,33 @@ describe("beta normalization", () => {
     expect(normalizeYouTubeOrInstagramUrl("https://www.youtube.com/watch?v=abc&feature=share")).toBe(
       "https://www.youtube.com/watch?v=abc&feature=share"
     );
+  });
+});
+
+describe("extractCanonicalMediaId", () => {
+  it("extracts YouTube video id from every supported URL format", () => {
+    expect(extractCanonicalMediaId("https://youtu.be/dQw4w9WgXcQ", "youtube")).toBe("dQw4w9WgXcQ");
+    expect(extractCanonicalMediaId("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "youtube")).toBe("dQw4w9WgXcQ");
+    expect(
+      extractCanonicalMediaId("https://www.youtube.com/watch?v=dQw4w9WgXcQ&feature=share", "youtube")
+    ).toBe("dQw4w9WgXcQ");
+    expect(extractCanonicalMediaId("https://www.youtube.com/shorts/dQw4w9WgXcQ", "youtube")).toBe("dQw4w9WgXcQ");
+    expect(extractCanonicalMediaId("https://www.youtube.com/embed/dQw4w9WgXcQ", "youtube")).toBe("dQw4w9WgXcQ");
+  });
+
+  it("extracts Instagram shortcode from /p/, /reel/, /tv/ regardless of query string", () => {
+    expect(extractCanonicalMediaId("https://www.instagram.com/p/CxYz123abc/", "instagram")).toBe("CxYz123abc");
+    expect(extractCanonicalMediaId("https://www.instagram.com/reel/CxYz123abc/", "instagram")).toBe("CxYz123abc");
+    expect(extractCanonicalMediaId("https://www.instagram.com/tv/CxYz123abc/", "instagram")).toBe("CxYz123abc");
+    expect(
+      extractCanonicalMediaId("https://www.instagram.com/p/CxYz123abc/?utm_source=ig_web", "instagram")
+    ).toBe("CxYz123abc");
+  });
+
+  it("returns null when the URL pattern doesn't match a known media format", () => {
+    expect(extractCanonicalMediaId("https://www.youtube.com/", "youtube")).toBeNull();
+    expect(extractCanonicalMediaId("https://www.youtube.com/channel/UCabcd", "youtube")).toBeNull();
+    expect(extractCanonicalMediaId("https://www.instagram.com/some_user/", "instagram")).toBeNull();
+    expect(extractCanonicalMediaId("not-a-url", "youtube")).toBeNull();
   });
 });

@@ -47,3 +47,38 @@ export function normalizeYouTubeOrInstagramUrl(rawUrl: string): string {
   url.hash = "";
   return url.toString();
 }
+
+const YOUTUBE_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+export function extractCanonicalMediaId(rawUrl: string, platform: BetaPlatform): string | null {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    return null;
+  }
+  const host = url.hostname.toLowerCase();
+
+  if (platform === "youtube") {
+    if (host === "youtu.be") {
+      const id = url.pathname.split("/").filter(Boolean)[0] ?? null;
+      return id && YOUTUBE_ID_PATTERN.test(id) ? id : null;
+    }
+    if (host === "youtube.com" || host === "www.youtube.com") {
+      const v = url.searchParams.get("v");
+      if (v && YOUTUBE_ID_PATTERN.test(v)) return v;
+      const match = url.pathname.match(/^\/(shorts|embed)\/([A-Za-z0-9_-]+)/);
+      if (match) return match[2];
+      return null;
+    }
+    return null;
+  }
+
+  if (platform === "instagram") {
+    if (host !== "instagram.com" && host !== "www.instagram.com") return null;
+    const match = url.pathname.match(/^\/(p|reel|tv)\/([^/]+)/);
+    return match ? match[2] : null;
+  }
+
+  return null;
+}

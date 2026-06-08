@@ -2,7 +2,12 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidateTag } from "next/cache";
-import { createManualBeta, findExistingBetaByPermalink, updateBetaThumbnailUrl } from "@/lib/db/beta-queries";
+import {
+  createManualBeta,
+  findExistingBetaByExternalMedia,
+  findExistingBetaByPermalink,
+  updateBetaThumbnailUrl,
+} from "@/lib/db/beta-queries";
 import { acquireAndStoreBetaThumbnail } from "@/lib/beta/thumbnail-r2";
 import { parseManualBetaForm } from "./beta-schema";
 
@@ -13,7 +18,13 @@ export type ManualBetaActionResult = {
 
 export async function submitManualBetaAction(formData: FormData): Promise<ManualBetaActionResult> {
   const parsed = parseManualBetaForm(Object.fromEntries(formData));
-  const existing = await findExistingBetaByPermalink(parsed.platform, parsed.permalinkUrl);
+  let existing = null;
+  if (parsed.externalMediaId) {
+    existing = await findExistingBetaByExternalMedia(parsed.platform, parsed.externalMediaId);
+  }
+  if (!existing) {
+    existing = await findExistingBetaByPermalink(parsed.platform, parsed.permalinkUrl);
+  }
   if (existing) {
     return { ok: false, message: "이미 등록된 영상입니다." };
   }
