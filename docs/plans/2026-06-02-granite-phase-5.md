@@ -4180,9 +4180,590 @@ git commit -m "docs(phase5): mark Task 17 Step 9 complete"
 
 ---
 
+## Task 18: Auto-Match Orphan Beta Recovery
+
+**Codex finding addressed:** In the Worker auto-match path, `insertWebhookBeta` runs BEFORE `setWebhookInboxStatus({status: "matched", matchedBetaId})`. If the Beta insert succeeds but the inbox finalize throws (network blip, D1 contention), Task 12's outer `try/catch` marks the inbox `failed` with `lastErrorCode='graph_api_exception'` and writes an operational event with `betaId: null` — even though a real Beta row was just created. Task 15's `getOrphanedManualMatches()` query only checks `status = 'manual_matched' AND matched_beta_id IS NULL`, so this auto-match orphan is NOT surfaced. The Beta will sit at `status='pending'` and may be approved by an admin who has no idea it lost its webhook context. Because the Worker already returned 200 via `ctx.waitUntil`, Meta will not redeliver.
+
+The fix captures the newly-inserted `betaId` in the outer scope so the catch path can: (a) attempt a best-effort back-link UPDATE, (b) record the operational event with the actual `betaId` and a `metadata.kind = "orphan_beta_auto_match"` marker so admin tooling can find it, (c) extend the admin orphan section to query for this case.
+
+**Files:**
+- Modify: `workers/instagram-webhook/src/match.ts`
+- Modify: `workers/instagram-webhook/src/match.test.ts`
+- Modify: `lib/db/beta-queries.ts` (add `getOrphanedAutoMatches`)
+- Modify: `app/admin/(protected)/webhooks/page.tsx` (extend orphan callout)
+- Modify: `docs/plans/2026-06-02-granite-phase-5.md` (checkboxes)
+
+- [ ] **Step 1: Write a failing test for the auto-match orphan path.**
+
+Open `workers/instagram-webhook/src/match.test.ts`. Append at the end of the existing top-level `describe(...)`:
+
+```ts
+it("records the betaId in the operational event when the final setWebhookInboxStatus throws", async () => {
+  // Auto-match happy path setup
+  vi.mocked(d1.insertWebhookInbox).mockResolvedValueOnce({ inserted: true });
+  vi.mocked(graph.fetchMentionedMedia).mockResolvedValueOnce({
+    username: "@Climber",
+    caption: "@granite.kr #큰바위 #SkyHook",
+    mediaUrl: "https://video.cdninstagram.com/abc",
+    thumbnailUrl: "https://scontent.cdninstagram.com/abc.jpg",
+    permalink: "https://www.instagram.com/p/abc/",
+  });
+  vi.mocked(d1.findExistingBetaByExternalMedia).mockResolvedValueOnce(null);
+  vi.mocked(d1.findPublishedRouteCandidates).mockResolvedValueOnce([
+    { routeId: "route_1", routeName: "SkyHook", boulderName: "큰바위", boulderHashtags: "[]" },
+  ]);
+  vi.mocked(d1.insertWebhookBeta).mockResolvedValueOnce(undefined);
+
+  // Make the matched finalize throw, leaving the Beta orphaned.
+  vi.mocked(d1.setWebhookInboxStatus)
+    .mockResolvedValueOnce(undefined) // initial processing transition
+    .mockImplementationOnce(async () => {
+      throw new Error("D1 network blip during matched finalize");
+    });
+
+  await processMentionEvent(
+    { externalId: "m_orphan", igUserId: "u1", mediaId: "m_orphan", commentId: null },
+    env,
+    "{}"
+  );
+
+  // Outer catch should record an operational event WITH the betaId and the orphan kind metadata.
+  const opCalls = vi.mocked(d1.insertWebhookOperationalEvent).mock.calls;
+  const orphanCall = opCalls.find((c) => {
+    const meta = c[1].metadata;
+    return typeof meta === "string" && meta.includes("orphan_beta_auto_match");
+  });
+  expect(orphanCall).toBeDefined();
+  expect(orphanCall?.[1].betaId).toMatch(/^beta_/);
+});
+```
+
+If the existing test file doesn't already mock `d1.findExistingBetaByExternalMedia`, `d1.findPublishedRouteCandidates`, and `d1.insertWebhookBeta` in the `vi.mock("./d1", ...)` factory, add them. Reset them in `beforeEach`.
+
+Flip Step 1 checkbox.
+
+- [ ] **Step 2: Run the test, confirm it fails.**
+
+```
+pnpm test workers/instagram-webhook/src/match.test.ts
+```
+Expected: the new test fails because match.ts loses the `betaId` reference in the catch handler.
+
+Flip Step 2 checkbox.
+
+- [ ] **Step 3: Carry `betaId` through the catch path in `workers/instagram-webhook/src/match.ts`.**
+
+Read the current file. The function body has `const betaId = uuid("beta");` inside the matched branch of the try block. Hoist that into an outer-scope `let createdBetaId: string | null = null;` so the catch can inspect it. The catch then writes the operational event with both the original error context AND the betaId, when set:
+
+```ts
+// Near the top of processMentionEvent, after webhookId is bound:
+let createdBetaId: string | null = null;
+
+// Inside the matched-route branch, replace:
+//   const betaId = uuid("beta");
+//   await insertWebhookBeta(env.granite_v2, { id: betaId, ... });
+//   ...
+//   await setWebhookInboxStatus(env.granite_v2, { id: webhookId, status: "matched", matchedBetaId: betaId });
+// with the same code but using createdBetaId so the catch can see it:
+createdBetaId = uuid("beta");
+await insertWebhookBeta(env.granite_v2, {
+  id: createdBetaId,
+  routeId: route.routeId,
+  instagramId: igUsername,
+  displayName: igUsername,
+  mediaUrl: media.mediaUrl ?? media.permalink ?? "",
+  permalinkUrl: media.permalink,
+  externalMediaId: event.mediaId,
+  sentAt: new Date().toISOString().slice(0, 10),
+});
+
+await setWebhookInboxStatus(env.granite_v2, {
+  id: webhookId,
+  status: "matched",
+  matchedBetaId: createdBetaId,
+});
+
+// Continue using createdBetaId for any downstream references (thumbnail copy etc.)
+```
+
+In the OUTER catch block (added in Task 12), extend the error handler to attempt a best-effort back-link and record the orphan when `createdBetaId` was set:
+
+```ts
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  try {
+    if (createdBetaId !== null) {
+      // Best-effort: try one more time to link the inbox. If this also fails,
+      // the operational event below preserves enough context for an operator.
+      try {
+        await setWebhookInboxStatus(env.granite_v2, {
+          id: webhookId,
+          status: "matched",
+          matchedBetaId: createdBetaId,
+        });
+      } catch {
+        // proceed with orphan logging
+      }
+    }
+    await setWebhookInboxStatus(env.granite_v2, {
+      id: webhookId,
+      status: "failed",
+      lastErrorCode: "graph_api_exception",
+      lastErrorMessage: message.slice(0, 500),
+    });
+    await insertWebhookOperationalEvent(env.granite_v2, {
+      id: uuid("opev"),
+      eventType: "graph_api_failure",
+      webhookId,
+      betaId: createdBetaId,
+      requestId: "",
+      method: "POST",
+      path: "/webhooks/instagram",
+      statusCode: null,
+      message: createdBetaId
+        ? `processMentionEvent threw after beta insert: ${message}`
+        : `processMentionEvent threw: ${message}`,
+      metadata: createdBetaId
+        ? JSON.stringify({ kind: "orphan_beta_auto_match", reason: message })
+        : "{}",
+    });
+  } catch (recoveryError) {
+    console.error("processMentionEvent recovery failed:", recoveryError);
+  }
+}
+```
+
+Notes:
+- Re-trying `setWebhookInboxStatus` to `matched` before logging gives a "double-tap" recovery for transient D1 blips. If both attempts fail, the operational event still surfaces enough context.
+- We intentionally OVERRIDE the second `setWebhookInboxStatus` to `failed` when the matched re-try ALSO fails. The operator sees a `failed` row with `last_error_code='graph_api_exception'` and a paired operational event referencing the orphaned Beta.
+- The `eventType` stays as `graph_api_failure` (the same controlled event the rest of the system uses for catch-path failures); `metadata.kind` is the discriminator.
+
+Flip Step 3 checkbox.
+
+- [ ] **Step 4: Run tests, confirm pass.**
+
+```
+pnpm test workers/instagram-webhook/src/match.test.ts
+```
+Expected: all existing tests + the new orphan test pass.
+
+Flip Step 4 checkbox.
+
+- [ ] **Step 5: Add `getOrphanedAutoMatches` to `lib/db/beta-queries.ts`.**
+
+Append:
+
+```ts
+export type OrphanAutoMatchRow = {
+  webhookId: string;
+  externalId: string;
+  igUsername: string;
+  caption: string;
+  receivedAt: string;
+  betaId: string;
+  betaEventCreatedAt: string;
+};
+
+export async function getOrphanedAutoMatches(): Promise<OrphanAutoMatchRow[]> {
+  return queryD1<OrphanAutoMatchRow>(
+    `SELECT
+       wi.id AS webhookId,
+       wi.external_id AS externalId,
+       wi.ig_username AS igUsername,
+       wi.caption,
+       wi.received_at AS receivedAt,
+       ev.beta_id AS betaId,
+       ev.created_at AS betaEventCreatedAt
+     FROM webhook_inbox wi
+     JOIN webhook_operational_events ev ON ev.webhook_id = wi.id
+     WHERE wi.status = 'failed'
+       AND wi.matched_beta_id IS NULL
+       AND ev.beta_id IS NOT NULL
+       AND ev.metadata LIKE '%orphan_beta_auto_match%'
+     ORDER BY ev.created_at DESC`,
+    []
+  );
+}
+```
+
+`LIKE '%orphan_beta_auto_match%'` is acceptable for D1's limited JSON support; the metadata column is small and writes happen at most a few times per day in expected operations.
+
+Flip Step 5 checkbox.
+
+- [ ] **Step 6: Extend admin `/admin/webhooks` page with the auto-match orphan section.**
+
+In `app/admin/(protected)/webhooks/page.tsx`:
+
+(a) Add `getOrphanedAutoMatches` to the existing imports from `@/lib/db/beta-queries`.
+
+(b) Add it to the `Promise.all`:
+
+```tsx
+const [rows, routes, opEvents, orphans, autoOrphans] = await Promise.all([
+  getAdminWebhookInbox(status),
+  getAdminRoutes(),
+  getRecentWebhookOperationalEvents(50),
+  getOrphanedManualMatches(),
+  getOrphanedAutoMatches(),
+]);
+```
+
+(c) Below the existing "고립된 매칭" card, add another card that renders only when `autoOrphans.length > 0`:
+
+```tsx
+{autoOrphans.length > 0 ? (
+  <AdminCard>
+    <h2 className="mb-2 text-[14px] font-bold text-[#B53A3A]">
+      자동 매칭 고립 Beta ({autoOrphans.length})
+    </h2>
+    <p className="mb-2 text-[12px] text-[#7A7A7A]">
+      Worker 자동 매칭에서 Beta는 생성되었지만 webhook_inbox 링크가 실패한 행입니다. 운영자가 Beta 존재 여부 확인 후 직접 SQL로 재연결하거나, Beta를 삭제 후 거절해 주세요.
+    </p>
+    <AdminTable>
+      {autoOrphans.map((row) => (
+        <AdminTableRow key={`${row.webhookId}-${row.betaId}`}>
+          <AdminTableCell>{row.receivedAt}</AdminTableCell>
+          <AdminTableCell>@{row.igUsername || "-"}</AdminTableCell>
+          <AdminTableCell>
+            <span className="line-clamp-2">{row.caption || "-"}</span>
+          </AdminTableCell>
+          <AdminTableCell>{row.betaId}</AdminTableCell>
+        </AdminTableRow>
+      ))}
+    </AdminTable>
+  </AdminCard>
+) : null}
+```
+
+Flip Step 6 checkbox.
+
+- [ ] **Step 7: Full verification.**
+
+```
+pnpm test workers/instagram-webhook
+pnpm test lib/db/beta-queries.test.ts
+pnpm typecheck
+pnpm build
+pnpm wrangler deploy --dry-run
+```
+All must pass.
+
+Flip Step 7 checkbox.
+
+- [ ] **Step 8: Mark Task 18 step checkboxes complete in this plan file.**
+
+Verify Steps 1–7 are `[x]`. Flip Step 8 itself.
+
+- [ ] **Step 9: Commit.**
+
+```bash
+git add workers/instagram-webhook/src/match.ts workers/instagram-webhook/src/match.test.ts lib/db/beta-queries.ts 'app/admin/(protected)/webhooks/page.tsx' docs/plans/2026-06-02-granite-phase-5.md
+git commit -m "fix(webhook): record auto-match orphan beta in operational event and surface in admin"
+```
+
+After commit, follow up:
+
+```bash
+git add docs/plans/2026-06-02-granite-phase-5.md
+git commit -m "docs(phase5): mark Task 18 Step 9 complete"
+```
+
+---
+
+## Task 19: Canonical Media ID for Manual Submissions
+
+**Codex finding addressed:** `parseManualBetaForm` only strips fragments from the input URL, sets `externalMediaId: null`, and `submitManualBetaAction` dedupes by exact `permalink_url`. Variants of the same media bypass dedup: `youtu.be/<id>`, `youtube.com/watch?v=<id>`, `youtube.com/watch?v=<id>&feature=share`, `youtube.com/shorts/<id>`, `youtube.com/embed/<id>` are all distinct strings. Instagram `/p/<shortcode>/`, `/reel/<shortcode>/`, `/tv/<shortcode>/`, with/without query params (e.g. `?utm_source=ig_web`) are also all distinct. A single user can flood the public moderation queue with N duplicate `pending` Betas for the same video.
+
+Fix: derive a canonical `externalMediaId` from the URL at submission time (YouTube video id or Instagram shortcode). Use the existing `(platform, external_media_id)` unique index for DB-level guarantee and check `findExistingBetaByExternalMedia` before falling back to `findExistingBetaByPermalink`.
+
+**Known limitation (documented, NOT fixed in this task):** The Worker stores Instagram's numeric `media_id` from Graph API in `external_media_id`, while manual submissions will store the alphanumeric URL shortcode. These will NOT cross-deduplicate. Closing that gap requires either (a) Worker extracting shortcode from `mentioned_media.permalink`, or (b) manual flow calling Graph API to resolve the shortcode to a media_id. Both are out of scope for Phase 5; record as Future Work.
+
+**Files:**
+- Modify: `lib/beta/normalize.ts` (add `extractCanonicalMediaId`)
+- Modify: `lib/beta/normalize.test.ts`
+- Modify: `lib/actions/beta-schema.ts` (populate canonical id)
+- Modify: `lib/actions/beta.ts` (two-tier dedup)
+- Modify: `lib/actions/beta.test.ts`
+- Modify: `docs/plans/2026-06-02-granite-phase-5.md` (checkboxes; add Future Work note)
+
+- [ ] **Step 1: Write failing tests for `extractCanonicalMediaId`.**
+
+In `lib/beta/normalize.test.ts`, append a new `describe`:
+
+```ts
+import { extractCanonicalMediaId } from "./normalize"; // add to existing import
+
+describe("extractCanonicalMediaId", () => {
+  it("extracts YouTube video id from every supported URL format", () => {
+    expect(extractCanonicalMediaId("https://youtu.be/dQw4w9WgXcQ", "youtube")).toBe("dQw4w9WgXcQ");
+    expect(extractCanonicalMediaId("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "youtube")).toBe("dQw4w9WgXcQ");
+    expect(
+      extractCanonicalMediaId("https://www.youtube.com/watch?v=dQw4w9WgXcQ&feature=share", "youtube")
+    ).toBe("dQw4w9WgXcQ");
+    expect(extractCanonicalMediaId("https://www.youtube.com/shorts/dQw4w9WgXcQ", "youtube")).toBe("dQw4w9WgXcQ");
+    expect(extractCanonicalMediaId("https://www.youtube.com/embed/dQw4w9WgXcQ", "youtube")).toBe("dQw4w9WgXcQ");
+  });
+
+  it("extracts Instagram shortcode from /p/, /reel/, /tv/ regardless of query string", () => {
+    expect(extractCanonicalMediaId("https://www.instagram.com/p/CxYz123abc/", "instagram")).toBe("CxYz123abc");
+    expect(extractCanonicalMediaId("https://www.instagram.com/reel/CxYz123abc/", "instagram")).toBe("CxYz123abc");
+    expect(extractCanonicalMediaId("https://www.instagram.com/tv/CxYz123abc/", "instagram")).toBe("CxYz123abc");
+    expect(
+      extractCanonicalMediaId("https://www.instagram.com/p/CxYz123abc/?utm_source=ig_web", "instagram")
+    ).toBe("CxYz123abc");
+  });
+
+  it("returns null when the URL pattern doesn't match a known media format", () => {
+    expect(extractCanonicalMediaId("https://www.youtube.com/", "youtube")).toBeNull();
+    expect(extractCanonicalMediaId("https://www.youtube.com/channel/UCabcd", "youtube")).toBeNull();
+    expect(extractCanonicalMediaId("https://www.instagram.com/some_user/", "instagram")).toBeNull();
+    expect(extractCanonicalMediaId("not-a-url", "youtube")).toBeNull();
+  });
+});
+```
+
+Flip Step 1 checkbox.
+
+- [ ] **Step 2: Run the test, confirm it fails.**
+
+```
+pnpm test lib/beta/normalize.test.ts
+```
+Expected: new tests fail (function does not exist yet).
+
+Flip Step 2 checkbox.
+
+- [ ] **Step 3: Implement `extractCanonicalMediaId` in `lib/beta/normalize.ts`.**
+
+Append to the file:
+
+```ts
+const YOUTUBE_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+export function extractCanonicalMediaId(rawUrl: string, platform: BetaPlatform): string | null {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    return null;
+  }
+  const host = url.hostname.toLowerCase();
+
+  if (platform === "youtube") {
+    if (host === "youtu.be") {
+      const id = url.pathname.split("/").filter(Boolean)[0] ?? null;
+      return id && YOUTUBE_ID_PATTERN.test(id) ? id : null;
+    }
+    if (host === "youtube.com" || host === "www.youtube.com") {
+      const v = url.searchParams.get("v");
+      if (v && YOUTUBE_ID_PATTERN.test(v)) return v;
+      const match = url.pathname.match(/^\/(shorts|embed)\/([A-Za-z0-9_-]+)/);
+      if (match) return match[2];
+      return null;
+    }
+    return null;
+  }
+
+  if (platform === "instagram") {
+    if (host !== "instagram.com" && host !== "www.instagram.com") return null;
+    const match = url.pathname.match(/^\/(p|reel|tv)\/([^/]+)/);
+    return match ? match[2] : null;
+  }
+
+  return null;
+}
+```
+
+Flip Step 3 checkbox.
+
+- [ ] **Step 4: Run tests, confirm pass.**
+
+```
+pnpm test lib/beta/normalize.test.ts
+```
+All extractCanonicalMediaId tests pass.
+
+Flip Step 4 checkbox.
+
+- [ ] **Step 5: Update `lib/actions/beta-schema.ts` to populate `externalMediaId`.**
+
+Update imports:
+
+```ts
+import {
+  detectMediaPlatform,
+  extractCanonicalMediaId,
+  normalizeHandle,
+  normalizeYouTubeOrInstagramUrl,
+} from "@/lib/beta/normalize";
+```
+
+In `parseManualBetaForm`, replace `externalMediaId: null` with the canonical extraction:
+
+```ts
+const platform = detectMediaPlatform(mediaUrl);
+return {
+  routeId: parsed.routeId,
+  mediaUrl,
+  permalinkUrl: mediaUrl,
+  externalMediaId: extractCanonicalMediaId(mediaUrl, platform),
+  displayName: parsed.displayName.trim(),
+  instagramId: normalizeHandle(parsed.instagramId),
+  platform,
+  sentAt: parsed.sentAt,
+};
+```
+
+This is null-safe: if the URL doesn't match a known pattern, `externalMediaId` stays `null` and the action will fall through to the permalink-based dedup (Step 7).
+
+Flip Step 5 checkbox.
+
+- [ ] **Step 6: Write a failing test for variant-URL dedup.**
+
+In `lib/actions/beta.test.ts`, add `findExistingBetaByExternalMedia: vi.fn()` to the `vi.mock("@/lib/db/beta-queries", ...)` factory (alongside the existing `findExistingBetaByPermalink`).
+
+Add a new test:
+
+```ts
+it("rejects a second submission that resolves to the same canonical media id", async () => {
+  const { findExistingBetaByExternalMedia, findExistingBetaByPermalink } = await import("@/lib/db/beta-queries");
+
+  // First submission resolved canonical id "dQw4w9WgXcQ"; the second submission
+  // (different URL form) must short-circuit on the canonical-id lookup before
+  // touching the permalink lookup.
+  vi.mocked(findExistingBetaByExternalMedia).mockResolvedValueOnce({ id: "beta_existing", status: "pending" });
+  vi.mocked(findExistingBetaByPermalink).mockResolvedValue(null);
+
+  const form = new FormData();
+  form.set("routeId", "route_1");
+  form.set("mediaUrl", "https://www.youtube.com/watch?v=dQw4w9WgXcQ&feature=share");
+  form.set("displayName", "Climber");
+  form.set("instagramId", "@climber");
+  form.set("sentAt", "2026-06-02");
+
+  await expect(submitManualBetaAction(form)).resolves.toEqual({
+    ok: false,
+    message: "이미 등록된 영상입니다.",
+  });
+
+  // Canonical-id lookup must have been called with the extracted video id.
+  expect(findExistingBetaByExternalMedia).toHaveBeenCalledWith("youtube", "dQw4w9WgXcQ");
+});
+```
+
+Flip Step 6 checkbox.
+
+- [ ] **Step 7: Update `lib/actions/beta.ts` for two-tier dedup.**
+
+Update imports:
+
+```ts
+import {
+  createManualBeta,
+  findExistingBetaByExternalMedia,
+  findExistingBetaByPermalink,
+  updateBetaThumbnailUrl,
+} from "@/lib/db/beta-queries";
+```
+
+In `submitManualBetaAction`, replace the existing dedup block with:
+
+```ts
+let existing = null;
+if (parsed.externalMediaId) {
+  existing = await findExistingBetaByExternalMedia(parsed.platform, parsed.externalMediaId);
+}
+if (!existing) {
+  existing = await findExistingBetaByPermalink(parsed.platform, parsed.permalinkUrl);
+}
+if (existing) {
+  return { ok: false, message: "이미 등록된 영상입니다." };
+}
+```
+
+The downstream `createManualBeta` call already receives `externalMediaId` and persists it — no change to the row insert.
+
+Flip Step 7 checkbox.
+
+- [ ] **Step 8: Update existing `lib/actions/beta.test.ts` tests for the new flow.**
+
+The existing happy-path test asserted `createManualBeta` was called with `externalMediaId: null`. Update it to expect the canonical id extracted from the test's Instagram URL:
+
+```ts
+// In the existing "creates a pending manual instagram beta" test:
+expect(createManualBeta).toHaveBeenCalledWith({
+  id: "beta_uuid-1",
+  routeId: "route_1",
+  instagramId: "climber",
+  displayName: "Climber",
+  platform: "instagram",
+  mediaUrl: "https://www.instagram.com/p/abc/",
+  permalinkUrl: "https://www.instagram.com/p/abc/",
+  externalMediaId: "abc",                          // canonical shortcode, was null
+  sentAt: "2026-06-02",
+});
+```
+
+The existing duplicate test (`returns duplicate message without creating a new beta`) currently mocks `findExistingBetaByPermalink` to return a row. Update it so the SAME row is returned by `findExistingBetaByExternalMedia` (the two-tier dedup checks the canonical lookup first):
+
+```ts
+it("returns duplicate message without creating a new beta", async () => {
+  vi.mocked(findExistingBetaByExternalMedia).mockResolvedValue({ id: "beta_existing", status: "pending" });
+  // findExistingBetaByPermalink mock can stay at its default (returns null); not reached.
+  // ...rest unchanged
+});
+```
+
+Run all updated beta tests:
+
+```
+pnpm test lib/actions/beta.test.ts
+```
+All must pass, including the new Step 6 test.
+
+Flip Step 8 checkbox.
+
+- [ ] **Step 9: Full verification.**
+
+```
+pnpm test
+pnpm typecheck
+pnpm build
+pnpm wrangler deploy --dry-run
+```
+All must pass.
+
+Flip Step 9 checkbox.
+
+- [ ] **Step 10: Add Future Work note to plan + Mark Task 19 step checkboxes complete.**
+
+In the "### Future Work (Phase 6+)" section of this plan file, append:
+
+```
+- **Cross-flow canonical media id alignment.** Webhook stores Instagram numeric `media_id` (from Graph API) in `external_media_id`; manual submissions store the alphanumeric URL shortcode. Same media submitted via both paths will NOT cross-deduplicate. Phase 6 should align by either (a) Worker extracting the shortcode from `mentioned_media.permalink` and storing that, or (b) manual flow resolving the URL via Graph API to a media_id.
+```
+
+Verify Steps 1–9 are `[x]`. Flip Step 10 itself to `[x]`.
+
+- [ ] **Step 11: Commit.**
+
+```bash
+git add lib/beta/normalize.ts lib/beta/normalize.test.ts lib/actions/beta-schema.ts lib/actions/beta.ts lib/actions/beta.test.ts docs/plans/2026-06-02-granite-phase-5.md
+git commit -m "fix(beta): canonical media id dedup for manual submissions"
+```
+
+After commit, follow up:
+
+```bash
+git add docs/plans/2026-06-02-granite-phase-5.md
+git commit -m "docs(phase5): mark Task 19 Step 11 complete"
+```
+
+---
+
 ## Self-Review
 
-- **Spec coverage:** Covers PRD P5-01 through P5-08: caption UI, Worker webhook, inbox persistence, matching, unclaimed Beta creation, admin inbox, Beta moderation, manual registration, and thumbnail fallback. Codex adversarial review iterations 1–3 added Tasks 12–17 to close concrete recoverability and integrity gaps: (12) `processMentionEvent` async exceptions stranded `processing` rows; (13) `manualMatchWebhookToRoute` was non-atomic and used the wrong identifier for comment mentions; (14) `webhook_inbox` was never hydrated with the Graph API response; (15) `manualMatchWebhookToRoute` had no compensating action for INSERT/finalize partial failures; (16) `INSERT OR IGNORE` early-return made Meta dashboard redelivery a silent no-op for failed/processing/unmatched rows; (17) `external_media_id` fallback to `external_id` was unsafe for legacy comment-mention rows.
+- **Spec coverage:** Covers PRD P5-01 through P5-08: caption UI, Worker webhook, inbox persistence, matching, unclaimed Beta creation, admin inbox, Beta moderation, manual registration, and thumbnail fallback. Codex adversarial review iterations 1–4 added Tasks 12–19 to close concrete recoverability and integrity gaps: (12) `processMentionEvent` async exceptions stranded `processing` rows; (13) `manualMatchWebhookToRoute` was non-atomic and used the wrong identifier for comment mentions; (14) `webhook_inbox` was never hydrated with the Graph API response; (15) `manualMatchWebhookToRoute` had no compensating action for INSERT/finalize partial failures; (16) `INSERT OR IGNORE` early-return made Meta dashboard redelivery a silent no-op for failed/processing/unmatched rows; (17) `external_media_id` fallback to `external_id` was unsafe for legacy comment-mention rows; (18) auto-match `betaId` was lost in the outer catch handler, producing unlinked orphan Betas invisible to admin tooling; (19) manual submission dedup compared exact `permalink_url`, missing URL variants of the same media.
 - **Excluded intentionally:** OAuth, my records, projects, and unclaimed claims remain Phase 6. Scheduled retry, manual-submission rate limit, moderation SLA, and webhook admin notification channel are also explicitly out of scope (see Out Of Scope and Future Work).
 - **Risk areas:** Meta payload shape and permission review may require adjustment after the real app callback is approved. Worker D1/R2 binding names (`granite_v2`, `BUCKET`) must remain aligned with the production Cloudflare project before deploy. D1 HTTP API lacks true transactions; Task 13's claim/insert sequence reduces but cannot fully eliminate the race window — acceptable because manual matching is admin-gated and operationally infrequent.
 - **Verification:** Each implementation task has a focused Vitest/typecheck/build or manual QA gate. Tasks 1–11 are implemented and committed on `phase5-implementation` (commits `fbb07da` through `d29ea51`, 370 tests passing). Tasks 12–13 are pending implementation. Final release requires Meta app review and production HMAC verification (Task 11 Step 5 manual QA, deferred to launch).
