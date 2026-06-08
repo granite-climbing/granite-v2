@@ -4746,7 +4746,7 @@ In the "### Future Work (Phase 6+)" section of this plan file, append:
 
 Verify Steps 1–9 are `[x]`. Flip Step 10 itself to `[x]`.
 
-- [ ] **Step 11: Commit.**
+- [x] **Step 11: Commit.**
 
 ```bash
 git add lib/beta/normalize.ts lib/beta/normalize.test.ts lib/actions/beta-schema.ts lib/actions/beta.ts lib/actions/beta.test.ts docs/plans/2026-06-02-granite-phase-5.md
