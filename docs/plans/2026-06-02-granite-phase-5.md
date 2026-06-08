@@ -4193,7 +4193,7 @@ The fix captures the newly-inserted `betaId` in the outer scope so the catch pat
 - Modify: `app/admin/(protected)/webhooks/page.tsx` (extend orphan callout)
 - Modify: `docs/plans/2026-06-02-granite-phase-5.md` (checkboxes)
 
-- [ ] **Step 1: Write a failing test for the auto-match orphan path.**
+- [x] **Step 1: Write a failing test for the auto-match orphan path.**
 
 Open `workers/instagram-webhook/src/match.test.ts`. Append at the end of the existing top-level `describe(...)`:
 
@@ -4242,7 +4242,7 @@ If the existing test file doesn't already mock `d1.findExistingBetaByExternalMed
 
 Flip Step 1 checkbox.
 
-- [ ] **Step 2: Run the test, confirm it fails.**
+- [x] **Step 2: Run the test, confirm it fails.**
 
 ```
 pnpm test workers/instagram-webhook/src/match.test.ts
@@ -4251,7 +4251,7 @@ Expected: the new test fails because match.ts loses the `betaId` reference in th
 
 Flip Step 2 checkbox.
 
-- [ ] **Step 3: Carry `betaId` through the catch path in `workers/instagram-webhook/src/match.ts`.**
+- [x] **Step 3: Carry `betaId` through the catch path in `workers/instagram-webhook/src/match.ts`.**
 
 Read the current file. The function body has `const betaId = uuid("beta");` inside the matched branch of the try block. Hoist that into an outer-scope `let createdBetaId: string | null = null;` so the catch can inspect it. The catch then writes the operational event with both the original error context AND the betaId, when set:
 
@@ -4340,7 +4340,7 @@ Notes:
 
 Flip Step 3 checkbox.
 
-- [ ] **Step 4: Run tests, confirm pass.**
+- [x] **Step 4: Run tests, confirm pass.**
 
 ```
 pnpm test workers/instagram-webhook/src/match.test.ts
@@ -4349,7 +4349,7 @@ Expected: all existing tests + the new orphan test pass.
 
 Flip Step 4 checkbox.
 
-- [ ] **Step 5: Add `getOrphanedAutoMatches` to `lib/db/beta-queries.ts`.**
+- [x] **Step 5: Add `getOrphanedAutoMatches` to `lib/db/beta-queries.ts`.**
 
 Append:
 
@@ -4390,7 +4390,7 @@ export async function getOrphanedAutoMatches(): Promise<OrphanAutoMatchRow[]> {
 
 Flip Step 5 checkbox.
 
-- [ ] **Step 6: Extend admin `/admin/webhooks` page with the auto-match orphan section.**
+- [x] **Step 6: Extend admin `/admin/webhooks` page with the auto-match orphan section.**
 
 In `app/admin/(protected)/webhooks/page.tsx`:
 
@@ -4437,7 +4437,7 @@ const [rows, routes, opEvents, orphans, autoOrphans] = await Promise.all([
 
 Flip Step 6 checkbox.
 
-- [ ] **Step 7: Full verification.**
+- [x] **Step 7: Full verification.**
 
 ```
 pnpm test workers/instagram-webhook
@@ -4450,7 +4450,7 @@ All must pass.
 
 Flip Step 7 checkbox.
 
-- [ ] **Step 8: Mark Task 18 step checkboxes complete in this plan file.**
+- [x] **Step 8: Mark Task 18 step checkboxes complete in this plan file.**
 
 Verify Steps 1–7 are `[x]`. Flip Step 8 itself.
 

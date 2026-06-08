@@ -379,6 +379,37 @@ export async function getOrphanedManualMatches(): Promise<WebhookInboxAdminRow[]
   );
 }
 
+export type OrphanAutoMatchRow = {
+  webhookId: string;
+  externalId: string;
+  igUsername: string;
+  caption: string;
+  receivedAt: string;
+  betaId: string;
+  betaEventCreatedAt: string;
+};
+
+export async function getOrphanedAutoMatches(): Promise<OrphanAutoMatchRow[]> {
+  return queryD1<OrphanAutoMatchRow>(
+    `SELECT
+       wi.id AS webhookId,
+       wi.external_id AS externalId,
+       wi.ig_username AS igUsername,
+       wi.caption,
+       wi.received_at AS receivedAt,
+       ev.beta_id AS betaId,
+       ev.created_at AS betaEventCreatedAt
+     FROM webhook_inbox wi
+     JOIN webhook_operational_events ev ON ev.webhook_id = wi.id
+     WHERE wi.status = 'failed'
+       AND wi.matched_beta_id IS NULL
+       AND ev.beta_id IS NOT NULL
+       AND ev.metadata LIKE '%orphan_beta_auto_match%'
+     ORDER BY ev.created_at DESC`,
+    []
+  );
+}
+
 export type ManualMatchOutcome =
   | { ok: true; betaId: string }
   | { ok: false; reason: "not_unmatched" }

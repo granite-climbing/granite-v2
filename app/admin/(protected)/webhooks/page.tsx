@@ -3,7 +3,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminCard } from "@/components/admin/admin-card";
 import { AdminTable, AdminTableRow, AdminTableCell } from "@/components/admin/admin-table";
 import { btnPrimaryCls, selectCls } from "@/components/admin/admin-field";
-import { getAdminWebhookInbox, getRecentWebhookOperationalEvents, getOrphanedManualMatches } from "@/lib/db/beta-queries";
+import { getAdminWebhookInbox, getRecentWebhookOperationalEvents, getOrphanedManualMatches, getOrphanedAutoMatches } from "@/lib/db/beta-queries";
 import { getAdminRoutes } from "@/lib/db/admin-read-queries";
 import { manualMatchWebhookAction, rejectWebhookAction } from "@/lib/actions/admin-beta";
 import type { WebhookInboxStatus } from "@/lib/db/schema";
@@ -49,11 +49,12 @@ export default async function AdminWebhooksPage({
 }) {
   const resolved = await searchParams;
   const status = parseStatus(resolved.status);
-  const [rows, routes, opEvents, orphans] = await Promise.all([
+  const [rows, routes, opEvents, orphans, autoOrphans] = await Promise.all([
     getAdminWebhookInbox(status),
     getAdminRoutes(),
     getRecentWebhookOperationalEvents(50),
     getOrphanedManualMatches(),
+    getOrphanedAutoMatches(),
   ]);
 
   return (
@@ -98,6 +99,27 @@ export default async function AdminWebhooksPage({
                   <span className="line-clamp-2">{row.caption || "-"}</span>
                 </AdminTableCell>
                 <AdminTableCell>{row.lastErrorCode || "-"}</AdminTableCell>
+              </AdminTableRow>
+            ))}
+          </AdminTable>
+        </AdminCard>
+      ) : null}
+
+      {/* Auto-match orphan callout */}
+      {autoOrphans.length > 0 ? (
+        <AdminCard title={`자동 매칭 고립 Beta (${autoOrphans.length})`}>
+          <p className="mb-2 text-[12px] font-bold text-[#B53A3A]">
+            Worker 자동 매칭에서 Beta는 생성되었지만 webhook_inbox 링크가 실패한 행입니다. 운영자가 Beta 존재 여부 확인 후 직접 SQL로 재연결하거나, Beta를 삭제 후 거절해 주세요.
+          </p>
+          <AdminTable headers={["Received At", "IG User", "Caption", "Beta ID"]}>
+            {autoOrphans.map((row) => (
+              <AdminTableRow key={`${row.webhookId}-${row.betaId}`}>
+                <AdminTableCell>{row.receivedAt}</AdminTableCell>
+                <AdminTableCell>@{row.igUsername || "-"}</AdminTableCell>
+                <AdminTableCell>
+                  <span className="line-clamp-2">{row.caption || "-"}</span>
+                </AdminTableCell>
+                <AdminTableCell>{row.betaId}</AdminTableCell>
               </AdminTableRow>
             ))}
           </AdminTable>

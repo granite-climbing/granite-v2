@@ -55,6 +55,8 @@ export async function processMentionEvent(
     // tryReclaimWebhookForRetry already set status='processing' + incremented attempts.
   }
 
+  let createdBetaId: string | null = null;
+
   try {
   let captionText = "";
   if (event.commentId) {
@@ -192,9 +194,9 @@ export async function processMentionEvent(
   }
 
   const route = matches[0];
-  const betaId = uuid("beta");
+  createdBetaId = uuid("beta");
   await insertWebhookBeta(env.granite_v2, {
-    id: betaId,
+    id: createdBetaId,
     routeId: route.routeId,
     instagramId: igUsername,
     displayName: igUsername,
@@ -207,15 +209,15 @@ export async function processMentionEvent(
   await setWebhookInboxStatus(env.granite_v2, {
     id: webhookId,
     status: "matched",
-    matchedBetaId: betaId,
+    matchedBetaId: createdBetaId,
   });
 
   // Thumbnail copy
-  const cdnUrl = await attemptThumbnailCopy(env.BUCKET, env.CDN_BASE_URL, betaId, media);
+  const cdnUrl = await attemptThumbnailCopy(env.BUCKET, env.CDN_BASE_URL, createdBetaId, media);
   if (cdnUrl) {
     await env.granite_v2
       .prepare(`UPDATE betas SET thumbnail_url = ?, updated_at = datetime('now') WHERE id = ?`)
-      .bind(cdnUrl, betaId)
+      .bind(cdnUrl, createdBetaId)
       .run();
   } else {
     // Thumbnail copy failed; primary status (matched) stays.
@@ -227,7 +229,7 @@ export async function processMentionEvent(
       id: uuid("opev"),
       eventType: "thumbnail_copy_failed",
       webhookId,
-      betaId,
+      betaId: createdBetaId,
       requestId: "",
       method: "POST",
       path: "/webhooks/instagram",
@@ -239,6 +241,19 @@ export async function processMentionEvent(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     try {
+      if (createdBetaId !== null) {
+        // Best-effort: try one more time to link the inbox. If this also fails,
+        // the operational event below preserves enough context for an operator.
+        try {
+          await setWebhookInboxStatus(env.granite_v2, {
+            id: webhookId,
+            status: "matched",
+            matchedBetaId: createdBetaId,
+          });
+        } catch {
+          // proceed with orphan logging
+        }
+      }
       await setWebhookInboxStatus(env.granite_v2, {
         id: webhookId,
         status: "failed",
@@ -249,13 +264,17 @@ export async function processMentionEvent(
         id: uuid("opev"),
         eventType: "graph_api_failure",
         webhookId,
-        betaId: null,
+        betaId: createdBetaId,
         requestId: "",
         method: "POST",
         path: "/webhooks/instagram",
         statusCode: null,
-        message: `processMentionEvent threw: ${message}`,
-        metadata: "{}",
+        message: createdBetaId
+          ? `processMentionEvent threw after beta insert: ${message}`
+          : `processMentionEvent threw: ${message}`,
+        metadata: createdBetaId
+          ? JSON.stringify({ kind: "orphan_beta_auto_match", reason: message })
+          : "{}",
       });
     } catch (recoveryError) {
       console.error("processMentionEvent recovery failed:", recoveryError);

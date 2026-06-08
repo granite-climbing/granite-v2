@@ -185,3 +185,54 @@ describe("processMentionEvent redelivery", () => {
     expect(d1.tryReclaimWebhookForRetry).not.toHaveBeenCalled();
   });
 });
+
+describe("processMentionEvent orphan recovery", () => {
+  beforeEach(() => {
+    vi.mocked(d1.insertWebhookInbox).mockReset().mockResolvedValue({ inserted: true });
+    vi.mocked(d1.setWebhookInboxStatus).mockReset().mockResolvedValue(undefined);
+    vi.mocked(d1.insertWebhookOperationalEvent).mockReset().mockResolvedValue(undefined);
+    vi.mocked(d1.tryReclaimWebhookForRetry).mockReset();
+    vi.mocked(d1.hydrateWebhookInbox).mockReset().mockResolvedValue(undefined);
+    vi.mocked(d1.findExistingBetaByExternalMedia).mockReset().mockResolvedValue(null);
+    vi.mocked(d1.findPublishedRouteCandidates).mockReset();
+    vi.mocked(d1.insertWebhookBeta).mockReset();
+    vi.mocked(graph.fetchMentionedMedia).mockReset();
+    vi.mocked(graph.fetchMentionedComment).mockReset();
+  });
+
+  it("records the betaId in the operational event when the final setWebhookInboxStatus throws", async () => {
+    vi.mocked(d1.insertWebhookInbox).mockResolvedValueOnce({ inserted: true });
+    vi.mocked(graph.fetchMentionedMedia).mockResolvedValueOnce({
+      username: "@Climber",
+      caption: "@granite.kr #큰바위 #SkyHook",
+      mediaUrl: "https://video.cdninstagram.com/abc",
+      thumbnailUrl: "https://scontent.cdninstagram.com/abc.jpg",
+      permalink: "https://www.instagram.com/p/abc/",
+    });
+    vi.mocked(d1.findExistingBetaByExternalMedia).mockResolvedValueOnce(null);
+    vi.mocked(d1.findPublishedRouteCandidates).mockResolvedValueOnce([
+      { routeId: "route_1", routeName: "SkyHook", boulderName: "큰바위", boulderHashtags: "[]" },
+    ]);
+    vi.mocked(d1.insertWebhookBeta).mockResolvedValueOnce(undefined);
+
+    vi.mocked(d1.setWebhookInboxStatus)
+      .mockResolvedValueOnce(undefined) // initial processing transition
+      .mockImplementationOnce(async () => {
+        throw new Error("D1 network blip during matched finalize");
+      });
+
+    await processMentionEvent(
+      { externalId: "m_orphan", igUserId: "u1", mediaId: "m_orphan", commentId: null },
+      env,
+      "{}"
+    );
+
+    const opCalls = vi.mocked(d1.insertWebhookOperationalEvent).mock.calls;
+    const orphanCall = opCalls.find((c) => {
+      const meta = c[1].metadata;
+      return typeof meta === "string" && meta.includes("orphan_beta_auto_match");
+    });
+    expect(orphanCall).toBeDefined();
+    expect(orphanCall?.[1].betaId).toMatch(/^beta_/);
+  });
+});
