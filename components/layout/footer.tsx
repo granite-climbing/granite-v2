@@ -1,10 +1,19 @@
+import Link from "next/link";
+
 export function Footer() {
   return (
-    <footer className="h-[152px] bg-[#121212] px-4 py-6 text-[#7A7A7A]">
+    <footer className="h-[176px] bg-[#121212] px-4 py-6 text-[#7A7A7A]">
       <div className="flex items-start justify-between">
         <div className="space-y-3 text-[12px] font-medium leading-4">
-          <p>이용약관</p>
-          <p>개인정보처리방침</p>
+          <Link href="/terms" className="block">
+            이용약관
+          </Link>
+          <Link href="/privacy" className="block">
+            개인정보처리방침
+          </Link>
+          <Link href="/data-deletion" className="block">
+            데이터 삭제
+          </Link>
         </div>
         <a
           href="https://www.instagram.com/"
@@ -27,7 +36,7 @@ export function Footer() {
           </svg>
         </a>
       </div>
-      <p className="mt-[52px] text-[12px] font-medium leading-4">
+      <p className="mt-6 text-[12px] font-medium leading-4">
         Copyright ⓒ 2026 Granite All rights reserved.
       </p>
     </footer>
