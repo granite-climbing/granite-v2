@@ -27,8 +27,8 @@ export function BetaVideoSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60">
-      <section className="absolute inset-x-0 bottom-0 top-[116px] overflow-y-auto rounded-t-[12px] bg-white">
+    <div className="fixed inset-0 -translate-x-1/2 left-1/2 z-50 bg-black/60 max-w-[430px] w-full">
+      <section className="absolute inset-x-0 bottom-0 top-[352px] overflow-y-auto rounded-t-[12px] bg-white">
         <div className="mx-auto mt-2 h-[2px] w-8 rounded-full bg-[#B8B8B8]" />
         <header className="relative flex h-[38px] items-center justify-center border-b border-[#E8E8E8]">
           <h2 className="text-[18px] font-medium leading-6 text-[#090909]">베타 동영상</h2>

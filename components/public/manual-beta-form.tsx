@@ -17,7 +17,7 @@ export function ManualBetaForm({
   }, null);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/40">
+    <div className="fixed inset-y-0 left-1/2 z-50 flex w-full max-w-[430px] -translate-x-1/2 items-end bg-black/40">
       <form action={formAction} className="w-full rounded-t-2xl bg-white p-4 shadow-xl">
         <input type="hidden" name="routeId" value={routeId} />
         <div className="mb-3 flex items-center justify-between">
