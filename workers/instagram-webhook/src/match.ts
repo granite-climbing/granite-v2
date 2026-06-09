@@ -103,7 +103,7 @@ export async function processMentionEvent(
   const media = await fetchMentionedMedia({
     businessAccountId: event.entryId,
     mediaId: event.mediaId,
-    accessToken: env.INSTAGRAM_GRAPH_ACCESS_TOKEN,
+    accessToken: env.META_PAGE_ACCESS_TOKEN,
   });
   logStep("05.fetch_media.done", {
     webhookId,

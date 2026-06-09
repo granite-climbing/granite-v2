@@ -82,7 +82,7 @@ App Review 제출 자료:
 - [ ] Meta Business Manager 등록 (없으면)
 - [ ] Business Manager에 System User 생성
 - [ ] System User에 Granite Instagram Page admin 권한 부여
-- [ ] System User token 발급 → `INSTAGRAM_GRAPH_ACCESS_TOKEN`으로 Worker secret 설정
+- [ ] System User token 발급 → `META_PAGE_ACCESS_TOKEN`으로 Worker secret 설정
 - [ ] 토큰 발급 일자 + 발급자 기록
 
 대안 (System User 사용 불가 시): Long-lived Page token (60일 만료)
@@ -90,7 +90,7 @@ App Review 제출 자료:
 - [ ] Graph API Explorer에서 short-lived user token 발급
 - [ ] long-lived user token으로 exchange (60일)
 - [ ] `/me/accounts` 호출 → Granite Page의 long-lived Page token 추출
-- [ ] `INSTAGRAM_GRAPH_ACCESS_TOKEN`으로 설정
+- [ ] `META_PAGE_ACCESS_TOKEN`으로 설정
 
 ### 1-F. 토큰 만료 SOP
 
@@ -139,10 +139,10 @@ pnpm wrangler secret put META_APP_SECRET
 pnpm wrangler secret put META_WEBHOOK_VERIFY_TOKEN
 ```
 
-- [x] `INSTAGRAM_GRAPH_ACCESS_TOKEN` 설정
+- [x] `META_PAGE_ACCESS_TOKEN` 설정
 
 ```bash
-pnpm wrangler secret put INSTAGRAM_GRAPH_ACCESS_TOKEN
+pnpm wrangler secret put META_PAGE_ACCESS_TOKEN
 ```
 
 ### 2-C. Worker 배포

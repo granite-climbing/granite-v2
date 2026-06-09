@@ -10,7 +10,7 @@ function logStep(step: string, ctx: Record<string, unknown>): void {
 export interface Env {
   META_APP_SECRET: string;
   META_WEBHOOK_VERIFY_TOKEN: string;
-  INSTAGRAM_GRAPH_ACCESS_TOKEN: string;
+  META_PAGE_ACCESS_TOKEN: string;
   granite_v2: D1Database;
   BUCKET: R2Bucket;
   CDN_BASE_URL: string;

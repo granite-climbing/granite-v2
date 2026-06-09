@@ -24,7 +24,7 @@ const { processMentionEvent } = await import("./match");
 const env = {
   META_APP_SECRET: "x",
   META_WEBHOOK_VERIFY_TOKEN: "x",
-  INSTAGRAM_GRAPH_ACCESS_TOKEN: "x",
+  META_PAGE_ACCESS_TOKEN: "x",
   granite_v2: {} as unknown as D1Database,
   BUCKET: {} as unknown as R2Bucket,
   CDN_BASE_URL: "https://cdn.granite.kr",

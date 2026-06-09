@@ -281,7 +281,7 @@ Instagram Meta에서 웹훅을 재전송하거나 사용자가 같은 영상을 
 
 - **`invalid_signature`** — Meta HMAC 서명 검증 실패. 잠재적 공격이거나 `META_APP_SECRET` 회전 이후 미반영. 단일 발생은 무시. 반복 발생 시 Worker secret `META_APP_SECRET` 확인.
 
-- **`graph_api_failure`** — Meta Graph API 호출 실패(타임아웃, 권한 오류, rate limit 등). `INSTAGRAM_GRAPH_ACCESS_TOKEN` 만료 의심. 아래 ["Graph API 토큰 라이프사이클"](#graph-api-토큰-라이프사이클) 섹션 참고.
+- **`graph_api_failure`** — Meta Graph API 호출 실패(타임아웃, 권한 오류, rate limit 등). `META_PAGE_ACCESS_TOKEN` 만료 의심. 아래 ["Graph API 토큰 라이프사이클"](#graph-api-토큰-라이프사이클) 섹션 참고.
 
 - **`caption_parse_failed`** — 캡션에서 해시태그를 추출할 수 없음. 사용자의 캡션 양식이 문제이거나 파서 로직 버그. 단발성이면 사용자에게 올바른 캡션 양식을 안내. 반복 발생 시 파서 로직 검토.
 
@@ -299,7 +299,7 @@ Instagram Meta에서 웹훅을 재전송하거나 사용자가 같은 영상을 
 
 #### 토큰 수명
 
-`INSTAGRAM_GRAPH_ACCESS_TOKEN`은 Meta에서 발급한 **Long-lived token** (60일 유효) 또는 **System User token** (무기한)이다. 출시 권장은 System User token — 갱신 SOP가 불필요.
+`META_PAGE_ACCESS_TOKEN`은 Meta에서 발급한 **Long-lived token** (60일 유효) 또는 **System User token** (무기한)이다. 출시 권장은 System User token — 갱신 SOP가 불필요.
 
 #### 만료 추적 (Long-lived token 사용 시)
 

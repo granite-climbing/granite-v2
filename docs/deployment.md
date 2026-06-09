@@ -263,14 +263,14 @@ Set the three Worker secrets required for Instagram webhook validation and Graph
 ```bash
 pnpm wrangler secret put META_APP_SECRET
 pnpm wrangler secret put META_WEBHOOK_VERIFY_TOKEN
-pnpm wrangler secret put INSTAGRAM_GRAPH_ACCESS_TOKEN
+pnpm wrangler secret put META_PAGE_ACCESS_TOKEN
 ```
 
 When prompted, enter each secret value:
 
 - `META_APP_SECRET` — Your Meta App's app secret (from Developers Dashboard).
 - `META_WEBHOOK_VERIFY_TOKEN` — Your chosen verification token (can be any string; must match Meta dashboard configuration).
-- `INSTAGRAM_GRAPH_ACCESS_TOKEN` — Long-lived Instagram Graph API token (60-day expiration; update before expiry).
+- `META_PAGE_ACCESS_TOKEN` — Long-lived Instagram Graph API token (60-day expiration; update before expiry).
 
 ### Step 3: Deploy the Worker
 

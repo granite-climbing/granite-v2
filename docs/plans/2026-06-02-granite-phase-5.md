@@ -21,7 +21,7 @@
 - [ ] Register webhook callback URL and verify `hub.challenge`.
 - [ ] Create `META_APP_SECRET` and `META_WEBHOOK_VERIFY_TOKEN`.
 - [ ] Create a long-lived Instagram Graph API access token for the connected Granite professional account.
-- [ ] Store Worker secrets with `pnpm wrangler secret put META_APP_SECRET`, `pnpm wrangler secret put META_WEBHOOK_VERIFY_TOKEN`, and `pnpm wrangler secret put INSTAGRAM_GRAPH_ACCESS_TOKEN`.
+- [ ] Store Worker secrets with `pnpm wrangler secret put META_APP_SECRET`, `pnpm wrangler secret put META_WEBHOOK_VERIFY_TOKEN`, and `pnpm wrangler secret put META_PAGE_ACCESS_TOKEN`.
 - [ ] Configure web app environment variables for manual URL thumbnail lookup: `META_APP_ID`, `META_APP_SECRET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_ENDPOINT`, and `CDN_BASE_URL`.
 - [ ] Confirm raw webhook payload retention period for privacy policy/SOP.
 - [ ] Confirm caption normalization policy for same-name Boulder/Route collisions: automatic match only when exactly one published Route candidate remains; otherwise send to admin inbox.
@@ -1757,7 +1757,7 @@ import { processMentionEvent } from "./match";
 export interface Env {
   META_APP_SECRET: string;
   META_WEBHOOK_VERIFY_TOKEN: string;
-  INSTAGRAM_GRAPH_ACCESS_TOKEN: string;
+  META_PAGE_ACCESS_TOKEN: string;
   DB: D1Database;
   BETA_THUMBNAILS: R2Bucket;
   CDN_BASE_URL: string;
@@ -2447,7 +2447,7 @@ Modify `docs/deployment.md` to include:
 pnpm wrangler d1 migrations apply granite
 pnpm wrangler secret put META_APP_SECRET
 pnpm wrangler secret put META_WEBHOOK_VERIFY_TOKEN
-pnpm wrangler secret put INSTAGRAM_GRAPH_ACCESS_TOKEN
+pnpm wrangler secret put META_PAGE_ACCESS_TOKEN
 pnpm wrangler deploy
 ```
 
@@ -2538,7 +2538,7 @@ const { processMentionEvent } = await import("./match");
 const env = {
   META_APP_SECRET: "x",
   META_WEBHOOK_VERIFY_TOKEN: "x",
-  INSTAGRAM_GRAPH_ACCESS_TOKEN: "x",
+  META_PAGE_ACCESS_TOKEN: "x",
   granite_v2: {} as unknown as D1Database,
   BUCKET: {} as unknown as R2Bucket,
   CDN_BASE_URL: "https://cdn.granite.kr",
