@@ -5336,7 +5336,7 @@ Flip Step 9 checkbox.
 
 Verify Steps 1–9 are `[x]`. Flip Step 10 itself.
 
-- [ ] **Step 11: Commit.**
+- [x] **Step 11: Commit.**
 
 ```bash
 git add lib/db/beta-queries.ts lib/db/admin-read-queries.ts lib/db/beta-queries.test.ts lib/actions/beta.ts lib/actions/beta.test.ts lib/actions/admin-beta.ts 'app/admin/(protected)/webhooks/page.tsx' docs/plans/2026-06-02-granite-phase-5.md
