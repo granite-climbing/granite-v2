@@ -24,6 +24,7 @@ vi.mock("./queries", () => ({
   getAreaBySlug: vi.fn(),
   getAreaStats: vi.fn(),
   getAreaGradeDistribution: vi.fn(),
+  getAllCragGradeCounts: vi.fn(),
   getAreaCragsWithCoords: vi.fn(),
   // Announcements
   getPublishedAnnouncements: vi.fn(),
@@ -203,6 +204,7 @@ import type { RouteListItem } from "./schema";
 // ---------------------------------------------------------------------------
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(queries.getAllCragGradeCounts).mockResolvedValue([]);
 });
 
 // ---------------------------------------------------------------------------

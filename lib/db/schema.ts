@@ -139,7 +139,7 @@ export type SectorDetail = Sector & {
 export type HomeModel = {
   totals: Stats;
   areas: Array<Area & { stats: Stats }>;
-  allCrags: Array<Crag & { stats: Omit<Stats, "crags"> }>;
+  allCrags: Array<Crag & { stats: Omit<Stats, "crags">; gradeCounts: number[] }>;
   announcements: Announcement[];
 };
 
@@ -161,7 +161,7 @@ export type CragLocation = {
 export type AreaDetail = Area & {
   stats: Stats;
   gradeDistribution: GradeBand[];
-  crags: Array<Crag & { stats: Omit<Stats, "crags"> }>;
+  crags: Array<Crag & { stats: Omit<Stats, "crags">; gradeCounts: number[] }>;
   cragLocations: CragLocation[];
 };
 

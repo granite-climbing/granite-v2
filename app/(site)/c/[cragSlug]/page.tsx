@@ -6,6 +6,7 @@ import { KakaoMap } from "@/components/public/kakao-map";
 import { SearchField } from "@/components/public/search-field";
 import { findCragBySlug } from "@/lib/db/repository";
 import type { CragDetail, RouteListItem, TabName } from "@/lib/db/schema";
+import { bucketGradeNums, GRADE_LABELS } from "@/lib/grade-histogram";
 
 export const dynamic = "force-dynamic";
 
@@ -161,7 +162,11 @@ function CragTabPanel({
             <EmptyResult query={query} />
           ) : (
             filtered.map((sector) => (
-              <SectorCard key={sector.id} sector={sector} />
+              <SectorCard
+                key={sector.id}
+                sector={sector}
+                routes={crag.routes.filter((r) => r.sectorSlug === sector.slug)}
+              />
             ))
           )}
         </div>
@@ -193,7 +198,12 @@ function CragTabPanel({
             <EmptyResult query={query} />
           ) : (
             filtered.map((boulder) => (
-              <BoulderListCard key={boulder.id} boulder={boulder} cragSlug={crag.slug} />
+              <BoulderListCard
+                key={boulder.id}
+                boulder={boulder}
+                cragSlug={crag.slug}
+                routes={crag.routes.filter((r) => r.boulderId === boulder.id)}
+              />
             ))
           )}
         </div>
@@ -382,17 +392,14 @@ function InfoPanel({ crag }: { crag: CragDetail }) {
 }
 
 function GradeHistogram({ crag }: { crag: CragDetail }) {
-  // Simple placeholder bars using route count data
-  // In a real implementation this would use crag.stats.gradeDistribution
-  const bars = [5, 12, 20, 24, 16, 2, 0, 0, 0, 0, 0, 0];
-  const gradeLabels = ["V0", "V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10", "V11+"];
+  const bars = bucketGradeNums(crag.routes);
   const maxBar = Math.max(...bars, 1);
 
   return (
     <div className="px-4 pb-6 pt-4">
       <div className="flex items-end gap-[2px]">
         {bars.map((h, i) => (
-          <div key={gradeLabels[i]} className="flex flex-1 flex-col items-center gap-[2px]">
+          <div key={GRADE_LABELS[i]} className="flex flex-1 flex-col items-center gap-[2px]">
             {h > 0 ? (
               <span className="text-[8px] font-normal leading-3 text-[#7A7A7A]">{h}</span>
             ) : (
@@ -403,7 +410,7 @@ function GradeHistogram({ crag }: { crag: CragDetail }) {
               style={{ height: `${Math.max(2, Math.round((h / maxBar) * 48))}px` }}
             />
             <span className="text-[8px] font-normal leading-3 text-[#3A3A3A]">
-              {gradeLabels[i]}
+              {GRADE_LABELS[i]}
             </span>
           </div>
         ))}
@@ -418,8 +425,10 @@ function GradeHistogram({ crag }: { crag: CragDetail }) {
 
 function SectorCard({
   sector,
+  routes,
 }: {
   sector: CragDetail["sectors"][number];
+  routes: RouteListItem[];
 }) {
   return (
     <article className="overflow-hidden rounded-[8px] bg-white shadow-[0_0_6px_2px_rgba(0,0,0,0.1)]">
@@ -434,18 +443,42 @@ function SectorCard({
         <p className="mt-1 text-[12px] font-medium leading-4 text-[#7A7A7A]">
           {sector.season} · {sector.description}
         </p>
-        {/* Grade histogram placeholder */}
-        <div className="mt-3 flex items-end gap-[4px]">
-          {[5, 12, 20, 24, 15, 12, 5].map((h, i) => (
-            <div
-              key={i}
-              className="rounded-[2px] bg-[#7A7A7A]"
-              style={{ width: "8px", height: `${h}px` }}
-            />
-          ))}
-        </div>
+        <MiniGradeBars routes={routes} barWidth={8} maxHeight={24} className="mt-3" />
       </div>
     </article>
+  );
+}
+
+function MiniGradeBars({
+  routes,
+  barWidth,
+  maxHeight,
+  className,
+}: {
+  routes: RouteListItem[];
+  barWidth: number;
+  maxHeight: number;
+  className?: string;
+}) {
+  const bars = bucketGradeNums(routes);
+  const max = Math.max(...bars, 1);
+  return (
+    <div
+      className={`flex items-end gap-[2px]${className ? ` ${className}` : ""}`}
+      aria-label="V등급 분포"
+    >
+      {bars.map((count, i) => (
+        <div
+          key={GRADE_LABELS[i]}
+          className="rounded-[2px] bg-[#7A7A7A]"
+          style={{
+            width: `${barWidth}px`,
+            height: `${count === 0 ? 2 : Math.max(2, Math.round((count / max) * maxHeight))}px`,
+            opacity: count === 0 ? 0.25 : 1,
+          }}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -456,9 +489,11 @@ function SectorCard({
 function BoulderListCard({
   boulder,
   cragSlug,
+  routes,
 }: {
   boulder: CragDetail["boulders"][number];
   cragSlug: string;
+  routes: RouteListItem[];
 }) {
   return (
     <Link
@@ -480,16 +515,7 @@ function BoulderListCard({
         <p className="mt-[2px] text-[10px] font-normal leading-[14px] text-[#7A7A7A]">
           {boulder.routeCount} Routes
         </p>
-        {/* Grade histogram bars */}
-        <div className="mt-2 flex items-end gap-[4px]">
-          {[5, 12, 20, 24, 15, 12, 5].map((h, i) => (
-            <div
-              key={i}
-              className="rounded-[2px] bg-[#7A7A7A]"
-              style={{ width: "8px", height: `${h}px` }}
-            />
-          ))}
-        </div>
+        <MiniGradeBars routes={routes} barWidth={6} maxHeight={20} className="mt-2" />
       </div>
       {/* Arrow */}
       <div className="flex shrink-0 items-center pr-2">

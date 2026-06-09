@@ -6,7 +6,12 @@ import { CragCard } from "./crag-card";
 import { DragScroller } from "./drag-scroller";
 
 type CragCarouselProps = {
-  crags: Array<Crag & { stats: { sectors: number; boulders: number; routes: number } }>;
+  crags: Array<
+    Crag & {
+      stats: { sectors: number; boulders: number; routes: number };
+      gradeCounts: number[];
+    }
+  >;
 };
 
 const CARD_STEP = 286;

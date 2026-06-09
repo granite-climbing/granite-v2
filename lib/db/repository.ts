@@ -14,6 +14,7 @@ import {
   getAreaBySlug,
   getAreaStats,
   getAreaGradeDistribution,
+  getAllCragGradeCounts,
   getAreaCragsWithCoords,
   getRouteById,
   getSectorBySlug,
@@ -35,6 +36,28 @@ import type {
   Stats,
   TopoDetail,
 } from "./schema";
+import { GRADE_BUCKET_COUNT } from "../grade-histogram";
+
+async function loadCragGradeCountsByCragId(): Promise<Map<string, number[]>> {
+  const rows = await getAllCragGradeCounts();
+  const map = new Map<string, number[]>();
+  for (const row of rows) {
+    const n = Math.floor(row.gradeNum);
+    if (!Number.isFinite(n) || n < 0) continue;
+    const idx = n >= GRADE_BUCKET_COUNT - 1 ? GRADE_BUCKET_COUNT - 1 : n;
+    let bars = map.get(row.cragId);
+    if (!bars) {
+      bars = Array.from({ length: GRADE_BUCKET_COUNT }, () => 0);
+      map.set(row.cragId, bars);
+    }
+    bars[idx] += row.count;
+  }
+  return map;
+}
+
+function emptyGradeCounts(): number[] {
+  return Array.from({ length: GRADE_BUCKET_COUNT }, () => 0);
+}
 
 // Re-export so that page components can `import type { AreaDetail } from "@/lib/db/repository"`
 // alongside the `findAreaDetailBySlug` function. Mirrors the `RouteListItem` re-export in queries.ts.
@@ -60,12 +83,14 @@ async function loadAreaBySlug(slug: string): Promise<AreaDetail | null> {
   const area = await getAreaBySlug(slug);
   if (!area) return null;
 
-  const [stats, gradeDistribution, areaCrags, cragLocations] = await Promise.all([
-    getAreaStats(area.id),
-    getAreaGradeDistribution(area.id),
-    getCragsByAreaId(area.id),
-    getAreaCragsWithCoords(area.id),
-  ]);
+  const [stats, gradeDistribution, areaCrags, cragLocations, cragGradeCountsByCragId] =
+    await Promise.all([
+      getAreaStats(area.id),
+      getAreaGradeDistribution(area.id),
+      getCragsByAreaId(area.id),
+      getAreaCragsWithCoords(area.id),
+      loadCragGradeCountsByCragId(),
+    ]);
 
   const cragStats = await Promise.all(
     areaCrags.map((crag) => getCragStats(crag.id))
@@ -78,18 +103,21 @@ async function loadAreaBySlug(slug: string): Promise<AreaDetail | null> {
     crags: areaCrags.map((crag, i) => ({
       ...crag,
       stats: cragStats[i] ?? { sectors: 0, boulders: 0, routes: 0 },
+      gradeCounts: cragGradeCountsByCragId.get(crag.id) ?? emptyGradeCounts(),
     })),
     cragLocations,
   };
 }
 
 async function loadHomeModel(): Promise<HomeModel> {
-  const [totals, areas, allCragsFlat, announcements] = await Promise.all([
-    getStats(),
-    getPublishedAreas(),
-    getAllPublishedCrags(),
-    getPublishedAnnouncements(),
-  ]);
+  const [totals, areas, allCragsFlat, announcements, cragGradeCountsByCragId] =
+    await Promise.all([
+      getStats(),
+      getPublishedAreas(),
+      getAllPublishedCrags(),
+      getPublishedAnnouncements(),
+      loadCragGradeCountsByCragId(),
+    ]);
 
   // Build per-area stats by grouping the flat crag list (avoids N queries to
   // getCragsByAreaId — we already have all crags from getAllPublishedCrags).
@@ -132,6 +160,7 @@ async function loadHomeModel(): Promise<HomeModel> {
   const allCrags = allCragsFlat.map((crag) => ({
     ...crag,
     stats: cragStatsById.get(crag.id) ?? { sectors: 0, boulders: 0, routes: 0 },
+    gradeCounts: cragGradeCountsByCragId.get(crag.id) ?? emptyGradeCounts(),
   }));
 
   return { totals, areas: areasWithStats, allCrags, announcements };
