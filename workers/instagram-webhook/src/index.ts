@@ -108,6 +108,26 @@ export default {
     const events = extractMentionEvents(payload);
     logStep("04.events_extracted", { requestId, count: events.length });
 
+    if (events.length === 0) {
+      ctx.waitUntil(
+        insertWebhookOperationalEvent(env.granite_v2, {
+          id: `opev_${crypto.randomUUID()}`,
+          eventType: "no_mention_events",
+          webhookId: null,
+          betaId: null,
+          requestId,
+          method: "POST",
+          path: "/webhooks/instagram",
+          statusCode: 200,
+          message: "Payload parsed but yielded zero mention events",
+          metadata: JSON.stringify({
+            bodyBytes: body.length,
+            bodyPreview: body.slice(0, 500),
+          }),
+        })
+      );
+    }
+
     // Fast ACK: defer event processing so Meta gets a 200 within 2 seconds.
     ctx.waitUntil(
       Promise.all(events.map((event) => processMentionEvent(event, env, body)))
