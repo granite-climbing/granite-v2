@@ -25,6 +25,25 @@ function parseStatus(value: string | undefined): WebhookInboxStatus {
   return FILTERS.find((s) => s === value) ?? "unmatched";
 }
 
+function formatKstDateTime(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value ?? "—";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")}`;
+}
+
 function getStatusBadgeClasses(status: WebhookInboxStatus): string {
   switch (status) {
     case "matched":
@@ -93,7 +112,7 @@ export default async function AdminWebhooksPage({
           <AdminTable headers={["Updated At", "IG User", "Caption", "Last Error"]}>
             {orphans.map((row) => (
               <AdminTableRow key={row.id}>
-                <AdminTableCell>{row.receivedAt}</AdminTableCell>
+                <AdminTableCell className="whitespace-nowrap">{formatKstDateTime(row.receivedAt)}</AdminTableCell>
                 <AdminTableCell>@{row.igUsername || "-"}</AdminTableCell>
                 <AdminTableCell>
                   <span className="line-clamp-2">{row.caption || "-"}</span>
@@ -114,7 +133,7 @@ export default async function AdminWebhooksPage({
           <AdminTable headers={["Received At", "IG User", "Caption", "Beta ID"]}>
             {autoOrphans.map((row) => (
               <AdminTableRow key={`${row.webhookId}-${row.betaId}`}>
-                <AdminTableCell>{row.receivedAt}</AdminTableCell>
+                <AdminTableCell className="whitespace-nowrap">{formatKstDateTime(row.receivedAt)}</AdminTableCell>
                 <AdminTableCell>@{row.igUsername || "-"}</AdminTableCell>
                 <AdminTableCell>
                   <span className="line-clamp-2">{row.caption || "-"}</span>
@@ -137,7 +156,7 @@ export default async function AdminWebhooksPage({
             {rows.map((row) => (
               <AdminTableRow key={row.id}>
                 <AdminTableCell className="text-xs text-[#6F7477] whitespace-nowrap">
-                  {new Date(row.receivedAt).toLocaleDateString()}
+                  {formatKstDateTime(row.receivedAt)}
                 </AdminTableCell>
                 <AdminTableCell className="text-xs font-semibold text-[#111827]">
                   @{row.igUsername}
@@ -240,7 +259,7 @@ export default async function AdminWebhooksPage({
               {opEvents.map((ev) => (
                 <AdminTableRow key={ev.id}>
                   <AdminTableCell className="text-xs text-[#6F7477] whitespace-nowrap">
-                    {new Date(ev.createdAt).toLocaleDateString()}
+                    {formatKstDateTime(ev.createdAt)}
                   </AdminTableCell>
                   <AdminTableCell>
                     <span className="rounded bg-gray-100 px-1 py-0.5 text-xs font-semibold text-[#24292F]">
