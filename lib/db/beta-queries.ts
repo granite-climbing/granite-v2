@@ -384,9 +384,11 @@ export async function getOrphanedManualMatches(): Promise<WebhookInboxAdminRow[]
     `SELECT
        id,
        external_id AS externalId,
+       external_media_id AS externalMediaId,
        ig_username AS igUsername,
        caption,
        media_url AS mediaUrl,
+       permalink_url AS permalinkUrl,
        thumbnail_url AS thumbnailUrl,
        matched_beta_id AS matchedBetaId,
        status,
@@ -405,8 +407,11 @@ export async function getOrphanedManualMatches(): Promise<WebhookInboxAdminRow[]
 export type OrphanAutoMatchRow = {
   webhookId: string;
   externalId: string;
+  externalMediaId: string | null;
   igUsername: string;
   caption: string;
+  permalinkUrl: string | null;
+  thumbnailUrl: string | null;
   receivedAt: string;
   betaId: string;
   betaEventCreatedAt: string;
@@ -417,8 +422,11 @@ export async function getOrphanedAutoMatches(): Promise<OrphanAutoMatchRow[]> {
     `SELECT
        wi.id AS webhookId,
        wi.external_id AS externalId,
+       wi.external_media_id AS externalMediaId,
        wi.ig_username AS igUsername,
        wi.caption,
+       wi.permalink_url AS permalinkUrl,
+       wi.thumbnail_url AS thumbnailUrl,
        wi.received_at AS receivedAt,
        ev.beta_id AS betaId,
        ev.created_at AS betaEventCreatedAt

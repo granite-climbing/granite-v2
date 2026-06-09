@@ -118,13 +118,30 @@ export default async function AdminWebhooksPage({
           <p className="mb-2 text-[12px] font-bold text-[#B53A3A]">
             `manual_matched` 상태인데 `matched_beta_id`가 비어 있는 행입니다. 매뉴얼 매칭 finalize 단계 실패 가능성이 있습니다. 운영자가 Beta 존재 여부를 직접 확인하고 SQL로 재연결하거나 거절해 주세요.
           </p>
-          <AdminTable headers={["Updated At", "IG User", "Caption", "Last Error"]}>
+          <AdminTable headers={["Updated At", "IG User", "Caption", "Thumbnail", "Media", "Last Error"]}>
             {orphans.map((row) => (
               <AdminTableRow key={row.id}>
                 <AdminTableCell className="whitespace-nowrap">{formatKstDateTime(row.receivedAt)}</AdminTableCell>
                 <AdminTableCell>@{row.igUsername || "-"}</AdminTableCell>
                 <AdminTableCell>
                   <span className="line-clamp-2">{row.caption || "-"}</span>
+                </AdminTableCell>
+                <AdminTableCell>
+                  {row.thumbnailUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={row.thumbnailUrl} alt="thumbnail" className="h-12 w-12 rounded object-cover" />
+                  ) : (
+                    <span className="text-xs text-[#6F7477]">—</span>
+                  )}
+                </AdminTableCell>
+                <AdminTableCell className="text-xs">
+                  {row.permalinkUrl ? (
+                    <a href={row.permalinkUrl} target="_blank" rel="noreferrer" className="text-[#0969DA] hover:underline">
+                      IG 게시물
+                    </a>
+                  ) : (
+                    <span className="text-[#6F7477]">—</span>
+                  )}
                 </AdminTableCell>
                 <AdminTableCell>{row.lastErrorCode || "-"}</AdminTableCell>
               </AdminTableRow>
@@ -139,7 +156,7 @@ export default async function AdminWebhooksPage({
           <p className="mb-2 text-[12px] font-bold text-[#B53A3A]">
             Worker 자동 매칭에서 Beta는 생성되었지만 webhook_inbox 링크가 실패한 행입니다. 운영자가 Beta 존재 여부 확인 후 직접 SQL로 재연결하거나, Beta를 삭제 후 거절해 주세요.
           </p>
-          <AdminTable headers={["Received At", "IG User", "Caption", "Beta ID"]}>
+          <AdminTable headers={["Received At", "IG User", "Caption", "Thumbnail", "Media", "Beta ID"]}>
             {autoOrphans.map((row) => (
               <AdminTableRow key={`${row.webhookId}-${row.betaId}`}>
                 <AdminTableCell className="whitespace-nowrap">{formatKstDateTime(row.receivedAt)}</AdminTableCell>
@@ -147,7 +164,24 @@ export default async function AdminWebhooksPage({
                 <AdminTableCell>
                   <span className="line-clamp-2">{row.caption || "-"}</span>
                 </AdminTableCell>
-                <AdminTableCell>{row.betaId}</AdminTableCell>
+                <AdminTableCell>
+                  {row.thumbnailUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={row.thumbnailUrl} alt="thumbnail" className="h-12 w-12 rounded object-cover" />
+                  ) : (
+                    <span className="text-xs text-[#6F7477]">—</span>
+                  )}
+                </AdminTableCell>
+                <AdminTableCell className="text-xs">
+                  {row.permalinkUrl ? (
+                    <a href={row.permalinkUrl} target="_blank" rel="noreferrer" className="text-[#0969DA] hover:underline">
+                      IG 게시물
+                    </a>
+                  ) : (
+                    <span className="text-[#6F7477]">—</span>
+                  )}
+                </AdminTableCell>
+                <AdminTableCell className="font-mono text-xs">{row.betaId}</AdminTableCell>
               </AdminTableRow>
             ))}
           </AdminTable>
