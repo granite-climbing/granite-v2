@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  extractInstagramHtmlAuthorName,
   extractInstagramHtmlThumbnailUrl,
   extractYouTubeThumbnailUrl,
   inferImageExtensionFromContentType,
@@ -28,6 +29,11 @@ describe("thumbnail helpers", () => {
   it("extracts instagram HTML twitter:image fallback", () => {
     const html = '<meta name="twitter:image" content="https://instagram-cdn.example/twitter.jpg">';
     expect(extractInstagramHtmlThumbnailUrl(html)).toBe("https://instagram-cdn.example/twitter.jpg");
+  });
+
+  it("extracts instagram author username from HTML metadata", () => {
+    const html = '<meta property="og:title" content="granite_beta on Instagram: &quot;완등&quot;">';
+    expect(extractInstagramHtmlAuthorName(html)).toBe("granite_beta");
   });
 
   it("infers safe image extensions", () => {

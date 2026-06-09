@@ -33,6 +33,47 @@ export function extractInstagramHtmlThumbnailUrl(html: string): string | null {
   return null;
 }
 
+function decodeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#34;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+function extractMetaContent(html: string, attribute: "property" | "name", key: string): string | null {
+  const patterns = [
+    new RegExp(`<meta\\s+[^>]*${attribute}=["']${key}["'][^>]*content=["']([^"']+)["'][^>]*>`, "i"),
+    new RegExp(`<meta\\s+[^>]*content=["']([^"']+)["'][^>]*${attribute}=["']${key}["'][^>]*>`, "i"),
+  ];
+
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    if (match?.[1]) return decodeHtmlAttribute(match[1]).trim();
+  }
+
+  return null;
+}
+
+export function extractInstagramHtmlAuthorName(html: string): string | null {
+  const candidates = [
+    extractMetaContent(html, "property", "og:title"),
+    extractMetaContent(html, "name", "twitter:title"),
+    extractMetaContent(html, "property", "og:description"),
+    extractMetaContent(html, "name", "description"),
+  ].filter((value): value is string => Boolean(value));
+
+  for (const candidate of candidates) {
+    const match = candidate.match(/^\s*@?([A-Za-z0-9._]+)\s+on\s+Instagram\b/i);
+    if (match?.[1]) return match[1].toLowerCase();
+  }
+
+  return null;
+}
+
 export function inferImageExtensionFromContentType(contentType: string | null): "jpg" | "png" | "webp" | "gif" | null {
   const normalized = contentType?.split(";")[0]?.trim().toLowerCase();
   if (normalized === "image/jpeg") return "jpg";

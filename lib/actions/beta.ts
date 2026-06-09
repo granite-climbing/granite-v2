@@ -9,7 +9,9 @@ import {
   findPublishedRouteIdForBeta,
   updateBetaThumbnailUrl,
 } from "@/lib/db/beta-queries";
+import { fetchInstagramHtmlAuthorName } from "@/lib/beta/instagram-html";
 import { acquireAndStoreBetaThumbnail } from "@/lib/beta/thumbnail-r2";
+import { normalizeHandle } from "@/lib/beta/normalize";
 import { parseManualBetaForm } from "./beta-schema";
 
 export type ManualBetaActionResult = {
@@ -37,11 +39,13 @@ export async function submitManualBetaAction(formData: FormData): Promise<Manual
   }
 
   const betaId = `beta_${randomUUID()}`;
+  const instagramId =
+    parsed.platform === "instagram" ? normalizeHandle((await fetchInstagramHtmlAuthorName(parsed.permalinkUrl)) ?? "") : "";
   await createManualBeta({
     id: betaId,
     routeId: parsed.routeId,
-    instagramId: parsed.instagramId,
-    displayName: parsed.displayName,
+    instagramId,
+    displayName: instagramId,
     platform: parsed.platform,
     mediaUrl: parsed.mediaUrl,
     permalinkUrl: parsed.permalinkUrl,

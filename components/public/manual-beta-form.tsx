@@ -30,14 +30,6 @@ export function ManualBetaForm({
           영상 URL
           <input name="mediaUrl" required type="url" className="mt-1 h-11 w-full rounded-lg border border-[#DADDE1] px-3" />
         </label>
-        <label className="mb-3 block text-[13px] font-medium">
-          표시명
-          <input name="displayName" required className="mt-1 h-11 w-full rounded-lg border border-[#DADDE1] px-3" />
-        </label>
-        <label className="mb-3 block text-[13px] font-medium">
-          Instagram 핸들
-          <input name="instagramId" className="mt-1 h-11 w-full rounded-lg border border-[#DADDE1] px-3" placeholder="@username" />
-        </label>
         <label className="mb-4 block text-[13px] font-medium">
           완등 날짜
           <input name="sentAt" required type="date" className="mt-1 h-11 w-full rounded-lg border border-[#DADDE1] px-3" />
