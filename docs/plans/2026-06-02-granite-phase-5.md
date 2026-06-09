@@ -4762,9 +4762,599 @@ git commit -m "docs(phase5): mark Task 19 Step 11 complete"
 
 ---
 
+## Task 20: Leased State Machine for Webhook Processing
+
+**Codex finding addressed:** `tryReclaimWebhookForRetry` (Task 16) reclaims rows already in `processing` without any staleness check. Since `processMentionEvent` runs inside `ctx.waitUntil`, a Meta redelivery that arrives while the first delivery is still mid-flight (Graph API + R2 + D1 work can take many seconds) causes a second processor to start on the same row. The two processors race the duplicate-check / INSERT path, and the later processor can overwrite a `matched` or `duplicate` transition with its own state. The current implementation is silently subject to this whenever an operator uses Meta App Dashboard's manual redelivery before the first attempt completes.
+
+The fix has two parts:
+
+1. **Stale-window guard on reclaim.** `processing` rows are only reclaimable if `updated_at < datetime('now', '-5 minutes')`. Fresh `processing` rows (in-flight) become a true no-op on redelivery; the in-flight processor will finish.
+2. **Optimistic lease via `processing_attempts`.** Every subsequent UPDATE in `processMentionEvent` carries the `processing_attempts` value the processor saw at the start of its work. The UPDATE's WHERE clause includes `processing_attempts = ?` so a processor that lost the lease (because another processor reclaimed the row and incremented attempts) silently no-ops. When `setWebhookInboxStatus` returns `changes = 0`, the processor stops without writing further state.
+
+**Files:**
+- Modify: `workers/instagram-webhook/src/d1.ts`
+- Modify: `workers/instagram-webhook/src/match.ts`
+- Modify: `workers/instagram-webhook/src/match.test.ts`
+- Modify: `docs/plans/2026-06-02-granite-phase-5.md` (checkboxes)
+
+- [ ] **Step 1: Write failing tests for stale window + lease behavior.**
+
+In `workers/instagram-webhook/src/match.test.ts`, append:
+
+```ts
+it("no-ops on redelivery when processing row is fresh (lease not stale)", async () => {
+  vi.mocked(d1.insertWebhookInbox).mockResolvedValueOnce({ inserted: false });
+  // tryReclaimWebhookForRetry returns null because the row is still 'processing' and not stale
+  vi.mocked(d1.tryReclaimWebhookForRetry).mockResolvedValueOnce(null);
+
+  await processMentionEvent(
+    { externalId: "m_fresh", igUserId: "u1", mediaId: "m_fresh", commentId: null },
+    env,
+    "{}"
+  );
+
+  expect(graph.fetchMentionedMedia).not.toHaveBeenCalled();
+});
+
+it("stops processing when the lease is lost (setWebhookInboxStatus returns 0 changes)", async () => {
+  vi.mocked(d1.insertWebhookInbox).mockResolvedValueOnce({ inserted: false });
+  vi.mocked(d1.tryReclaimWebhookForRetry).mockResolvedValueOnce({
+    webhookId: "webhook_existing",
+    currentStatus: "failed",
+    attempts: 3,
+  });
+  vi.mocked(graph.fetchMentionedMedia).mockResolvedValueOnce({
+    username: "@Climber",
+    caption: "@granite.kr #큰바위 #SkyHook",
+    mediaUrl: "https://video.cdninstagram.com/abc",
+    thumbnailUrl: null,
+    permalink: "https://www.instagram.com/p/abc/",
+  });
+  vi.mocked(d1.findExistingBetaByExternalMedia).mockResolvedValueOnce(null);
+  vi.mocked(d1.findPublishedRouteCandidates).mockResolvedValueOnce([
+    { routeId: "route_1", routeName: "SkyHook", boulderName: "큰바위", boulderHashtags: "[]" },
+  ]);
+  vi.mocked(d1.insertWebhookBeta).mockResolvedValueOnce(undefined);
+
+  // The matched-finalize transition returns 0 changes — another processor moved the row first.
+  vi.mocked(d1.setWebhookInboxStatus).mockImplementation(async () => ({ changes: 0 }));
+
+  await expect(
+    processMentionEvent(
+      { externalId: "m_lost", igUserId: "u1", mediaId: "m_lost", commentId: null },
+      env,
+      "{}"
+    )
+  ).resolves.toBeUndefined();
+});
+```
+
+Note: the existing tests that called `setWebhookInboxStatus` and ignored the return value continue to work — `vi.fn()` defaults to returning `undefined`, but you must update its TYPE to `Promise<{ changes: number }>` if TypeScript complains. Use `.mockResolvedValue({ changes: 1 })` in `beforeEach` to keep prior tests passing.
+
+Update `beforeEach` to default `setWebhookInboxStatus` to `mockResolvedValue({ changes: 1 })` so the OLD tests continue to work after the signature change.
+
+Flip Step 1 checkbox.
+
+- [ ] **Step 2: Run tests, confirm fail.**
+
+```
+pnpm test workers/instagram-webhook/src/match.test.ts
+```
+
+Flip Step 2 checkbox.
+
+- [ ] **Step 3: Add stale-window guard to `tryReclaimWebhookForRetry` and return `attempts`.**
+
+In `workers/instagram-webhook/src/d1.ts`, replace the existing implementation:
+
+```ts
+export async function tryReclaimWebhookForRetry(
+  db: D1Database,
+  externalId: string
+): Promise<{ webhookId: string; currentStatus: string; attempts: number } | null> {
+  // Reclaim non-terminal rows: received/failed/unmatched unconditionally; processing only when stale (>5 min).
+  // This prevents a Meta redelivery from concurrently processing a row whose first delivery is still in-flight.
+  const updateResult = await db
+    .prepare(
+      `UPDATE webhook_inbox
+       SET status = 'processing',
+           processing_attempts = processing_attempts + 1,
+           updated_at = datetime('now')
+       WHERE external_id = ?
+         AND (
+           status IN ('received', 'failed', 'unmatched')
+           OR (status = 'processing' AND updated_at < datetime('now', '-5 minutes'))
+         )`
+    )
+    .bind(externalId)
+    .run();
+
+  if ((updateResult.meta.changes ?? 0) === 0) {
+    return null;
+  }
+
+  const row = await db
+    .prepare(
+      `SELECT id AS webhookId, status AS currentStatus, processing_attempts AS attempts
+       FROM webhook_inbox
+       WHERE external_id = ?
+       LIMIT 1`
+    )
+    .bind(externalId)
+    .first<{ webhookId: string; currentStatus: string; attempts: number }>();
+
+  return row;
+}
+```
+
+Flip Step 3 checkbox.
+
+- [ ] **Step 4: Extend `setWebhookInboxStatus` with lease guards.**
+
+Replace the existing signature/body:
+
+```ts
+export async function setWebhookInboxStatus(
+  db: D1Database,
+  input: {
+    id: string;
+    status:
+      | "received"
+      | "processing"
+      | "matched"
+      | "unmatched"
+      | "manual_matched"
+      | "rejected"
+      | "duplicate"
+      | "failed";
+    matchedBetaId?: string | null;
+    lastErrorCode?: string;
+    lastErrorMessage?: string;
+    incrementAttempts?: boolean;
+    expectedStatus?: string;
+    expectedAttempts?: number;
+  }
+): Promise<{ changes: number }> {
+  let whereClause = `id = ?`;
+  const guardParams: unknown[] = [];
+  if (input.expectedStatus !== undefined) {
+    whereClause += ` AND status = ?`;
+    guardParams.push(input.expectedStatus);
+  }
+  if (input.expectedAttempts !== undefined) {
+    whereClause += ` AND processing_attempts = ?`;
+    guardParams.push(input.expectedAttempts);
+  }
+
+  const result = await db
+    .prepare(
+      `UPDATE webhook_inbox SET
+         status = ?,
+         matched_beta_id = COALESCE(?, matched_beta_id),
+         last_error_code = COALESCE(?, last_error_code),
+         last_error_message = COALESCE(?, last_error_message),
+         processing_attempts = processing_attempts + ?,
+         updated_at = datetime('now')
+       WHERE ${whereClause}`
+    )
+    .bind(
+      input.status,
+      input.matchedBetaId ?? null,
+      input.lastErrorCode ?? null,
+      input.lastErrorMessage ?? null,
+      input.incrementAttempts ? 1 : 0,
+      input.id,
+      ...guardParams
+    )
+    .run();
+  return { changes: result.meta.changes ?? 0 };
+}
+```
+
+The return type change from `Promise<void>` to `Promise<{ changes: number }>` is intentional. Callers that don't care can ignore it; lease-checking callers (match.ts) inspect `changes`.
+
+Flip Step 4 checkbox.
+
+- [ ] **Step 5: Thread the lease token through `processMentionEvent`.**
+
+Open `workers/instagram-webhook/src/match.ts`. Three changes:
+
+(a) On first delivery (`inserted.inserted === true`), capture the attempts count. The simplest path: set status to `processing` with `incrementAttempts: true` and `expectedStatus: "received"`, then assume `attempts = 1`. (Brand new row, no concurrent reclaim possible until first updated_at advances past the 5-min stale window.)
+
+(b) On reclaim, `webhookId = reclaim.webhookId; leaseAttempts = reclaim.attempts;`
+
+(c) For EVERY subsequent `setWebhookInboxStatus(env.granite_v2, { ... })` call inside the try block (matched, unmatched, duplicate, thumbnail-failure) AND inside the outer catch, include `expectedAttempts: leaseAttempts`. Inspect the result; if `changes === 0`, return immediately:
+
+```ts
+const result = await setWebhookInboxStatus(env.granite_v2, {
+  id: webhookId,
+  status: "matched",
+  matchedBetaId: createdBetaId,
+  expectedAttempts: leaseAttempts,
+});
+if (result.changes === 0) {
+  // We lost the lease: another processor took over this row. Stop.
+  return;
+}
+```
+
+For the catch path, the lease check is intentionally relaxed — a thrown exception means we're already done and a clean lease check would just lose error context. Keep the catch's UPDATE WITHOUT `expectedAttempts`, but rely on the row's status guard: only override if the row is still `processing` (the lease holder's terminal state). Use `expectedStatus: "processing"` in the catch's final-status UPDATE so we don't override a row that another processor has already transitioned past:
+
+```ts
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  try {
+    if (createdBetaId !== null) {
+      try {
+        await setWebhookInboxStatus(env.granite_v2, {
+          id: webhookId,
+          status: "matched",
+          matchedBetaId: createdBetaId,
+          expectedStatus: "processing",
+        });
+      } catch {
+        // proceed
+      }
+    }
+    await setWebhookInboxStatus(env.granite_v2, {
+      id: webhookId,
+      status: "failed",
+      lastErrorCode: "graph_api_exception",
+      lastErrorMessage: message.slice(0, 500),
+      expectedStatus: "processing",
+    });
+    await insertWebhookOperationalEvent(env.granite_v2, {
+      // unchanged
+    });
+  } catch (recoveryError) {
+    console.error("processMentionEvent recovery failed:", recoveryError);
+  }
+}
+```
+
+Flip Step 5 checkbox.
+
+- [ ] **Step 6: Run tests, confirm pass.**
+
+```
+pnpm test workers/instagram-webhook/src/match.test.ts
+```
+
+Flip Step 6 checkbox.
+
+- [ ] **Step 7: Full verification.**
+
+```
+pnpm test workers/instagram-webhook
+pnpm typecheck
+pnpm build
+```
+(Skip `pnpm wrangler deploy --dry-run` — local Node v20 vs wrangler v4's v22 requirement; pre-existing env issue.)
+
+Flip Step 7 checkbox.
+
+- [ ] **Step 8: Mark Task 20 step checkboxes complete in this plan file.**
+
+Verify Steps 1–7 are `[x]`. Flip Step 8 itself.
+
+- [ ] **Step 9: Commit.**
+
+```bash
+git add workers/instagram-webhook/src/d1.ts workers/instagram-webhook/src/match.ts workers/instagram-webhook/src/match.test.ts docs/plans/2026-06-02-granite-phase-5.md
+git commit -m "fix(webhook): leased state machine with stale-window reclaim and attempts guard"
+```
+
+After commit, follow up:
+
+```bash
+git add docs/plans/2026-06-02-granite-phase-5.md
+git commit -m "docs(phase5): mark Task 20 Step 9 complete"
+```
+
+---
+
+## Task 21: Published-Route Boundary for Manual Beta Flows
+
+**Codex findings addressed:**
+- **#2** — `/admin/webhooks` dropdown uses `getAdminRoutes()` which intentionally includes drafts and self-deleted routes. `manualMatchWebhookToRoute` doesn't re-validate the route at the mutation boundary, so admins can attach Betas to non-public or deleted content.
+- **#3** — `submitManualBetaAction` accepts client-supplied `routeId` after only Zod-shape validation; no server-side check that the route exists in the published public hierarchy. A forged request can create Beta rows for any existing route id, including drafts.
+
+Both gaps share the same fix: enforce the published+non-deleted ancestor check (the same one `findPublishedRouteMatchCandidates` already implements) at every mutation boundary that creates a Beta from operator/public input. Defense in depth — the admin dropdown also gets a published-only list so the UI never offers an invalid choice.
+
+**Files:**
+- Modify: `lib/db/beta-queries.ts` (add `findPublishedRouteIdForBeta`; validate route in `manualMatchWebhookToRoute`; extend `ManualMatchOutcome` with `route_not_published`)
+- Modify: `lib/db/admin-read-queries.ts` (add `getPublishedAdminRoutes`)
+- Modify: `lib/db/beta-queries.test.ts` (test invalid route → `route_not_published`)
+- Modify: `lib/actions/beta.ts` (validate route in `submitManualBetaAction`)
+- Modify: `lib/actions/beta.test.ts` (test invalid route → controlled error)
+- Modify: `lib/actions/admin-beta.ts` (record `route_not_published` outcome in audit log)
+- Modify: `app/admin/(protected)/webhooks/page.tsx` (use `getPublishedAdminRoutes` for the dropdown)
+- Modify: `docs/plans/2026-06-02-granite-phase-5.md` (checkboxes)
+
+- [ ] **Step 1: Add `findPublishedRouteIdForBeta` to `lib/db/beta-queries.ts`.**
+
+```ts
+export async function findPublishedRouteIdForBeta(routeId: string): Promise<{ id: string } | null> {
+  return queryD1First<{ id: string }>(
+    `SELECT r.id AS id
+     FROM routes r
+     JOIN topos t ON t.id = r.topo_id
+     JOIN boulders b ON b.id = t.boulder_id
+     JOIN sectors s ON s.id = b.sector_id
+     JOIN crags c ON c.id = s.crag_id
+     JOIN areas a ON a.id = c.area_id
+     WHERE r.id = ?
+       AND r.is_published = 1 AND t.is_published = 1 AND b.is_published = 1
+       AND s.is_published = 1 AND c.is_published = 1 AND a.is_published = 1
+       AND r.deleted_at IS NULL AND t.deleted_at IS NULL AND b.deleted_at IS NULL
+       AND s.deleted_at IS NULL AND c.deleted_at IS NULL AND a.deleted_at IS NULL
+     LIMIT 1`,
+    [routeId]
+  );
+}
+```
+
+Flip Step 1 checkbox.
+
+- [ ] **Step 2: Add `getPublishedAdminRoutes` to `lib/db/admin-read-queries.ts`.**
+
+Read the existing `getAdminRoutes` first to match its column shape (`AdminRouteRow`). Then append:
+
+```ts
+export async function getPublishedAdminRoutes(): Promise<AdminRouteRow[]> {
+  const rows = await queryD1<AdminRouteRow>(
+    `SELECT
+       r.id, r.topo_id AS topoId, t.name AS topoName,
+       b.id AS boulderId, b.name AS boulderName, b.slug AS boulderSlug,
+       c.slug AS cragSlug, r.name, r.slug, r.grade, r.grade_num AS gradeNum,
+       r.fa, r.description, r.line_image_url AS lineImageUrl,
+       r.is_published AS isPublished, r.sort_order AS sortOrder,
+       r.deleted_at AS deletedAt
+     FROM routes r
+     JOIN topos t ON t.id = r.topo_id
+     JOIN boulders b ON b.id = t.boulder_id
+     JOIN sectors s ON s.id = b.sector_id
+     JOIN crags c ON c.id = s.crag_id
+     JOIN areas a ON a.id = c.area_id
+     WHERE r.is_published = 1 AND t.is_published = 1 AND b.is_published = 1
+       AND s.is_published = 1 AND c.is_published = 1 AND a.is_published = 1
+       AND r.deleted_at IS NULL AND t.deleted_at IS NULL AND b.deleted_at IS NULL
+       AND s.deleted_at IS NULL AND c.deleted_at IS NULL AND a.deleted_at IS NULL
+     ORDER BY c.name, b.name, r.sort_order, r.name`,
+    []
+  );
+  // SQL stores is_published as INTEGER; AdminRouteRow expects boolean.
+  return rows.map((r) => ({ ...r, isPublished: r.isPublished === 1 }));
+}
+```
+
+If the actual `AdminRouteRow` column shape differs (e.g. different SELECT aliases used by `getAdminRoutes`), MIRROR exactly what `getAdminRoutes` returns. Read it before writing.
+
+Flip Step 2 checkbox.
+
+- [ ] **Step 3: Extend `ManualMatchOutcome` and validate route in `manualMatchWebhookToRoute`.**
+
+Update the outcome type:
+
+```ts
+export type ManualMatchOutcome =
+  | { ok: true; betaId: string }
+  | { ok: false; reason: "not_unmatched" }
+  | { ok: false; reason: "duplicate"; existingBetaId: string }
+  | { ok: false; reason: "needs_rehydration" }
+  | { ok: false; reason: "route_not_published" };
+```
+
+In `manualMatchWebhookToRoute`, AFTER the SELECT (which gives us the inbox data) and BEFORE the duplicate check, add the route validation:
+
+```ts
+const publishedRoute = await findPublishedRouteIdForBeta(input.routeId);
+if (!publishedRoute) {
+  // Release the claim so the operator can re-pick a valid route.
+  await queryD1(
+    `UPDATE webhook_inbox
+     SET status = 'unmatched',
+         last_error_code = 'route_not_published',
+         last_error_message = 'selected route is not published or has been deleted',
+         updated_at = datetime('now')
+     WHERE id = ?`,
+    [input.webhookId]
+  );
+  return { ok: false, reason: "route_not_published" };
+}
+```
+
+Flip Step 3 checkbox.
+
+- [ ] **Step 4: Add failing tests to `lib/db/beta-queries.test.ts`.**
+
+Update the `vi.mock("./d1-http", ...)` factory to include any missing helpers (already done in prior tasks). Add:
+
+```ts
+it("refuses manual match when route is not published or deleted", async () => {
+  vi.mocked(executeD1Meta).mockResolvedValue({ changes: 1 });
+  vi.mocked(queryD1)
+    .mockResolvedValueOnce([
+      {
+        igUsername: "climber",
+        caption: "@granite.kr #큰바위 #SkyHook",
+        mediaUrl: "https://www.instagram.com/p/abc/",
+        externalId: "media_1",
+        externalMediaId: "media_1",
+        rawPayload: "{}",
+      },
+    ]) // SELECT row
+    .mockResolvedValueOnce([]); // revert UPDATE
+  // Route lookup returns null (unpublished/deleted).
+  vi.mocked(queryD1First).mockResolvedValueOnce(null);
+
+  const { manualMatchWebhookToRoute } = await import("./beta-queries");
+
+  const outcome = await manualMatchWebhookToRoute({
+    webhookId: "webhook_1",
+    routeId: "route_draft",
+    betaId: "beta_new",
+  });
+
+  expect(outcome).toEqual({ ok: false, reason: "route_not_published" });
+  const revertCall = vi
+    .mocked(queryD1)
+    .mock.calls.find(
+      (c) =>
+        typeof c[0] === "string" &&
+        c[0].includes("UPDATE webhook_inbox") &&
+        c[0].includes("status = 'unmatched'") &&
+        c[0].includes("route_not_published")
+    );
+  expect(revertCall).toBeDefined();
+
+  const insertCalls = vi
+    .mocked(queryD1)
+    .mock.calls.filter(
+      (c) => typeof c[0] === "string" && c[0].includes("INSERT INTO betas")
+    );
+  expect(insertCalls.length).toBe(0);
+});
+```
+
+IMPORTANT: existing happy-path tests for `manualMatchWebhookToRoute` will now break because they don't mock the route lookup. Update each existing happy-path test to add `vi.mocked(queryD1First).mockResolvedValueOnce({ id: "route_1" });` BEFORE the existing `findExistingBetaByExternalMedia` mock (route lookup happens first now). Apply this pattern to every existing test that expects `{ ok: true, ... }` or `{ ok: false, reason: "duplicate" }`.
+
+Flip Step 4 checkbox.
+
+- [ ] **Step 5: Update `manualMatchWebhookAction` to record the `route_not_published` outcome.**
+
+In `lib/actions/admin-beta.ts`, extend the skipped-outcome audit log conditional to record `route_not_published`:
+
+```ts
+metadata:
+  result.reason === "duplicate"
+    ? { routeId: parsed.routeId, reason: "duplicate", existingBetaId: result.existingBetaId }
+    : result.reason === "needs_rehydration"
+    ? { routeId: parsed.routeId, reason: "needs_rehydration" }
+    : result.reason === "route_not_published"
+    ? { routeId: parsed.routeId, reason: "route_not_published" }
+    : { routeId: parsed.routeId, reason: result.reason },
+```
+
+Flip Step 5 checkbox.
+
+- [ ] **Step 6: Validate route in `submitManualBetaAction`.**
+
+In `lib/actions/beta.ts`, update imports:
+
+```ts
+import {
+  createManualBeta,
+  findExistingBetaByExternalMedia,
+  findExistingBetaByPermalink,
+  findPublishedRouteIdForBeta,
+  updateBetaThumbnailUrl,
+} from "@/lib/db/beta-queries";
+```
+
+Before the existing dedup block, add route validation:
+
+```ts
+const publishedRoute = await findPublishedRouteIdForBeta(parsed.routeId);
+if (!publishedRoute) {
+  return { ok: false, message: "유효하지 않은 루트입니다." };
+}
+```
+
+Flip Step 6 checkbox.
+
+- [ ] **Step 7: Add failing test for `submitManualBetaAction` invalid route.**
+
+In `lib/actions/beta.test.ts`, add `findPublishedRouteIdForBeta: vi.fn()` to the `vi.mock("@/lib/db/beta-queries", ...)` factory. Default it to a published lookup in `beforeEach` so EXISTING tests keep passing:
+
+```ts
+// In beforeEach:
+vi.mocked(findPublishedRouteIdForBeta).mockResolvedValue({ id: "route_1" });
+```
+
+Add a new test:
+
+```ts
+it("rejects submission when the route is not published or has been deleted", async () => {
+  const { findPublishedRouteIdForBeta } = await import("@/lib/db/beta-queries");
+  vi.mocked(findPublishedRouteIdForBeta).mockResolvedValueOnce(null);
+
+  const form = new FormData();
+  form.set("routeId", "route_draft");
+  form.set("mediaUrl", "https://www.instagram.com/p/abc/");
+  form.set("displayName", "Climber");
+  form.set("instagramId", "@climber");
+  form.set("sentAt", "2026-06-02");
+
+  await expect(submitManualBetaAction(form)).resolves.toEqual({
+    ok: false,
+    message: "유효하지 않은 루트입니다.",
+  });
+
+  const { createManualBeta } = await import("@/lib/db/beta-queries");
+  expect(createManualBeta).not.toHaveBeenCalled();
+});
+```
+
+Flip Step 7 checkbox.
+
+- [ ] **Step 8: Use `getPublishedAdminRoutes` in the admin webhooks page.**
+
+In `app/admin/(protected)/webhooks/page.tsx`:
+
+Replace the import:
+```tsx
+import { getPublishedAdminRoutes } from "@/lib/db/admin-read-queries";
+```
+
+Replace the Promise.all entry:
+```tsx
+const [rows, routes, opEvents, orphans, autoOrphans] = await Promise.all([
+  getAdminWebhookInbox(status),
+  getPublishedAdminRoutes(),
+  getRecentWebhookOperationalEvents(50),
+  getOrphanedManualMatches(),
+  getOrphanedAutoMatches(),
+]);
+```
+
+No further changes needed — the dropdown markup is unchanged; only the source changes.
+
+Flip Step 8 checkbox.
+
+- [ ] **Step 9: Full verification.**
+
+```
+pnpm test
+pnpm typecheck
+pnpm build
+```
+
+Flip Step 9 checkbox.
+
+- [ ] **Step 10: Mark Task 21 step checkboxes complete.**
+
+Verify Steps 1–9 are `[x]`. Flip Step 10 itself.
+
+- [ ] **Step 11: Commit.**
+
+```bash
+git add lib/db/beta-queries.ts lib/db/admin-read-queries.ts lib/db/beta-queries.test.ts lib/actions/beta.ts lib/actions/beta.test.ts lib/actions/admin-beta.ts 'app/admin/(protected)/webhooks/page.tsx' docs/plans/2026-06-02-granite-phase-5.md
+git commit -m "fix(beta): enforce published-route boundary in manual flows (admin + public)"
+```
+
+After commit, follow up:
+
+```bash
+git add docs/plans/2026-06-02-granite-phase-5.md
+git commit -m "docs(phase5): mark Task 21 Step 11 complete"
+```
+
+---
+
 ## Self-Review
 
-- **Spec coverage:** Covers PRD P5-01 through P5-08: caption UI, Worker webhook, inbox persistence, matching, unclaimed Beta creation, admin inbox, Beta moderation, manual registration, and thumbnail fallback. Codex adversarial review iterations 1–4 added Tasks 12–19 to close concrete recoverability and integrity gaps: (12) `processMentionEvent` async exceptions stranded `processing` rows; (13) `manualMatchWebhookToRoute` was non-atomic and used the wrong identifier for comment mentions; (14) `webhook_inbox` was never hydrated with the Graph API response; (15) `manualMatchWebhookToRoute` had no compensating action for INSERT/finalize partial failures; (16) `INSERT OR IGNORE` early-return made Meta dashboard redelivery a silent no-op for failed/processing/unmatched rows; (17) `external_media_id` fallback to `external_id` was unsafe for legacy comment-mention rows; (18) auto-match `betaId` was lost in the outer catch handler, producing unlinked orphan Betas invisible to admin tooling; (19) manual submission dedup compared exact `permalink_url`, missing URL variants of the same media.
+- **Spec coverage:** Covers PRD P5-01 through P5-08: caption UI, Worker webhook, inbox persistence, matching, unclaimed Beta creation, admin inbox, Beta moderation, manual registration, and thumbnail fallback. Codex adversarial review iterations 1–5 added Tasks 12–21 to close concrete recoverability and integrity gaps: (12) `processMentionEvent` async exceptions stranded `processing` rows; (13) `manualMatchWebhookToRoute` was non-atomic and used the wrong identifier for comment mentions; (14) `webhook_inbox` was never hydrated with the Graph API response; (15) `manualMatchWebhookToRoute` had no compensating action for INSERT/finalize partial failures; (16) `INSERT OR IGNORE` early-return made Meta dashboard redelivery a silent no-op for failed/processing/unmatched rows; (17) `external_media_id` fallback to `external_id` was unsafe for legacy comment-mention rows; (18) auto-match `betaId` was lost in the outer catch handler, producing unlinked orphan Betas invisible to admin tooling; (19) manual submission dedup compared exact `permalink_url`, missing URL variants of the same media; (20) Meta redelivery could concurrently reprocess in-flight `processing` rows; (21) manual flows (admin dropdown + public submission) didn't enforce a published-route boundary.
 - **Excluded intentionally:** OAuth, my records, projects, and unclaimed claims remain Phase 6. Scheduled retry, manual-submission rate limit, moderation SLA, and webhook admin notification channel are also explicitly out of scope (see Out Of Scope and Future Work).
 - **Risk areas:** Meta payload shape and permission review may require adjustment after the real app callback is approved. Worker D1/R2 binding names (`granite_v2`, `BUCKET`) must remain aligned with the production Cloudflare project before deploy. D1 HTTP API lacks true transactions; Task 13's claim/insert sequence reduces but cannot fully eliminate the race window — acceptable because manual matching is admin-gated and operationally infrequent.
 - **Verification:** Each implementation task has a focused Vitest/typecheck/build or manual QA gate. Tasks 1–11 are implemented and committed on `phase5-implementation` (commits `fbb07da` through `d29ea51`, 370 tests passing). Tasks 12–13 are pending implementation. Final release requires Meta app review and production HMAC verification (Task 11 Step 5 manual QA, deferred to launch).
