@@ -6,13 +6,14 @@ vi.mock("@/lib/db/beta-queries", () => ({
   createManualBeta: vi.fn(),
   findExistingBetaByExternalMedia: vi.fn(),
   findExistingBetaByPermalink: vi.fn(),
+  findPublishedRouteIdForBeta: vi.fn(),
   updateBetaThumbnailUrl: vi.fn(),
 }));
 vi.mock("@/lib/beta/thumbnail-r2", () => ({
   acquireAndStoreBetaThumbnail: vi.fn().mockResolvedValue(null),
 }));
 
-const { createManualBeta, findExistingBetaByExternalMedia, findExistingBetaByPermalink } = await import("@/lib/db/beta-queries");
+const { createManualBeta, findExistingBetaByExternalMedia, findExistingBetaByPermalink, findPublishedRouteIdForBeta } = await import("@/lib/db/beta-queries");
 const { submitManualBetaAction } = await import("./beta");
 
 describe("submitManualBetaAction", () => {
@@ -22,6 +23,8 @@ describe("submitManualBetaAction", () => {
     vi.mocked(findExistingBetaByExternalMedia).mockResolvedValue(null);
     vi.mocked(findExistingBetaByPermalink).mockReset();
     vi.mocked(findExistingBetaByPermalink).mockResolvedValue(null);
+    vi.mocked(findPublishedRouteIdForBeta).mockReset();
+    vi.mocked(findPublishedRouteIdForBeta).mockResolvedValue({ id: "route_1" });
   });
 
   it("creates a pending manual instagram beta", async () => {
@@ -95,5 +98,23 @@ describe("submitManualBetaAction", () => {
     });
 
     expect(findExistingBetaByExternalMedia).toHaveBeenCalledWith("youtube", "dQw4w9WgXcQ");
+  });
+
+  it("rejects submission when the route is not published or has been deleted", async () => {
+    vi.mocked(findPublishedRouteIdForBeta).mockResolvedValueOnce(null);
+
+    const form = new FormData();
+    form.set("routeId", "route_draft");
+    form.set("mediaUrl", "https://www.instagram.com/p/abc/");
+    form.set("displayName", "Climber");
+    form.set("instagramId", "@climber");
+    form.set("sentAt", "2026-06-02");
+
+    await expect(submitManualBetaAction(form)).resolves.toEqual({
+      ok: false,
+      message: "유효하지 않은 루트입니다.",
+    });
+
+    expect(createManualBeta).not.toHaveBeenCalled();
   });
 });

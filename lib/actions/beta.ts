@@ -6,6 +6,7 @@ import {
   createManualBeta,
   findExistingBetaByExternalMedia,
   findExistingBetaByPermalink,
+  findPublishedRouteIdForBeta,
   updateBetaThumbnailUrl,
 } from "@/lib/db/beta-queries";
 import { acquireAndStoreBetaThumbnail } from "@/lib/beta/thumbnail-r2";
@@ -18,6 +19,12 @@ export type ManualBetaActionResult = {
 
 export async function submitManualBetaAction(formData: FormData): Promise<ManualBetaActionResult> {
   const parsed = parseManualBetaForm(Object.fromEntries(formData));
+
+  const publishedRoute = await findPublishedRouteIdForBeta(parsed.routeId);
+  if (!publishedRoute) {
+    return { ok: false, message: "유효하지 않은 루트입니다." };
+  }
+
   let existing = null;
   if (parsed.externalMediaId) {
     existing = await findExistingBetaByExternalMedia(parsed.platform, parsed.externalMediaId);

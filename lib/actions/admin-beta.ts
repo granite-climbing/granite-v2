@@ -78,6 +78,8 @@ export async function manualMatchWebhookAction(formData: FormData): Promise<void
         ? { routeId: parsed.routeId, reason: "duplicate", existingBetaId: result.existingBetaId }
         : result.reason === "needs_rehydration"
         ? { routeId: parsed.routeId, reason: "needs_rehydration" }
+        : result.reason === "route_not_published"
+        ? { routeId: parsed.routeId, reason: "route_not_published" }
         : { routeId: parsed.routeId, reason: result.reason },
   });
   revalidatePath("/admin/webhooks");

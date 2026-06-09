@@ -71,6 +71,25 @@ export async function createManualBeta(input: CreateManualBetaInput): Promise<vo
   );
 }
 
+export async function findPublishedRouteIdForBeta(routeId: string): Promise<{ id: string } | null> {
+  return queryD1First<{ id: string }>(
+    `SELECT r.id AS id
+     FROM routes r
+     JOIN topos t ON t.id = r.topo_id
+     JOIN boulders b ON b.id = t.boulder_id
+     JOIN sectors s ON s.id = b.sector_id
+     JOIN crags c ON c.id = s.crag_id
+     JOIN areas a ON a.id = c.area_id
+     WHERE r.id = ?
+       AND r.is_published = 1 AND t.is_published = 1 AND b.is_published = 1
+       AND s.is_published = 1 AND c.is_published = 1 AND a.is_published = 1
+       AND r.deleted_at IS NULL AND t.deleted_at IS NULL AND b.deleted_at IS NULL
+       AND s.deleted_at IS NULL AND c.deleted_at IS NULL AND a.deleted_at IS NULL
+     LIMIT 1`,
+    [routeId]
+  );
+}
+
 export async function findPublishedRouteMatchCandidates(): Promise<RouteMatchCandidate[]> {
   return queryD1<RouteMatchCandidate>(
     `SELECT
@@ -414,7 +433,8 @@ export type ManualMatchOutcome =
   | { ok: true; betaId: string }
   | { ok: false; reason: "not_unmatched" }
   | { ok: false; reason: "duplicate"; existingBetaId: string }
-  | { ok: false; reason: "needs_rehydration" };
+  | { ok: false; reason: "needs_rehydration" }
+  | { ok: false; reason: "route_not_published" };
 
 function extractMediaIdFromRawPayload(rawPayload: string): string | null {
   let parsed: unknown;
@@ -507,6 +527,22 @@ export async function manualMatchWebhookToRoute(input: {
     );
     return { ok: false, reason: "needs_rehydration" };
   }
+  // 3b) Validate that the target route is published and all ancestors are published/non-deleted.
+  const publishedRoute = await findPublishedRouteIdForBeta(input.routeId);
+  if (!publishedRoute) {
+    // Release the claim so the operator can re-pick a valid route.
+    await queryD1(
+      `UPDATE webhook_inbox
+       SET status = 'unmatched',
+           last_error_code = 'route_not_published',
+           last_error_message = 'selected route is not published or has been deleted',
+           updated_at = datetime('now')
+       WHERE id = ?`,
+      [input.webhookId]
+    );
+    return { ok: false, reason: "route_not_published" };
+  }
+
   const existing = await findExistingBetaByExternalMedia("instagram", canonicalMediaId);
   if (existing) {
     await queryD1(

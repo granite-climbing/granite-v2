@@ -4,7 +4,7 @@ import { AdminCard } from "@/components/admin/admin-card";
 import { AdminTable, AdminTableRow, AdminTableCell } from "@/components/admin/admin-table";
 import { btnPrimaryCls, selectCls } from "@/components/admin/admin-field";
 import { getAdminWebhookInbox, getRecentWebhookOperationalEvents, getOrphanedManualMatches, getOrphanedAutoMatches } from "@/lib/db/beta-queries";
-import { getAdminRoutes } from "@/lib/db/admin-read-queries";
+import { getPublishedAdminRoutes } from "@/lib/db/admin-read-queries";
 import { manualMatchWebhookAction, rejectWebhookAction } from "@/lib/actions/admin-beta";
 import type { WebhookInboxStatus } from "@/lib/db/schema";
 
@@ -51,7 +51,7 @@ export default async function AdminWebhooksPage({
   const status = parseStatus(resolved.status);
   const [rows, routes, opEvents, orphans, autoOrphans] = await Promise.all([
     getAdminWebhookInbox(status),
-    getAdminRoutes(),
+    getPublishedAdminRoutes(),
     getRecentWebhookOperationalEvents(50),
     getOrphanedManualMatches(),
     getOrphanedAutoMatches(),

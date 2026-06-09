@@ -726,6 +726,47 @@ export async function getAdminRoutes(filters?: RouteFilters | string): Promise<A
   return rows.map((r) => ({ ...r, isPublished: r.isPublished === 1 }));
 }
 
+/**
+ * Published routes only — all ancestor hierarchy must also be published and non-deleted.
+ * Used for the admin webhooks manual-match dropdown so operators cannot attach Betas to
+ * draft or deleted content.
+ */
+export async function getPublishedAdminRoutes(): Promise<AdminRouteRow[]> {
+  const rows = await queryD1<AdminRouteSqlRow>(
+    `SELECT
+       r.id,
+       r.topo_id        AS topoId,
+       t.name           AS topoName,
+       b.id             AS boulderId,
+       b.name           AS boulderName,
+       b.slug           AS boulderSlug,
+       c.slug           AS cragSlug,
+       r.name,
+       r.slug,
+       r.grade,
+       r.grade_num      AS gradeNum,
+       r.fa,
+       r.description,
+       r.line_image_url AS lineImageUrl,
+       r.is_published   AS isPublished,
+       r.sort_order     AS sortOrder,
+       r.deleted_at     AS deletedAt
+     FROM routes r
+     JOIN topos t ON t.id = r.topo_id
+     JOIN boulders b ON b.id = t.boulder_id
+     JOIN sectors s ON s.id = b.sector_id
+     JOIN crags c ON c.id = s.crag_id
+     JOIN areas a ON a.id = c.area_id
+     WHERE r.is_published = 1 AND t.is_published = 1 AND b.is_published = 1
+       AND s.is_published = 1 AND c.is_published = 1 AND a.is_published = 1
+       AND r.deleted_at IS NULL AND t.deleted_at IS NULL AND b.deleted_at IS NULL
+       AND s.deleted_at IS NULL AND c.deleted_at IS NULL AND a.deleted_at IS NULL
+     ORDER BY c.name ASC, b.name ASC, r.sort_order ASC, r.name ASC`,
+    []
+  );
+  return rows.map((r) => ({ ...r, isPublished: r.isPublished === 1 }));
+}
+
 // ---------------------------------------------------------------------------
 // Option-list queries (for parent filter dropdowns)
 // Excludes soft-deleted rows. Returns { id, name }[] sorted by sort_order ASC, name ASC.

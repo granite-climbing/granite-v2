@@ -5071,7 +5071,7 @@ Both gaps share the same fix: enforce the published+non-deleted ancestor check (
 - Modify: `app/admin/(protected)/webhooks/page.tsx` (use `getPublishedAdminRoutes` for the dropdown)
 - Modify: `docs/plans/2026-06-02-granite-phase-5.md` (checkboxes)
 
-- [ ] **Step 1: Add `findPublishedRouteIdForBeta` to `lib/db/beta-queries.ts`.**
+- [x] **Step 1: Add `findPublishedRouteIdForBeta` to `lib/db/beta-queries.ts`.**
 
 ```ts
 export async function findPublishedRouteIdForBeta(routeId: string): Promise<{ id: string } | null> {
@@ -5096,7 +5096,7 @@ export async function findPublishedRouteIdForBeta(routeId: string): Promise<{ id
 
 Flip Step 1 checkbox.
 
-- [ ] **Step 2: Add `getPublishedAdminRoutes` to `lib/db/admin-read-queries.ts`.**
+- [x] **Step 2: Add `getPublishedAdminRoutes` to `lib/db/admin-read-queries.ts`.**
 
 Read the existing `getAdminRoutes` first to match its column shape (`AdminRouteRow`). Then append:
 
@@ -5132,7 +5132,7 @@ If the actual `AdminRouteRow` column shape differs (e.g. different SELECT aliase
 
 Flip Step 2 checkbox.
 
-- [ ] **Step 3: Extend `ManualMatchOutcome` and validate route in `manualMatchWebhookToRoute`.**
+- [x] **Step 3: Extend `ManualMatchOutcome` and validate route in `manualMatchWebhookToRoute`.**
 
 Update the outcome type:
 
@@ -5166,7 +5166,7 @@ if (!publishedRoute) {
 
 Flip Step 3 checkbox.
 
-- [ ] **Step 4: Add failing tests to `lib/db/beta-queries.test.ts`.**
+- [x] **Step 4: Add failing tests to `lib/db/beta-queries.test.ts`.**
 
 Update the `vi.mock("./d1-http", ...)` factory to include any missing helpers (already done in prior tasks). Add:
 
@@ -5221,7 +5221,7 @@ IMPORTANT: existing happy-path tests for `manualMatchWebhookToRoute` will now br
 
 Flip Step 4 checkbox.
 
-- [ ] **Step 5: Update `manualMatchWebhookAction` to record the `route_not_published` outcome.**
+- [x] **Step 5: Update `manualMatchWebhookAction` to record the `route_not_published` outcome.**
 
 In `lib/actions/admin-beta.ts`, extend the skipped-outcome audit log conditional to record `route_not_published`:
 
@@ -5238,7 +5238,7 @@ metadata:
 
 Flip Step 5 checkbox.
 
-- [ ] **Step 6: Validate route in `submitManualBetaAction`.**
+- [x] **Step 6: Validate route in `submitManualBetaAction`.**
 
 In `lib/actions/beta.ts`, update imports:
 
@@ -5263,7 +5263,7 @@ if (!publishedRoute) {
 
 Flip Step 6 checkbox.
 
-- [ ] **Step 7: Add failing test for `submitManualBetaAction` invalid route.**
+- [x] **Step 7: Add failing test for `submitManualBetaAction` invalid route.**
 
 In `lib/actions/beta.test.ts`, add `findPublishedRouteIdForBeta: vi.fn()` to the `vi.mock("@/lib/db/beta-queries", ...)` factory. Default it to a published lookup in `beforeEach` so EXISTING tests keep passing:
 
@@ -5298,7 +5298,7 @@ it("rejects submission when the route is not published or has been deleted", asy
 
 Flip Step 7 checkbox.
 
-- [ ] **Step 8: Use `getPublishedAdminRoutes` in the admin webhooks page.**
+- [x] **Step 8: Use `getPublishedAdminRoutes` in the admin webhooks page.**
 
 In `app/admin/(protected)/webhooks/page.tsx`:
 
@@ -5322,7 +5322,7 @@ No further changes needed — the dropdown markup is unchanged; only the source 
 
 Flip Step 8 checkbox.
 
-- [ ] **Step 9: Full verification.**
+- [x] **Step 9: Full verification.**
 
 ```
 pnpm test
@@ -5332,7 +5332,7 @@ pnpm build
 
 Flip Step 9 checkbox.
 
-- [ ] **Step 10: Mark Task 21 step checkboxes complete.**
+- [x] **Step 10: Mark Task 21 step checkboxes complete.**
 
 Verify Steps 1–9 are `[x]`. Flip Step 10 itself.
 

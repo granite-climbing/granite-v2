@@ -130,6 +130,7 @@ describe("manualMatchWebhookToRoute", () => {
       ]) // SELECT row
       .mockResolvedValueOnce([]) // INSERT betas
       .mockResolvedValueOnce([]); // UPDATE finalize
+    vi.mocked(queryD1First).mockResolvedValueOnce({ id: "route_1" }); // findPublishedRouteIdForBeta
     vi.mocked(queryD1First).mockResolvedValueOnce(null); // findExistingBetaByExternalMedia
 
     const { manualMatchWebhookToRoute } = await import("./beta-queries");
@@ -184,6 +185,7 @@ describe("manualMatchWebhookToRoute", () => {
         },
       ]) // SELECT row
       .mockResolvedValueOnce([]); // UPDATE webhook to duplicate
+    vi.mocked(queryD1First).mockResolvedValueOnce({ id: "route_1" }); // findPublishedRouteIdForBeta
     vi.mocked(queryD1First).mockResolvedValueOnce({
       id: "beta_existing",
       status: "pending",
@@ -227,6 +229,7 @@ describe("manualMatchWebhookToRoute", () => {
       ]) // SELECT row
       .mockRejectedValueOnce(insertError) // INSERT betas FAILS
       .mockResolvedValueOnce([]); // compensating revert UPDATE
+    vi.mocked(queryD1First).mockResolvedValueOnce({ id: "route_1" }); // findPublishedRouteIdForBeta
     vi.mocked(queryD1First).mockResolvedValueOnce(null); // findExistingBetaByExternalMedia
 
     const { manualMatchWebhookToRoute } = await import("./beta-queries");
@@ -270,6 +273,7 @@ describe("manualMatchWebhookToRoute", () => {
       .mockResolvedValueOnce([]) // INSERT betas (success)
       .mockRejectedValueOnce(finalizeError) // finalize UPDATE FAILS
       .mockResolvedValueOnce([]); // insertWebhookOperationalEvent (best-effort)
+    vi.mocked(queryD1First).mockResolvedValueOnce({ id: "route_1" }); // findPublishedRouteIdForBeta
     vi.mocked(queryD1First).mockResolvedValueOnce(null); // findExistingBetaByExternalMedia
 
     const { manualMatchWebhookToRoute } = await import("./beta-queries");
@@ -329,7 +333,8 @@ describe("manualMatchWebhookToRoute", () => {
       ])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
-    vi.mocked(queryD1First).mockResolvedValueOnce(null);
+    vi.mocked(queryD1First).mockResolvedValueOnce({ id: "route_1" }); // findPublishedRouteIdForBeta
+    vi.mocked(queryD1First).mockResolvedValueOnce(null); // findExistingBetaByExternalMedia
 
     const { manualMatchWebhookToRoute } = await import("./beta-queries");
 
@@ -384,5 +389,49 @@ describe("manualMatchWebhookToRoute", () => {
           c[0].includes("needs_rehydration")
       );
     expect(revertCall).toBeDefined();
+  });
+
+  it("refuses manual match when route is not published or deleted", async () => {
+    vi.mocked(executeD1Meta).mockResolvedValue({ changes: 1 });
+    vi.mocked(queryD1)
+      .mockResolvedValueOnce([
+        {
+          igUsername: "climber",
+          caption: "@granite.kr #큰바위 #SkyHook",
+          mediaUrl: "https://www.instagram.com/p/abc/",
+          externalId: "media_1",
+          externalMediaId: "media_1",
+          rawPayload: "{}",
+        },
+      ]) // SELECT row
+      .mockResolvedValueOnce([]); // revert UPDATE
+    vi.mocked(queryD1First).mockResolvedValueOnce(null); // findPublishedRouteIdForBeta returns null
+
+    const { manualMatchWebhookToRoute } = await import("./beta-queries");
+
+    const outcome = await manualMatchWebhookToRoute({
+      webhookId: "webhook_1",
+      routeId: "route_draft",
+      betaId: "beta_new",
+    });
+
+    expect(outcome).toEqual({ ok: false, reason: "route_not_published" });
+
+    const revertCall = vi
+      .mocked(queryD1)
+      .mock.calls.find(
+        (c) =>
+          typeof c[0] === "string" &&
+          c[0].includes("UPDATE webhook_inbox") &&
+          c[0].includes("route_not_published")
+      );
+    expect(revertCall).toBeDefined();
+
+    const insertCalls = vi
+      .mocked(queryD1)
+      .mock.calls.filter(
+        (c) => typeof c[0] === "string" && c[0].includes("INSERT INTO betas")
+      );
+    expect(insertCalls.length).toBe(0);
   });
 });
