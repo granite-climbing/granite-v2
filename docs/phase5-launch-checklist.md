@@ -14,12 +14,12 @@ Phase 5(Instagram 베타 수집/모더레이션) production 출시 전 작업 �
 
 ## 0. 머지 직전 (PR 단위)
 
-- [ ] `git push origin phase5-implementation`
-- [ ] PR 생성 — description에 Tasks 1–21 요약 + Codex 5회 review 이력 + 알려진 limitation
-- [ ] CI 통과 확인 (tests, typecheck, build, wrangler dry-run; 로컬 Node v20 환경 한정 dry-run 실패는 CI에서 v22로 대체)
-- [ ] main 변경분 있으면 rebase 또는 merge
-- [ ] migrations `0004`, `0005`는 roll-forward only — PR description에 명시
-- [ ] Reviewer 지정 + 승인 1건 이상
+- [x] `git push origin phase5-implementation`
+- [x] PR 생성 — description에 Tasks 1–21 요약 + Codex 5회 review 이력 + 알려진 limitation
+- [x] CI 통과 확인 (tests, typecheck, build, wrangler dry-run; 로컬 Node v20 환경 한정 dry-run 실패는 CI에서 v22로 대체)
+- [x] main 변경분 있으면 rebase 또는 merge
+- [x] migrations `0004`, `0005`는 roll-forward only — PR description에 명시
+- [x] Reviewer 지정 + 승인 1건 이상
 
 ---
 
@@ -27,21 +27,21 @@ Phase 5(Instagram 베타 수집/모더레이션) production 출시 전 작업 �
 
 ### 1-A. Instagram 계정 준비
 
-- [ ] **Instagram Business 또는 Creator 계정** 전환 (모바일 앱 → 설정 → 계정 → 프로페셔널 계정)
-- [ ] **Facebook Page와 연결** (Graph API의 모든 Instagram 엔드포인트는 connected Page 필수)
-- [ ] **권한 있는 admin 계정 지정** (App Review 제출자, 토큰 발급자)
-- [ ] 계정명/핸들 결정 — 예: `@granite.kr` (사용자에게 멘션 양식을 안내해야 하므로 출시 후 변경 불가 전제)
+- [x] **Instagram Business 또는 Creator 계정** 전환 (모바일 앱 → 설정 → 계정 → 프로페셔널 계정)
+- [x] **Facebook Page와 연결** (Graph API의 모든 Instagram 엔드포인트는 connected Page 필수)
+- [x] **권한 있는 admin 계정 지정** (App Review 제출자, 토큰 발급자)
+- [x] 계정명/핸들 결정 — 예: `@granite.kr` (사용자에게 멘션 양식을 안내해야 하므로 출시 후 변경 불가 전제)
 
 ### 1-B. Meta for Developers 앱 등록
 
-- [ ] developers.facebook.com → 새 앱 생성 (App Type: **Business** 권장)
-- [ ] Instagram product 추가 ("Instagram API with Instagram Login" 또는 "Instagram Graph API")
-- [ ] App ID / App Secret 발급 후 안전 보관 (`META_APP_ID`, `META_APP_SECRET`)
-- [ ] **Privacy Policy URL 등록** — 한글 개인정보처리방침 페이지 필수. **Granite 도메인에 미존재 → 신규 생성 필요**
-- [ ] **Terms of Service URL 등록**
-- [ ] **Data Deletion URL 등록** — 사용자가 데이터 삭제 요청할 수 있는 페이지 (Granite 미존재 → 신규)
-- [ ] App Icon 1024×1024 업로드 (브랜드 로고)
-- [ ] Business Verification 절차 (해외 지역은 사업자 등록증 등 서류 요청 가능)
+- [x] developers.facebook.com → 새 앱 생성 (App Type: **Business** 권장)
+- [x] Instagram product 추가 ("Instagram API with Instagram Login" 또는 "Instagram Graph API")
+- [x] App ID / App Secret 발급 후 안전 보관 (`META_APP_ID`, `META_APP_SECRET`)
+- [x] **Privacy Policy URL 등록** — 한글 개인정보처리방침 페이지 필수. **Granite 도메인에 미존재 → 신규 생성 필요**
+- [x] **Terms of Service URL 등록**
+- [x] **Data Deletion URL 등록** — 사용자가 데이터 삭제 요청할 수 있는 페이지 (Granite 미존재 → 신규)
+- [x] App Icon 1024×1024 업로드 (브랜드 로고)
+- [x] Business Verification 절차 (해외 지역은 사업자 등록증 등 서류 요청 가능)
 
 ### 1-C. Graph API 권한 신청 (App Review)
 
@@ -108,14 +108,14 @@ System User 사용 시 일반적으로 무관하지만 보안 회전 차원에�
 
 ### 2-A. D1 Migrations
 
-- [ ] production D1에 `0004_beta_instagram.sql` 적용
-- [ ] production D1에 `0005_webhook_inbox_external_media_id.sql` 적용
+- [x] production D1에 `0004_beta_instagram.sql` 적용
+- [x] production D1에 `0005_webhook_inbox_external_media_id.sql` 적용
 
 ```bash
 pnpm wrangler d1 migrations apply granite
 ```
 
-- [ ] schema 검증
+- [x] schema 검증
 
 ```bash
 pnpm wrangler d1 execute granite --command="PRAGMA table_info(webhook_inbox)"
@@ -127,19 +127,19 @@ pnpm wrangler d1 execute granite --command="PRAGMA table_info(webhook_operationa
 
 ### 2-B. Worker Secrets
 
-- [ ] `META_APP_SECRET` 설정
+- [x] `META_APP_SECRET` 설정
 
 ```bash
 pnpm wrangler secret put META_APP_SECRET
 ```
 
-- [ ] `META_WEBHOOK_VERIFY_TOKEN` 설정 (Meta App Dashboard에 입력한 값과 정확히 일치)
+- [x] `META_WEBHOOK_VERIFY_TOKEN` 설정 (Meta App Dashboard에 입력한 값과 정확히 일치)
 
 ```bash
 pnpm wrangler secret put META_WEBHOOK_VERIFY_TOKEN
 ```
 
-- [ ] `INSTAGRAM_GRAPH_ACCESS_TOKEN` 설정
+- [x] `INSTAGRAM_GRAPH_ACCESS_TOKEN` 설정
 
 ```bash
 pnpm wrangler secret put INSTAGRAM_GRAPH_ACCESS_TOKEN
@@ -147,8 +147,8 @@ pnpm wrangler secret put INSTAGRAM_GRAPH_ACCESS_TOKEN
 
 ### 2-C. Worker 배포
 
-- [ ] `wrangler.toml` 바인딩 검증 (`granite_v2` D1, `BUCKET` R2)
-- [ ] Worker 배포
+- [x] `wrangler.toml` 바인딩 검증 (`granite_v2` D1, `BUCKET` R2)
+- [x] Worker 배포
 
 ```bash
 pnpm wrangler deploy
@@ -169,8 +169,8 @@ pnpm wrangler deploy
 
 기존 ENV는 그대로 유지. Phase 5 추가 항목만 다음과 같다.
 
-- [ ] `META_APP_ID` 추가 (Instagram oEmbed 호출용; `lib/beta/thumbnail-r2.ts`)
-- [ ] `META_APP_SECRET` 추가 (동일)
+- [x] `META_APP_ID` 추가 (Instagram oEmbed 호출용; `lib/beta/thumbnail-r2.ts`)
+- [x] `META_APP_SECRET` 추가 (동일)
 
 Vercel Dashboard → Settings → Environment Variables → Production + Preview 둘 다.
 

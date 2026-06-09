@@ -1,4 +1,4 @@
-name = "granite-workers"
+name = "workers"
 main = "workers/instagram-webhook/src/index.ts"
 compatibility_date = "2026-06-02"
 
