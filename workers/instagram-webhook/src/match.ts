@@ -10,7 +10,7 @@ import {
   setWebhookInboxStatus,
   tryReclaimWebhookForRetry,
 } from "./d1";
-import { fetchMentionedMedia } from "./graph-api";
+import { fetchMentionedComment, fetchMentionedMedia } from "./graph-api";
 import { extractHashtags, normalizeHandle, normalizeToken } from "./normalize";
 import { attemptThumbnailCopy } from "./thumbnail";
 
@@ -89,13 +89,52 @@ export async function processMentionEvent(
   let createdBetaId: string | null = null;
 
   try {
-  // For `comments`-field webhooks the comment body arrives inline — no extra
-  // Graph API hop needed. For `mentions`-field webhooks we fall back to the
-  // media caption fetched below.
+  // Three caption sources, in priority order:
+  //   A) `comments` webhook — text inline at value.text → no Graph hop
+  //   B) `mentions` webhook with comment_id — fetch mentioned_comment.text
+  //   C) `mentions` webhook with only media_id — fall back to media.caption
   let captionText = event.commentText ?? "";
+  let captionSource: "payload_inline" | "fetched_comment" | "media_caption" =
+    event.commentText ? "payload_inline" : "media_caption";
+
+  if (!captionText && event.commentId) {
+    logStep("04a.fetch_comment.start", { webhookId, commentId: event.commentId });
+    const comment = await fetchMentionedComment({
+      businessAccountId: event.entryId,
+      commentId: event.commentId,
+      accessToken: env.META_PAGE_ACCESS_TOKEN,
+    });
+    logStep("04a.fetch_comment.done", { webhookId, ok: !!comment, hasText: !!comment?.text });
+    if (!comment) {
+      const r = await setWebhookInboxStatus(env.granite_v2, {
+        id: webhookId,
+        status: "failed",
+        lastErrorCode: "graph_api_failure",
+        lastErrorMessage: "mentioned_comment fetch failed",
+        expectedAttempts: leaseAttempts,
+      });
+      if (r.changes === 0) return;
+      await insertWebhookOperationalEvent(env.granite_v2, {
+        id: uuid("opev"),
+        eventType: "graph_api_failure",
+        webhookId,
+        betaId: null,
+        requestId: "",
+        method: "GET",
+        path: "/mentioned_comment",
+        statusCode: null,
+        message: "mentioned_comment fetch failed",
+        metadata: "{}",
+      });
+      return;
+    }
+    captionText = comment.text;
+    captionSource = "fetched_comment";
+  }
+
   logStep("04.caption_source", {
     webhookId,
-    source: event.commentText ? "payload_inline" : "media_caption",
+    source: captionSource,
     captionLen: captionText.length,
   });
 
