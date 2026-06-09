@@ -38,9 +38,11 @@ export type AdminBetaRow = CreateManualBetaInput & {
 export type WebhookInboxAdminRow = {
   id: string;
   externalId: string;
+  externalMediaId: string | null;
   igUsername: string;
   caption: string;
   mediaUrl: string;
+  permalinkUrl: string | null;
   thumbnailUrl: string | null;
   matchedBetaId: string | null;
   status: WebhookInboxStatus;
@@ -192,9 +194,11 @@ export async function getAdminWebhookInbox(status: WebhookInboxStatus = "unmatch
     `SELECT
        id,
        external_id AS externalId,
+       external_media_id AS externalMediaId,
        ig_username AS igUsername,
        caption,
        media_url AS mediaUrl,
+       permalink_url AS permalinkUrl,
        thumbnail_url AS thumbnailUrl,
        matched_beta_id AS matchedBetaId,
        status,

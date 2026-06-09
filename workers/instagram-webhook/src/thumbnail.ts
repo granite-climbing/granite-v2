@@ -29,7 +29,7 @@ function inferExtension(contentType: string | null): "jpg" | "png" | "webp" | "g
 export async function attemptThumbnailCopy(
   bucket: R2Bucket,
   cdnBase: string,
-  betaId: string,
+  owner: { scope: "webhook" | "beta"; id: string },
   media: MediaInfo
 ): Promise<string | null> {
   const source = media.thumbnailUrl ?? media.mediaUrl;
@@ -50,7 +50,8 @@ export async function attemptThumbnailCopy(
   const bytes = await response.arrayBuffer();
   if (bytes.byteLength > MAX_THUMBNAIL_BYTES) return null;
 
-  const key = `betas/${betaId}/thumb-${crypto.randomUUID()}.${extension}`;
+  const prefix = owner.scope === "webhook" ? "webhooks" : "betas";
+  const key = `${prefix}/${owner.id}/thumb-${crypto.randomUUID()}.${extension}`;
   try {
     await bucket.put(key, bytes, {
       httpMetadata: { contentType: contentType ?? `image/${extension}` },

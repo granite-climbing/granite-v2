@@ -143,18 +143,45 @@ export async function processMentionEvent(
   // media owner's handle for `mentions` webhooks on posts/reels.
   const igUsername = normalizeHandle(event.igUsername ?? media.username);
 
+  // Copy thumbnail to R2 immediately on fetch success — even unmatched/rejected
+  // rows benefit because the admin UI can show the local image, and the URL is
+  // reused as-is if a beta is created later.
+  logStep("06a.thumbnail.start", { webhookId });
+  const cdnThumbnailUrl = await attemptThumbnailCopy(
+    env.BUCKET,
+    env.CDN_BASE_URL,
+    { scope: "webhook", id: webhookId },
+    media
+  );
+  logStep("06a.thumbnail.done", { webhookId, ok: !!cdnThumbnailUrl });
+  if (!cdnThumbnailUrl) {
+    await insertWebhookOperationalEvent(env.granite_v2, {
+      id: uuid("opev"),
+      eventType: "thumbnail_copy_failed",
+      webhookId,
+      betaId: null,
+      requestId: "",
+      method: "POST",
+      path: "/webhooks/instagram",
+      statusCode: null,
+      message: "thumbnail download or R2 upload failed",
+      metadata: "{}",
+    });
+  }
+
   await hydrateWebhookInbox(env.granite_v2, {
     id: webhookId,
     igUsername,
     caption: captionText,
     mediaUrl: media.mediaUrl ?? media.permalink ?? "",
     permalinkUrl: media.permalink,
-    thumbnailUrl: media.thumbnailUrl,
+    thumbnailUrl: cdnThumbnailUrl,
   });
   logStep("06.hydrated", {
     webhookId,
     igUsername,
     captionLen: captionText.length,
+    hasCdnThumbnail: !!cdnThumbnailUrl,
   });
 
   // Duplicate check
@@ -259,6 +286,7 @@ export async function processMentionEvent(
     mediaUrl: media.mediaUrl ?? media.permalink ?? "",
     permalinkUrl: media.permalink,
     externalMediaId: event.mediaId,
+    thumbnailUrl: cdnThumbnailUrl,
     sentAt: new Date().toISOString().slice(0, 10),
   });
 
@@ -275,35 +303,6 @@ export async function processMentionEvent(
   });
   if (matchResult.changes === 0) {
     return;
-  }
-
-  // Thumbnail copy
-  logStep("12.thumbnail.start", { webhookId, betaId: createdBetaId });
-  const cdnUrl = await attemptThumbnailCopy(env.BUCKET, env.CDN_BASE_URL, createdBetaId, media);
-  logStep("12.thumbnail.done", { webhookId, betaId: createdBetaId, ok: !!cdnUrl });
-  if (cdnUrl) {
-    await env.granite_v2
-      .prepare(`UPDATE betas SET thumbnail_url = ?, updated_at = datetime('now') WHERE id = ?`)
-      .bind(cdnUrl, createdBetaId)
-      .run();
-  } else {
-    // Thumbnail copy failed; primary status (matched) stays.
-    await env.granite_v2
-      .prepare(`UPDATE webhook_inbox SET last_error_code = 'thumbnail_copy_failed', last_error_message = 'thumbnail download or R2 upload failed', updated_at = datetime('now') WHERE id = ?`)
-      .bind(webhookId)
-      .run();
-    await insertWebhookOperationalEvent(env.granite_v2, {
-      id: uuid("opev"),
-      eventType: "thumbnail_copy_failed",
-      webhookId,
-      betaId: createdBetaId,
-      requestId: "",
-      method: "POST",
-      path: "/webhooks/instagram",
-      statusCode: null,
-      message: "thumbnail download or R2 upload failed",
-      metadata: "{}",
-    });
   }
   logStep("13.complete", { webhookId, betaId: createdBetaId });
   } catch (error) {

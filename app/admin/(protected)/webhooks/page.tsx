@@ -173,17 +173,35 @@ export default async function AdminWebhooksPage({
                 <AdminTableCell className="max-w-xs">
                   <p className="line-clamp-2 text-xs text-[#24292F]">{row.caption}</p>
                 </AdminTableCell>
-                <AdminTableCell>
-                  {row.mediaUrl && (
-                    <a
-                      href={row.mediaUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-[#0969DA] hover:underline"
-                    >
-                      Link
-                    </a>
-                  )}
+                <AdminTableCell className="text-xs">
+                  <div className="flex flex-col gap-0.5">
+                    {row.permalinkUrl ? (
+                      <a
+                        href={row.permalinkUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[#0969DA] hover:underline"
+                      >
+                        IG 게시물
+                      </a>
+                    ) : row.mediaUrl ? (
+                      <a
+                        href={row.mediaUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[#0969DA] hover:underline"
+                      >
+                        Media
+                      </a>
+                    ) : (
+                      <span className="text-[#6F7477]">—</span>
+                    )}
+                    {row.externalMediaId ? (
+                      <span className="font-mono text-[10px] text-[#9CA3AF]">
+                        {row.externalMediaId}
+                      </span>
+                    ) : null}
+                  </div>
                 </AdminTableCell>
                 <AdminTableCell>
                   {row.thumbnailUrl ? (

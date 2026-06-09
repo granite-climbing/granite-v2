@@ -107,6 +107,7 @@ export async function insertWebhookBeta(
     mediaUrl: string;
     permalinkUrl: string | null;
     externalMediaId: string;
+    thumbnailUrl: string | null;
     sentAt: string;
   }
 ): Promise<void> {
@@ -115,7 +116,7 @@ export async function insertWebhookBeta(
       `INSERT INTO betas (
          id, route_id, user_id, instagram_id, display_name, source, platform,
          media_url, permalink_url, external_media_id, thumbnail_url, sent_at, status, claim_status
-       ) VALUES (?, ?, NULL, ?, ?, 'instagram_webhook', 'instagram', ?, ?, ?, NULL, ?, 'pending', 'unclaimed')`
+       ) VALUES (?, ?, NULL, ?, ?, 'instagram_webhook', 'instagram', ?, ?, ?, ?, ?, 'pending', 'unclaimed')`
     )
     .bind(
       input.id,
@@ -125,6 +126,7 @@ export async function insertWebhookBeta(
       input.mediaUrl,
       input.permalinkUrl,
       input.externalMediaId,
+      input.thumbnailUrl,
       input.sentAt
     )
     .run();
@@ -167,7 +169,6 @@ export async function findPublishedRouteCandidates(db: D1Database): Promise<Rout
   return result.results;
 }
 
-// permalinkUrl is accepted but not persisted — webhook_inbox has no permalink_url column today.
 export async function hydrateWebhookInbox(
   db: D1Database,
   input: {
@@ -185,6 +186,7 @@ export async function hydrateWebhookInbox(
          ig_username = ?,
          caption = ?,
          media_url = ?,
+         permalink_url = ?,
          thumbnail_url = ?,
          updated_at = datetime('now')
        WHERE id = ?`
@@ -193,6 +195,7 @@ export async function hydrateWebhookInbox(
       input.igUsername,
       input.caption,
       input.mediaUrl,
+      input.permalinkUrl,
       input.thumbnailUrl,
       input.id
     )
