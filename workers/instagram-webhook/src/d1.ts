@@ -241,6 +241,7 @@ export async function insertWebhookOperationalEvent(
     id: string;
     eventType:
       | "invalid_signature"
+      | "invalid_payload"
       | "graph_api_failure"
       | "caption_parse_failed"
       | "route_match_ambiguous"

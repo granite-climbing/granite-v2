@@ -18,12 +18,26 @@ function uuid(prefix: string): string {
   return `${prefix}_${crypto.randomUUID()}`;
 }
 
+function logStep(
+  step: string,
+  ctx: Record<string, unknown>
+): void {
+  console.log(`[match] ${step} ${JSON.stringify(ctx)}`);
+}
+
 export async function processMentionEvent(
   event: MentionEvent,
   env: Env,
   rawPayload: string
 ): Promise<void> {
   const newWebhookId = uuid("webhook");
+  logStep("01.enter", {
+    externalId: event.externalId,
+    mediaId: event.mediaId,
+    igUserId: event.igUserId,
+    commentId: event.commentId ?? null,
+    newWebhookId,
+  });
 
   const inserted = await insertWebhookInbox(env.granite_v2, {
     id: newWebhookId,
@@ -40,6 +54,11 @@ export async function processMentionEvent(
   let webhookId: string;
   let leaseAttempts: number;
 
+  logStep("02.inbox_insert", {
+    externalId: event.externalId,
+    inserted: inserted.inserted,
+  });
+
   if (inserted.inserted) {
     webhookId = newWebhookId;
     const claimResult = await setWebhookInboxStatus(env.granite_v2, {
@@ -49,18 +68,20 @@ export async function processMentionEvent(
       expectedStatus: "received",
     });
     if (claimResult.changes === 0) {
-      // Defensive: someone else already moved this row. Stop.
+      logStep("02b.claim_lost", { webhookId, externalId: event.externalId });
       return;
     }
     leaseAttempts = 1;
+    logStep("03.claimed_fresh", { webhookId, leaseAttempts });
   } else {
     const reclaim = await tryReclaimWebhookForRetry(env.granite_v2, event.externalId);
     if (!reclaim) {
-      // Existing row is in a terminal status or still fresh processing — true idempotent no-op.
+      logStep("02c.idempotent_noop", { externalId: event.externalId });
       return;
     }
     webhookId = reclaim.webhookId;
     leaseAttempts = reclaim.attempts;
+    logStep("03.reclaimed", { webhookId, leaseAttempts });
   }
 
   let createdBetaId: string | null = null;
@@ -68,11 +89,13 @@ export async function processMentionEvent(
   try {
   let captionText = "";
   if (event.commentId) {
+    logStep("04.fetch_comment.start", { webhookId, commentId: event.commentId });
     const comment = await fetchMentionedComment({
       igUserId: event.igUserId,
       commentId: event.commentId,
       accessToken: env.INSTAGRAM_GRAPH_ACCESS_TOKEN,
     });
+    logStep("04.fetch_comment.done", { webhookId, ok: !!comment });
     if (!comment) {
       const r = await setWebhookInboxStatus(env.granite_v2, {
         id: webhookId,
@@ -99,10 +122,19 @@ export async function processMentionEvent(
     captionText = comment.text;
   }
 
+  logStep("05.fetch_media.start", { webhookId, mediaId: event.mediaId });
   const media = await fetchMentionedMedia({
     igUserId: event.igUserId,
     mediaId: event.mediaId,
     accessToken: env.INSTAGRAM_GRAPH_ACCESS_TOKEN,
+  });
+  logStep("05.fetch_media.done", {
+    webhookId,
+    ok: !!media,
+    hasMediaUrl: !!media?.mediaUrl,
+    hasPermalink: !!media?.permalink,
+    hasThumbnail: !!media?.thumbnailUrl,
+    username: media?.username ?? null,
   });
   if (!media) {
     const r = await setWebhookInboxStatus(env.granite_v2, {
@@ -139,9 +171,19 @@ export async function processMentionEvent(
     permalinkUrl: media.permalink,
     thumbnailUrl: media.thumbnailUrl,
   });
+  logStep("06.hydrated", {
+    webhookId,
+    igUsername,
+    captionLen: captionText.length,
+  });
 
   // Duplicate check
   const existing = await findExistingBetaByExternalMedia(env.granite_v2, event.mediaId);
+  logStep("07.dup_check", {
+    webhookId,
+    duplicate: !!existing,
+    existingBetaId: existing?.id ?? null,
+  });
   if (existing) {
     const r = await setWebhookInboxStatus(env.granite_v2, {
       id: webhookId,
@@ -168,6 +210,11 @@ export async function processMentionEvent(
 
   // Hashtag-based route matching
   const captionTokens = new Set(extractHashtags(captionText));
+  logStep("08.tokens", {
+    webhookId,
+    tokenCount: captionTokens.size,
+    tokens: Array.from(captionTokens).slice(0, 20),
+  });
   if (captionTokens.size === 0) {
     const r = await setWebhookInboxStatus(env.granite_v2, {
       id: webhookId,
@@ -184,6 +231,12 @@ export async function processMentionEvent(
     const boulderToken = normalizeToken(c.boulderName);
     const routeToken = normalizeToken(c.routeName);
     return captionTokens.has(boulderToken) && captionTokens.has(routeToken);
+  });
+  logStep("09.matched_routes", {
+    webhookId,
+    candidateCount: candidates.length,
+    matchCount: matches.length,
+    matchedRouteIds: matches.map((m) => m.routeId),
   });
 
   if (matches.length !== 1) {
@@ -213,6 +266,11 @@ export async function processMentionEvent(
 
   const route = matches[0];
   createdBetaId = uuid("beta");
+  logStep("10.beta_insert.start", {
+    webhookId,
+    betaId: createdBetaId,
+    routeId: route.routeId,
+  });
   await insertWebhookBeta(env.granite_v2, {
     id: createdBetaId,
     routeId: route.routeId,
@@ -230,12 +288,19 @@ export async function processMentionEvent(
     matchedBetaId: createdBetaId,
     expectedAttempts: leaseAttempts,
   });
+  logStep("11.inbox_matched", {
+    webhookId,
+    betaId: createdBetaId,
+    changes: matchResult.changes,
+  });
   if (matchResult.changes === 0) {
     return;
   }
 
   // Thumbnail copy
+  logStep("12.thumbnail.start", { webhookId, betaId: createdBetaId });
   const cdnUrl = await attemptThumbnailCopy(env.BUCKET, env.CDN_BASE_URL, createdBetaId, media);
+  logStep("12.thumbnail.done", { webhookId, betaId: createdBetaId, ok: !!cdnUrl });
   if (cdnUrl) {
     await env.granite_v2
       .prepare(`UPDATE betas SET thumbnail_url = ?, updated_at = datetime('now') WHERE id = ?`)
@@ -260,8 +325,14 @@ export async function processMentionEvent(
       metadata: "{}",
     });
   }
+  logStep("13.complete", { webhookId, betaId: createdBetaId });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    logStep("99.exception", {
+      webhookId,
+      createdBetaId,
+      message: message.slice(0, 500),
+    });
     try {
       if (createdBetaId !== null) {
         // Best-effort: try one more time to link the inbox. If this also fails,
