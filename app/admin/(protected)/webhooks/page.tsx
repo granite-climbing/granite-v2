@@ -44,6 +44,15 @@ function formatKstDateTime(value: string | null | undefined): string {
   return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")}`;
 }
 
+function prettifyJson(raw: string | null | undefined): string {
+  if (!raw) return "";
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch {
+    return raw;
+  }
+}
+
 function getStatusBadgeClasses(status: WebhookInboxStatus): string {
   switch (status) {
     case "matched":
@@ -253,37 +262,79 @@ export default async function AdminWebhooksPage({
           {opEvents.length === 0 ? (
             <p className="text-sm text-[#6F7477]">No operational events recorded.</p>
           ) : (
-            <AdminTable
-              headers={["Date", "Event Type", "Status", "Message", "Webhook ID", "Beta ID", "Metadata"]}
-            >
+            <ul className="divide-y divide-[#E6EBF0] rounded border border-[#E6EBF0]">
               {opEvents.map((ev) => (
-                <AdminTableRow key={ev.id}>
-                  <AdminTableCell className="text-xs text-[#6F7477] whitespace-nowrap">
-                    {formatKstDateTime(ev.createdAt)}
-                  </AdminTableCell>
-                  <AdminTableCell>
-                    <span className="rounded bg-gray-100 px-1 py-0.5 text-xs font-semibold text-[#24292F]">
-                      {ev.eventType}
-                    </span>
-                  </AdminTableCell>
-                  <AdminTableCell className="text-xs text-[#6F7477]">
-                    {ev.statusCode ?? "—"}
-                  </AdminTableCell>
-                  <AdminTableCell className="max-w-xs">
-                    <p className="line-clamp-2 text-xs text-[#24292F]">{ev.message}</p>
-                  </AdminTableCell>
-                  <AdminTableCell className="text-xs text-[#6F7477]">
-                    {ev.webhookId ?? "—"}
-                  </AdminTableCell>
-                  <AdminTableCell className="text-xs text-[#6F7477]">
-                    {ev.betaId ?? "—"}
-                  </AdminTableCell>
-                  <AdminTableCell className="max-w-xs">
-                    <p className="line-clamp-2 text-xs text-[#6F7477]">{ev.metadata}</p>
-                  </AdminTableCell>
-                </AdminTableRow>
+                <li key={ev.id}>
+                  <details className="group">
+                    <summary className="flex cursor-pointer list-none items-center gap-3 px-3 py-2 hover:bg-[#F6F8FA]">
+                      <span className="text-[10px] text-[#6F7477] transition-transform group-open:rotate-90">
+                        ▶
+                      </span>
+                      <span className="whitespace-nowrap text-xs text-[#6F7477]">
+                        {formatKstDateTime(ev.createdAt)}
+                      </span>
+                      <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-semibold text-[#24292F]">
+                        {ev.eventType}
+                      </span>
+                      <span className="text-xs text-[#6F7477]">
+                        {ev.statusCode ?? "—"}
+                      </span>
+                      <span className="line-clamp-1 flex-1 text-xs text-[#24292F]">
+                        {ev.message || "—"}
+                      </span>
+                    </summary>
+                    <dl className="grid grid-cols-[120px_1fr] gap-x-3 gap-y-1 border-t border-[#E6EBF0] bg-[#FAFBFC] px-6 py-3 text-xs">
+                      <dt className="text-[#6F7477]">ID</dt>
+                      <dd className="break-all font-mono text-[#24292F]">{ev.id}</dd>
+
+                      <dt className="text-[#6F7477]">Created</dt>
+                      <dd className="text-[#24292F]">
+                        {formatKstDateTime(ev.createdAt)}{" "}
+                        <span className="text-[#9CA3AF]">({ev.createdAt})</span>
+                      </dd>
+
+                      <dt className="text-[#6F7477]">Event Type</dt>
+                      <dd className="text-[#24292F]">{ev.eventType}</dd>
+
+                      <dt className="text-[#6F7477]">Status Code</dt>
+                      <dd className="text-[#24292F]">{ev.statusCode ?? "—"}</dd>
+
+                      <dt className="text-[#6F7477]">Method · Path</dt>
+                      <dd className="break-all text-[#24292F]">
+                        {ev.method || "—"} {ev.path || ""}
+                      </dd>
+
+                      <dt className="text-[#6F7477]">Request ID</dt>
+                      <dd className="break-all font-mono text-[#24292F]">
+                        {ev.requestId || "—"}
+                      </dd>
+
+                      <dt className="text-[#6F7477]">Webhook ID</dt>
+                      <dd className="break-all font-mono text-[#24292F]">
+                        {ev.webhookId ?? "—"}
+                      </dd>
+
+                      <dt className="text-[#6F7477]">Beta ID</dt>
+                      <dd className="break-all font-mono text-[#24292F]">
+                        {ev.betaId ?? "—"}
+                      </dd>
+
+                      <dt className="text-[#6F7477]">Message</dt>
+                      <dd className="whitespace-pre-wrap break-words text-[#24292F]">
+                        {ev.message || "—"}
+                      </dd>
+
+                      <dt className="self-start text-[#6F7477]">Metadata</dt>
+                      <dd>
+                        <pre className="overflow-x-auto rounded bg-[#0D1117] p-3 text-[11px] leading-snug text-[#E6EDF3]">
+                          {prettifyJson(ev.metadata) || "—"}
+                        </pre>
+                      </dd>
+                    </dl>
+                  </details>
+                </li>
               ))}
-            </AdminTable>
+            </ul>
           )}
         </AdminCard>
       </div>
