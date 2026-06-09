@@ -16,6 +16,9 @@ export function ManualBetaForm({
     return { message: result.message };
   }, null);
 
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
   return (
     <div className="fixed inset-y-0 left-1/2 z-50 flex w-full max-w-[430px] -translate-x-1/2 items-end bg-black/40">
       <form action={formAction} className="w-full rounded-t-2xl bg-white p-4 shadow-xl">
@@ -32,7 +35,7 @@ export function ManualBetaForm({
         </label>
         <label className="mb-4 block text-[13px] font-medium">
           완등 날짜
-          <input name="sentAt" required type="date" className="mt-1 h-11 w-full rounded-lg border border-[#DADDE1] px-3" />
+          <input name="sentAt" required type="date" defaultValue={today} className="mt-1 h-11 w-full rounded-lg border border-[#DADDE1] px-3" />
         </label>
         {state?.message ? (
           <p className="mb-3 text-[13px] leading-5 text-[#7A7A7A]">{state.message}</p>

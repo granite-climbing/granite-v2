@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ManualBetaForm } from "./manual-beta-form";
 import { BetaVideoGrid, type BetaVideoItem } from "./beta-video-grid";
 
@@ -16,6 +16,16 @@ export function BetaVideoSheet({
   onClose: () => void;
 }) {
   const [showManualForm, setShowManualForm] = useState(false);
+
+  useEffect(() => {
+    const { body } = document;
+    const previousOverflow = body.style.overflow;
+    body.style.overflow = "hidden";
+    return () => {
+      body.style.overflow = previousOverflow;
+    };
+  }, []);
+
   const instagramHref = useMemo(
     () => `https://www.instagram.com/?caption=${encodeURIComponent(caption)}`,
     [caption]

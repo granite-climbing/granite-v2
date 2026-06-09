@@ -8,14 +8,8 @@ export type BetaVideoItem = {
 export function BetaVideoGrid({ items }: { items: BetaVideoItem[] }) {
   if (items.length === 0) {
     return (
-      <div className="grid grid-cols-3">
-        {Array.from({ length: 9 }).map((_, index) => (
-          <div
-            key={index}
-            className="aspect-square border border-white bg-[#D9D9D9]"
-            aria-hidden="true"
-          />
-        ))}
+      <div className="flex items-center justify-center py-12 text-sm text-[#666]">
+        아직 업로드된 베타가 없어요!
       </div>
     );
   }
