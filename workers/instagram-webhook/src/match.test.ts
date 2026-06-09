@@ -12,7 +12,6 @@ vi.mock("./d1", () => ({
 }));
 vi.mock("./graph-api", () => ({
   fetchMentionedMedia: vi.fn(),
-  fetchMentionedComment: vi.fn(),
 }));
 vi.mock("./thumbnail", () => ({
   attemptThumbnailCopy: vi.fn().mockResolvedValue(null),
@@ -40,14 +39,13 @@ describe("processMentionEvent error boundary", () => {
     vi.mocked(d1.hydrateWebhookInbox).mockReset().mockResolvedValue(undefined);
     vi.mocked(d1.findPublishedRouteCandidates).mockReset();
     vi.mocked(graph.fetchMentionedMedia).mockReset();
-    vi.mocked(graph.fetchMentionedComment).mockReset();
   });
 
   it("marks the row failed and records an operational event when Graph API throws", async () => {
     vi.mocked(graph.fetchMentionedMedia).mockRejectedValue(new Error("timeout"));
 
     await processMentionEvent(
-      { externalId: "m1", igUserId: "u1", mediaId: "m1", commentId: null },
+      { externalId: "m1", entryId: "u1", igUserId: null, igUsername: null, mediaId: "m1", commentId: null, commentText: null },
       env,
       "{}"
     );
@@ -71,7 +69,7 @@ describe("processMentionEvent error boundary", () => {
 
     await expect(
       processMentionEvent(
-        { externalId: "m2", igUserId: "u1", mediaId: "m2", commentId: null },
+        { externalId: "m2", entryId: "u1", igUserId: null, igUsername: null, mediaId: "m2", commentId: null, commentText: null },
         env,
         "{}"
       )
@@ -89,7 +87,7 @@ describe("processMentionEvent error boundary", () => {
     vi.mocked(d1.findPublishedRouteCandidates).mockResolvedValue([]); // force unmatched
 
     await processMentionEvent(
-      { externalId: "m3", igUserId: "u1", mediaId: "m3", commentId: null },
+      { externalId: "m3", entryId: "u1", igUserId: null, igUsername: null, mediaId: "m3", commentId: null, commentText: null },
       env,
       "{}"
     );
@@ -121,7 +119,6 @@ describe("processMentionEvent redelivery", () => {
     vi.mocked(d1.hydrateWebhookInbox).mockReset().mockResolvedValue(undefined);
     vi.mocked(d1.findPublishedRouteCandidates).mockReset();
     vi.mocked(graph.fetchMentionedMedia).mockReset();
-    vi.mocked(graph.fetchMentionedComment).mockReset();
   });
 
   it("no-ops when Meta redelivers a terminal-state row", async () => {
@@ -129,7 +126,7 @@ describe("processMentionEvent redelivery", () => {
     vi.mocked(d1.tryReclaimWebhookForRetry).mockResolvedValueOnce(null);
 
     await processMentionEvent(
-      { externalId: "m_terminal", igUserId: "u1", mediaId: "m_terminal", commentId: null },
+      { externalId: "m_terminal", entryId: "u1", igUserId: null, igUsername: null, mediaId: "m_terminal", commentId: null, commentText: null },
       env,
       "{}"
     );
@@ -155,7 +152,7 @@ describe("processMentionEvent redelivery", () => {
     vi.mocked(d1.findPublishedRouteCandidates).mockResolvedValueOnce([]);
 
     await processMentionEvent(
-      { externalId: "m_failed", igUserId: "u1", mediaId: "m_failed", commentId: null },
+      { externalId: "m_failed", entryId: "u1", igUserId: null, igUsername: null, mediaId: "m_failed", commentId: null, commentText: null },
       env,
       "{}"
     );
@@ -178,7 +175,7 @@ describe("processMentionEvent redelivery", () => {
     vi.mocked(d1.findPublishedRouteCandidates).mockResolvedValueOnce([]);
 
     await processMentionEvent(
-      { externalId: "m_new", igUserId: "u1", mediaId: "m_new", commentId: null },
+      { externalId: "m_new", entryId: "u1", igUserId: null, igUsername: null, mediaId: "m_new", commentId: null, commentText: null },
       env,
       "{}"
     );
@@ -198,7 +195,6 @@ describe("processMentionEvent orphan recovery", () => {
     vi.mocked(d1.findPublishedRouteCandidates).mockReset();
     vi.mocked(d1.insertWebhookBeta).mockReset();
     vi.mocked(graph.fetchMentionedMedia).mockReset();
-    vi.mocked(graph.fetchMentionedComment).mockReset();
   });
 
   it("records the betaId in the operational event when the final setWebhookInboxStatus throws", async () => {
@@ -223,7 +219,7 @@ describe("processMentionEvent orphan recovery", () => {
       });
 
     await processMentionEvent(
-      { externalId: "m_orphan", igUserId: "u1", mediaId: "m_orphan", commentId: null },
+      { externalId: "m_orphan", entryId: "u1", igUserId: null, igUsername: null, mediaId: "m_orphan", commentId: null, commentText: null },
       env,
       "{}"
     );
@@ -249,7 +245,6 @@ describe("processMentionEvent lease guard", () => {
     vi.mocked(d1.findPublishedRouteCandidates).mockReset();
     vi.mocked(d1.insertWebhookBeta).mockReset();
     vi.mocked(graph.fetchMentionedMedia).mockReset();
-    vi.mocked(graph.fetchMentionedComment).mockReset();
   });
 
   it("no-ops on redelivery when processing row is fresh (lease not stale)", async () => {
@@ -257,7 +252,7 @@ describe("processMentionEvent lease guard", () => {
     vi.mocked(d1.tryReclaimWebhookForRetry).mockResolvedValueOnce(null);
 
     await processMentionEvent(
-      { externalId: "m_fresh", igUserId: "u1", mediaId: "m_fresh", commentId: null },
+      { externalId: "m_fresh", entryId: "u1", igUserId: null, igUsername: null, mediaId: "m_fresh", commentId: null, commentText: null },
       env,
       "{}"
     );
@@ -290,7 +285,7 @@ describe("processMentionEvent lease guard", () => {
 
     await expect(
       processMentionEvent(
-        { externalId: "m_lost", igUserId: "u1", mediaId: "m_lost", commentId: null },
+        { externalId: "m_lost", entryId: "u1", igUserId: null, igUsername: null, mediaId: "m_lost", commentId: null, commentText: null },
         env,
         "{}"
       )

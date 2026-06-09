@@ -10,7 +10,7 @@ import {
   setWebhookInboxStatus,
   tryReclaimWebhookForRetry,
 } from "./d1";
-import { fetchMentionedComment, fetchMentionedMedia } from "./graph-api";
+import { fetchMentionedMedia } from "./graph-api";
 import { extractHashtags, normalizeHandle, normalizeToken } from "./normalize";
 import { attemptThumbnailCopy } from "./thumbnail";
 
@@ -34,7 +34,9 @@ export async function processMentionEvent(
   logStep("01.enter", {
     externalId: event.externalId,
     mediaId: event.mediaId,
+    entryId: event.entryId,
     igUserId: event.igUserId,
+    igUsername: event.igUsername,
     commentId: event.commentId ?? null,
     newWebhookId,
   });
@@ -43,8 +45,8 @@ export async function processMentionEvent(
     id: newWebhookId,
     externalId: event.externalId,
     externalMediaId: event.mediaId,
-    igUserId: event.igUserId,
-    igUsername: "",
+    igUserId: event.igUserId ?? "",
+    igUsername: event.igUsername ?? "",
     caption: "",
     mediaUrl: "",
     thumbnailUrl: null,
@@ -87,44 +89,19 @@ export async function processMentionEvent(
   let createdBetaId: string | null = null;
 
   try {
-  let captionText = "";
-  if (event.commentId) {
-    logStep("04.fetch_comment.start", { webhookId, commentId: event.commentId });
-    const comment = await fetchMentionedComment({
-      igUserId: event.igUserId,
-      commentId: event.commentId,
-      accessToken: env.INSTAGRAM_GRAPH_ACCESS_TOKEN,
-    });
-    logStep("04.fetch_comment.done", { webhookId, ok: !!comment });
-    if (!comment) {
-      const r = await setWebhookInboxStatus(env.granite_v2, {
-        id: webhookId,
-        status: "failed",
-        lastErrorCode: "graph_api_failure",
-        lastErrorMessage: "mentioned_comment fetch failed",
-        expectedAttempts: leaseAttempts,
-      });
-      if (r.changes === 0) return;
-      await insertWebhookOperationalEvent(env.granite_v2, {
-        id: uuid("opev"),
-        eventType: "graph_api_failure",
-        webhookId,
-        betaId: null,
-        requestId: "",
-        method: "GET",
-        path: "/mentioned_comment",
-        statusCode: null,
-        message: "mentioned_comment fetch failed",
-        metadata: "{}",
-      });
-      return;
-    }
-    captionText = comment.text;
-  }
+  // For `comments`-field webhooks the comment body arrives inline — no extra
+  // Graph API hop needed. For `mentions`-field webhooks we fall back to the
+  // media caption fetched below.
+  let captionText = event.commentText ?? "";
+  logStep("04.caption_source", {
+    webhookId,
+    source: event.commentText ? "payload_inline" : "media_caption",
+    captionLen: captionText.length,
+  });
 
   logStep("05.fetch_media.start", { webhookId, mediaId: event.mediaId });
   const media = await fetchMentionedMedia({
-    igUserId: event.igUserId,
+    businessAccountId: event.entryId,
     mediaId: event.mediaId,
     accessToken: env.INSTAGRAM_GRAPH_ACCESS_TOKEN,
   });
@@ -161,7 +138,10 @@ export async function processMentionEvent(
   }
 
   if (!captionText) captionText = media.caption;
-  const igUsername = normalizeHandle(media.username);
+  // Prefer the commenter's handle when the webhook is for a comment mention
+  // (media.username would be our own page in that case). Fall back to the
+  // media owner's handle for `mentions` webhooks on posts/reels.
+  const igUsername = normalizeHandle(event.igUsername ?? media.username);
 
   await hydrateWebhookInbox(env.granite_v2, {
     id: webhookId,

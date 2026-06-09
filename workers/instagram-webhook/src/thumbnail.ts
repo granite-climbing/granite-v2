@@ -1,4 +1,4 @@
-import type { MentionedMedia } from "./graph-api";
+import type { MediaInfo } from "./graph-api";
 
 const MAX_THUMBNAIL_BYTES = 5 * 1024 * 1024;
 
@@ -30,7 +30,7 @@ export async function attemptThumbnailCopy(
   bucket: R2Bucket,
   cdnBase: string,
   betaId: string,
-  media: MentionedMedia
+  media: MediaInfo
 ): Promise<string | null> {
   const source = media.thumbnailUrl ?? media.mediaUrl;
   if (!source || !isAllowedImageUrl(source)) return null;

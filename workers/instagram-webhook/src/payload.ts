@@ -1,8 +1,12 @@
 export type MentionEvent = {
   externalId: string;
-  igUserId: string;
+  entryId: string;
+  igUserId: string | null;
+  igUsername: string | null;
   mediaId: string;
   commentId: string | null;
+  /** For `comments`-field webhooks, the comment body is delivered inline. */
+  commentText: string | null;
 };
 
 type Unknown = Record<string, unknown>;
@@ -23,8 +27,8 @@ export function extractMentionEvents(payload: unknown): MentionEvent[] {
   const events: MentionEvent[] = [];
   for (const e of entry) {
     if (!isObject(e)) continue;
-    const igUserId = asString(e.id);
-    if (!igUserId) continue;
+    const entryId = asString(e.id);
+    if (!entryId) continue;
     const changes = e.changes;
     if (!Array.isArray(changes)) continue;
     for (const c of changes) {
@@ -42,11 +46,19 @@ export function extractMentionEvents(payload: unknown): MentionEvent[] {
         asString(c.value.comment_id) ??
         (c.field === "comments" ? asString(c.value.id) : null);
 
+      const from = isObject(c.value.from) ? c.value.from : null;
+      const igUserId = from ? asString(from.id) : null;
+      const igUsername = from ? asString(from.username) : null;
+      const commentText = asString(c.value.text);
+
       events.push({
         externalId: commentId ?? mediaId,
+        entryId,
         igUserId,
+        igUsername,
         mediaId,
         commentId,
+        commentText,
       });
     }
   }

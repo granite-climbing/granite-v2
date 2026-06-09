@@ -35,9 +35,12 @@ describe("instagram webhook worker", () => {
     expect(events).toEqual([
       {
         externalId: "media_1",
-        igUserId: "ig_user_1",
+        entryId: "ig_user_1",
+        igUserId: null,
+        igUsername: null,
         mediaId: "media_1",
         commentId: null,
+        commentText: null,
       },
     ]);
   });
@@ -62,9 +65,44 @@ describe("instagram webhook worker", () => {
 
     expect(events[0]).toEqual({
       externalId: "comment_1",
-      igUserId: "ig_user_1",
+      entryId: "ig_user_1",
+      igUserId: null,
+      igUsername: null,
       mediaId: "media_1",
       commentId: "comment_1",
+      commentText: null,
+    });
+  });
+
+  it("extracts comments-field webhook with nested media and from user", () => {
+    const events = extractMentionEvents({
+      object: "instagram",
+      entry: [
+        {
+          id: "ig_user_1",
+          changes: [
+            {
+              field: "comments",
+              value: {
+                from: { id: "from_42", username: "dudc0_0" },
+                media: { id: "media_99", media_product_type: "REELS" },
+                id: "comment_123",
+                text: "@granite_daily test",
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(events[0]).toEqual({
+      externalId: "comment_123",
+      entryId: "ig_user_1",
+      igUserId: "from_42",
+      igUsername: "dudc0_0",
+      mediaId: "media_99",
+      commentId: "comment_123",
+      commentText: "@granite_daily test",
     });
   });
 });

@@ -1,4 +1,4 @@
-export type MentionedMedia = {
+export type MediaInfo = {
   username: string;
   caption: string;
   mediaUrl: string | null;
@@ -6,21 +6,36 @@ export type MentionedMedia = {
   permalink: string | null;
 };
 
-export type MentionedComment = {
+export type CommentInfo = {
   text: string;
   mediaId: string | null;
 };
 
-const GRAPH_VERSION = "v21.0";
+const GRAPH_VERSION = "v25.0";
+// Legacy Instagram Graph API (Facebook Login + connected Page).
+// The new "Instagram API with Instagram Login" exposes graph.instagram.com but
+// does NOT support `mentions` webhooks or the `mentioned_media` edge, so
+// caption-mention lookups must go through this path.
+const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
 
+/**
+ * Fetch a media item via the mentioned_media edge on the business account.
+ *
+ * Required because direct `GET /{media-id}` only works for media the token
+ * holder owns, while we want to read media on someone else's account that
+ * @-mentioned us. The mentioned_media edge is the IG-sanctioned way to read
+ * that media.
+ */
 export async function fetchMentionedMedia(input: {
-  igUserId: string;
+  businessAccountId: string;
   mediaId: string;
   accessToken: string;
-}): Promise<MentionedMedia | null> {
-  const fields = `mentioned_media.media_id(${input.mediaId}){thumbnail_url,media_url,caption,username,media_type,permalink}`;
-  const url = new URL(`https://graph.facebook.com/${GRAPH_VERSION}/${input.igUserId}`);
-  url.searchParams.set("fields", fields);
+}): Promise<MediaInfo | null> {
+  const url = new URL(`${GRAPH_BASE}/${input.businessAccountId}`);
+  url.searchParams.set(
+    "fields",
+    `mentioned_media.media_id(${input.mediaId}){thumbnail_url,media_url,caption,username,media_type,permalink}`
+  );
   url.searchParams.set("access_token", input.accessToken);
 
   const response = await fetch(url.toString(), { signal: AbortSignal.timeout(5000) });
@@ -39,14 +54,21 @@ export async function fetchMentionedMedia(input: {
   };
 }
 
+/**
+ * Fetch a comment via the mentioned_comment edge. Only used as a fallback
+ * when the `comments` webhook payload doesn't already carry the comment body
+ * inline (legacy IG Graph API delivers minimal payload for some events).
+ */
 export async function fetchMentionedComment(input: {
-  igUserId: string;
+  businessAccountId: string;
   commentId: string;
   accessToken: string;
-}): Promise<MentionedComment | null> {
-  const fields = `mentioned_comment.comment_id(${input.commentId}){text,media}`;
-  const url = new URL(`https://graph.facebook.com/${GRAPH_VERSION}/${input.igUserId}`);
-  url.searchParams.set("fields", fields);
+}): Promise<CommentInfo | null> {
+  const url = new URL(`${GRAPH_BASE}/${input.businessAccountId}`);
+  url.searchParams.set(
+    "fields",
+    `mentioned_comment.comment_id(${input.commentId}){text,media}`
+  );
   url.searchParams.set("access_token", input.accessToken);
 
   const response = await fetch(url.toString(), { signal: AbortSignal.timeout(5000) });
