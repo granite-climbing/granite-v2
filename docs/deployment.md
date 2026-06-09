@@ -240,6 +240,72 @@ Expected:
 
 ---
 
+## Phase 5: Worker & Webhook Deployment
+
+After Vercel production deployment completes (Phase 3–4), deploy the Cloudflare Worker for Instagram webhook handling (Phase 5).
+
+### Step 1: Apply D1 Migrations for Phase 5 Tables
+
+Ensure Phase 5 migration tables exist in both preview and production D1:
+
+```bash
+pnpm wrangler d1 migrations apply granite
+```
+
+Expected:
+- `webhook_inbox`, `webhook_operational_events`, `betas`, `beta_statuses` tables are applied.
+- No rollback of Phase 3 tables.
+
+### Step 2: Configure Worker Secrets
+
+Set the three Worker secrets required for Instagram webhook validation and Graph API calls:
+
+```bash
+pnpm wrangler secret put META_APP_SECRET
+pnpm wrangler secret put META_WEBHOOK_VERIFY_TOKEN
+pnpm wrangler secret put INSTAGRAM_GRAPH_ACCESS_TOKEN
+```
+
+When prompted, enter each secret value:
+
+- `META_APP_SECRET` — Your Meta App's app secret (from Developers Dashboard).
+- `META_WEBHOOK_VERIFY_TOKEN` — Your chosen verification token (can be any string; must match Meta dashboard configuration).
+- `INSTAGRAM_GRAPH_ACCESS_TOKEN` — Long-lived Instagram Graph API token (60-day expiration; update before expiry).
+
+### Step 3: Deploy the Worker
+
+```bash
+pnpm wrangler deploy
+```
+
+Expected:
+- Build succeeds.
+- Worker URL is displayed (e.g., `https://granite-workers.<account-subdomain>.workers.dev`).
+- Worker is immediately active on all Cloudflare routes (or custom domain if configured).
+
+To preview the Worker URL without deploying, run:
+
+```bash
+pnpm wrangler deploy --dry-run
+```
+
+### Step 4: Register Webhook Callback URL with Meta
+
+Meta Webhooks 설정에서 콜백 URL을 등록한다:
+
+- **배포된 Worker 사용**: `https://granite-workers.<account-subdomain>.workers.dev/webhooks/instagram`
+- **커스텀 라우트 사용**: Cloudflare 라우트가 설정된 경우 해당 도메인 + `/webhooks/instagram` (예: `https://api.granite.kr/webhooks/instagram`)
+
+정확한 URL은 `pnpm wrangler deploy --dry-run` 출력에 표시된다. Meta Developers Dashboard → Webhooks → Edit Subscription에서 이 URL을 등록하고, Verify Token을 Step 2에서 설정한 `META_WEBHOOK_VERIFY_TOKEN`과 일치시킨다.
+
+### Step 5: Verify Webhook Connectivity
+
+1. Meta Developers Dashboard에서 "Ping to test endpoint" 버튼을 클릭하거나, 테스트 계정에서 Route를 mention하는 Instagram 게시물을 작성한다.
+2. `/admin/webhooks` 페이지에서 운영 이벤트 패널을 확인하여 웹훅이 정상 수신되는지 확인한다.
+3. 만약 `error_code='invalid_signature'` 또는 `graph_api_failure`가 반복되면 secrets를 다시 확인한다.
+
+---
+
 ## Rollout Complete
 
-After all steps pass, the real service URL is accessible and the Phase 3 deployment is complete.
+After all steps pass, the real service URL is accessible, Phase 3 admin is operational, and Phase 5 Instagram webhooks are receiving and processing mentions.

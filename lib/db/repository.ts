@@ -14,6 +14,7 @@ import {
   getAreaBySlug,
   getAreaStats,
   getAreaGradeDistribution,
+  getAllCragGradeCounts,
   getAreaCragsWithCoords,
   getRouteById,
   getSectorBySlug,
@@ -23,6 +24,7 @@ import {
   getTopoRoutes,
   parseHashtags,
 } from "./queries";
+import { queryD1First } from "./d1-http";
 import type {
   AreaDetail,
   BoulderDetail,
@@ -34,6 +36,28 @@ import type {
   Stats,
   TopoDetail,
 } from "./schema";
+import { GRADE_BUCKET_COUNT } from "../grade-histogram";
+
+async function loadCragGradeCountsByCragId(): Promise<Map<string, number[]>> {
+  const rows = await getAllCragGradeCounts();
+  const map = new Map<string, number[]>();
+  for (const row of rows) {
+    const n = Math.floor(row.gradeNum);
+    if (!Number.isFinite(n) || n < 0) continue;
+    const idx = n >= GRADE_BUCKET_COUNT - 1 ? GRADE_BUCKET_COUNT - 1 : n;
+    let bars = map.get(row.cragId);
+    if (!bars) {
+      bars = Array.from({ length: GRADE_BUCKET_COUNT }, () => 0);
+      map.set(row.cragId, bars);
+    }
+    bars[idx] += row.count;
+  }
+  return map;
+}
+
+function emptyGradeCounts(): number[] {
+  return Array.from({ length: GRADE_BUCKET_COUNT }, () => 0);
+}
 
 // Re-export so that page components can `import type { AreaDetail } from "@/lib/db/repository"`
 // alongside the `findAreaDetailBySlug` function. Mirrors the `RouteListItem` re-export in queries.ts.
@@ -59,12 +83,14 @@ async function loadAreaBySlug(slug: string): Promise<AreaDetail | null> {
   const area = await getAreaBySlug(slug);
   if (!area) return null;
 
-  const [stats, gradeDistribution, areaCrags, cragLocations] = await Promise.all([
-    getAreaStats(area.id),
-    getAreaGradeDistribution(area.id),
-    getCragsByAreaId(area.id),
-    getAreaCragsWithCoords(area.id),
-  ]);
+  const [stats, gradeDistribution, areaCrags, cragLocations, cragGradeCountsByCragId] =
+    await Promise.all([
+      getAreaStats(area.id),
+      getAreaGradeDistribution(area.id),
+      getCragsByAreaId(area.id),
+      getAreaCragsWithCoords(area.id),
+      loadCragGradeCountsByCragId(),
+    ]);
 
   const cragStats = await Promise.all(
     areaCrags.map((crag) => getCragStats(crag.id))
@@ -77,18 +103,21 @@ async function loadAreaBySlug(slug: string): Promise<AreaDetail | null> {
     crags: areaCrags.map((crag, i) => ({
       ...crag,
       stats: cragStats[i] ?? { sectors: 0, boulders: 0, routes: 0 },
+      gradeCounts: cragGradeCountsByCragId.get(crag.id) ?? emptyGradeCounts(),
     })),
     cragLocations,
   };
 }
 
 async function loadHomeModel(): Promise<HomeModel> {
-  const [totals, areas, allCragsFlat, announcements] = await Promise.all([
-    getStats(),
-    getPublishedAreas(),
-    getAllPublishedCrags(),
-    getPublishedAnnouncements(),
-  ]);
+  const [totals, areas, allCragsFlat, announcements, cragGradeCountsByCragId] =
+    await Promise.all([
+      getStats(),
+      getPublishedAreas(),
+      getAllPublishedCrags(),
+      getPublishedAnnouncements(),
+      loadCragGradeCountsByCragId(),
+    ]);
 
   // Build per-area stats by grouping the flat crag list (avoids N queries to
   // getCragsByAreaId — we already have all crags from getAllPublishedCrags).
@@ -131,6 +160,7 @@ async function loadHomeModel(): Promise<HomeModel> {
   const allCrags = allCragsFlat.map((crag) => ({
     ...crag,
     stats: cragStatsById.get(crag.id) ?? { sectors: 0, boulders: 0, routes: 0 },
+    gradeCounts: cragGradeCountsByCragId.get(crag.id) ?? emptyGradeCounts(),
   }));
 
   return { totals, areas: areasWithStats, allCrags, announcements };
@@ -332,5 +362,88 @@ export async function getAllRouteItems(): Promise<RouteListItem[]> {
   const cached = unstable_cache(loadAllRouteItems, ["getAllRouteItems"], {
     tags: ["areas:list"],
   });
+  return cached();
+}
+
+// ---------------------------------------------------------------------------
+// Beta / caption context
+// ---------------------------------------------------------------------------
+
+export type RouteCaptionContext = {
+  routeName: string;
+  grade: string;
+  boulderName: string;
+  sectorName: string;
+  cragName: string;
+  boulderHashtags: string[];
+};
+
+interface RouteCaptionContextRow {
+  routeName: string;
+  grade: string;
+  boulderName: string;
+  sectorName: string;
+  cragName: string;
+  boulderHashtags: string;
+}
+
+async function loadRouteCaptionContext(
+  routeId: string
+): Promise<RouteCaptionContext | null> {
+  const row = await queryD1First<RouteCaptionContextRow>(
+    `SELECT
+       r.name AS routeName,
+       r.grade AS grade,
+       b.name AS boulderName,
+       s.name AS sectorName,
+       c.name AS cragName,
+       b.hashtags AS boulderHashtags
+     FROM routes r
+     JOIN topos t ON t.id = r.topo_id
+     JOIN boulders b ON b.id = t.boulder_id
+     JOIN sectors s ON s.id = b.sector_id
+     JOIN crags c ON c.id = s.crag_id
+     JOIN areas a ON a.id = c.area_id
+     WHERE r.id = ?
+       AND r.is_published = 1
+       AND t.is_published = 1
+       AND b.is_published = 1
+       AND s.is_published = 1
+       AND c.is_published = 1
+       AND a.is_published = 1
+       AND r.deleted_at IS NULL
+       AND t.deleted_at IS NULL
+       AND b.deleted_at IS NULL
+       AND s.deleted_at IS NULL
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL`,
+    [routeId]
+  );
+
+  if (!row) return null;
+
+  return {
+    routeName: row.routeName,
+    grade: row.grade,
+    boulderName: row.boulderName,
+    sectorName: row.sectorName,
+    cragName: row.cragName,
+    boulderHashtags: parseHashtags(row.boulderHashtags),
+  };
+}
+
+/**
+ * Returns the display context for a published route, used when matching
+ * Instagram captions and building beta entries.
+ * Cached with tag `route:<routeId>`.
+ */
+export async function findRouteCaptionContext(
+  routeId: string
+): Promise<RouteCaptionContext | null> {
+  const cached = unstable_cache(
+    () => loadRouteCaptionContext(routeId),
+    ["findRouteCaptionContext", routeId],
+    { tags: [`route:${routeId}`] }
+  );
   return cached();
 }

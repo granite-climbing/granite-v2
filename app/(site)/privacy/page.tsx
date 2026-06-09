@@ -5,7 +5,6 @@ export default function PrivacyPage() {
   return (
     <PolicyPage
       title="개인정보처리방침"
-      sourceUrl="https://granite.kr/privacy/"
       effectiveDate="2026년 2월 22일"
       sections={privacySections}
     />

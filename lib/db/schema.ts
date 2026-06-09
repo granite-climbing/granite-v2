@@ -139,7 +139,7 @@ export type SectorDetail = Sector & {
 export type HomeModel = {
   totals: Stats;
   areas: Array<Area & { stats: Stats }>;
-  allCrags: Array<Crag & { stats: Omit<Stats, "crags"> }>;
+  allCrags: Array<Crag & { stats: Omit<Stats, "crags">; gradeCounts: number[] }>;
   announcements: Announcement[];
 };
 
@@ -161,6 +161,85 @@ export type CragLocation = {
 export type AreaDetail = Area & {
   stats: Stats;
   gradeDistribution: GradeBand[];
-  crags: Array<Crag & { stats: Omit<Stats, "crags"> }>;
+  crags: Array<Crag & { stats: Omit<Stats, "crags">; gradeCounts: number[] }>;
   cragLocations: CragLocation[];
+};
+
+export type BetaSource = "manual" | "instagram_webhook";
+export type BetaPlatform = "instagram" | "youtube";
+export type BetaStatus = "pending" | "approved" | "hidden" | "removed";
+export type BetaClaimStatus = "unclaimed" | "claimed" | "verified" | "revoked";
+export type WebhookInboxStatus =
+  | "received"
+  | "processing"
+  | "matched"
+  | "unmatched"
+  | "manual_matched"
+  | "rejected"
+  | "duplicate"
+  | "failed";
+
+export type Beta = {
+  id: string;
+  routeId: string;
+  userId: string | null;
+  instagramId: string;
+  displayName: string;
+  source: BetaSource;
+  platform: BetaPlatform;
+  mediaUrl: string;
+  permalinkUrl: string | null;
+  externalMediaId: string | null;
+  thumbnailUrl: string | null;
+  sentAt: string;
+  status: BetaStatus;
+  claimStatus: BetaClaimStatus;
+  moderationNote: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+};
+
+export type WebhookInbox = {
+  id: string;
+  provider: "instagram";
+  externalId: string;
+  externalMediaId: string | null;
+  igUserId: string;
+  igUsername: string;
+  caption: string;
+  mediaUrl: string;
+  thumbnailUrl: string | null;
+  matchedBetaId: string | null;
+  status: WebhookInboxStatus;
+  processingAttempts: number;
+  lastErrorCode: string;
+  lastErrorMessage: string;
+  rawPayload: string;
+  receivedAt: string;
+  updatedAt: string;
+};
+
+export type WebhookOperationalEventType =
+  | "invalid_signature"
+  | "graph_api_failure"
+  | "caption_parse_failed"
+  | "route_match_ambiguous"
+  | "duplicate_beta"
+  | "thumbnail_lookup_failed"
+  | "thumbnail_copy_failed";
+
+export type WebhookOperationalEvent = {
+  id: string;
+  eventType: WebhookOperationalEventType;
+  provider: "instagram";
+  webhookId: string | null;
+  betaId: string | null;
+  requestId: string;
+  method: string;
+  path: string;
+  statusCode: number | null;
+  message: string;
+  metadata: string;
+  createdAt: string;
 };

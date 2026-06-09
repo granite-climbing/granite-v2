@@ -209,15 +209,79 @@ Phase 6 user identity and saved projects.
 - `user_oauth_identities`: provider identity mapping.
 - `favorites`: unique `user_id + target_type + target_id`; `target_type` is `crag`, `sector`, `boulder`, or `route`.
 
-### `betas` and `webhook_inbox`
+### `betas`
 
-Phase 5 beta records and Instagram webhook processing.
+Phase 5 beta records and Instagram webhook processing. Every Phase 5 Beta has `user_id = NULL` and `claim_status='unclaimed'`.
 
-- `betas.source`: `manual` or `instagram_webhook`.
-- `betas.platform`: `instagram` or `youtube`.
-- `betas.status`: `pending`, `approved`, `hidden`, or `removed`.
-- `betas.claim_status`: `unclaimed`, `claimed`, `verified`, or `revoked`.
-- `webhook_inbox.status`: `received`, `matched`, `unmatched`, `manual_matched`, or `rejected`.
+| Column | Type | Required | Notes |
+|---|---:|:---:|---|
+| `id` | `TEXT` | yes | Stable generated ID |
+| `route_id` | `TEXT` | yes | FK to `routes.id` |
+| `user_id` | `TEXT` | no | Reserved for Phase 6 user claiming |
+| `instagram_id` | `TEXT` | yes | Instagram handle, e.g. `@climber_name` |
+| `display_name` | `TEXT` | yes | User display name from Instagram or manual entry |
+| `source` | `TEXT` | yes | `manual` or `instagram_webhook` |
+| `platform` | `TEXT` | yes | `instagram` or `youtube` |
+| `media_url` | `TEXT` | yes | CDN or external URL to media asset |
+| `permalink_url` | `TEXT` | no | External link to Instagram post or YouTube video |
+| `external_media_id` | `TEXT` | no | Instagram media ID or YouTube video ID |
+| `thumbnail_url` | `TEXT` | no | CDN URL to cached thumbnail |
+| `sent_at` | `TEXT` | yes | ISO timestamp when climber posted original content |
+| `status` | `TEXT` | yes | `pending`, `approved`, `hidden`, or `removed` |
+| `claim_status` | `TEXT` | yes | `unclaimed`, `claimed`, `verified`, or `revoked` |
+| `moderation_note` | `TEXT` | yes | Admin note, can be empty |
+| `created_at` | `TEXT` | yes | DB timestamp |
+| `updated_at` | `TEXT` | yes | DB timestamp |
+| `deleted_at` | `TEXT` | no | Soft-delete marker |
+
+Constraints:
+- `UNIQUE(platform, external_media_id) WHERE external_media_id IS NOT NULL AND deleted_at IS NULL`
+- `UNIQUE(platform, permalink_url) WHERE permalink_url IS NOT NULL AND deleted_at IS NULL`
+
+### `webhook_inbox`
+
+Instagram webhook ingestion log. Tracks incoming webhook payloads for matching, retry, and debugging.
+
+| Column | Type | Required | Notes |
+|---|---:|:---:|---|
+| `id` | `TEXT` | yes | Stable generated ID |
+| `provider` | `TEXT` | yes | Always `instagram` |
+| `external_id` | `TEXT` | yes | Unique external event ID from provider |
+| `external_media_id` | `TEXT` | no | Canonical Instagram `media_id`. For caption mentions equals `external_id`; for comment mentions equals the parent `media_id` while `external_id` remains the `comment_id` idempotency key. Used by admin manual matching for duplicate detection against `betas.external_media_id`. Nullable for rows created before migration `0005`. |
+| `ig_user_id` | `TEXT` | yes | Instagram user ID, can be empty during parse |
+| `ig_username` | `TEXT` | yes | Instagram handle, can be empty during parse |
+| `caption` | `TEXT` | yes | Post caption text, can be empty |
+| `media_url` | `TEXT` | yes | Original media URL from webhook, can be empty |
+| `thumbnail_url` | `TEXT` | no | Cached CDN thumbnail URL |
+| `matched_beta_id` | `TEXT` | no | FK to `betas.id` if matched |
+| `status` | `TEXT` | yes | `received`, `processing`, `matched`, `unmatched`, `manual_matched`, `rejected`, `duplicate`, or `failed` |
+| `processing_attempts` | `INTEGER` | yes | Retry counter, default 0 |
+| `last_error_code` | `TEXT` | yes | Error code from last processing attempt, can be empty |
+| `last_error_message` | `TEXT` | yes | Error message from last processing attempt, can be empty |
+| `raw_payload` | `TEXT` | yes | Full JSON webhook payload |
+| `received_at` | `TEXT` | yes | DB timestamp when webhook arrived |
+| `updated_at` | `TEXT` | yes | DB timestamp of last status change |
+
+Constraint: `external_id` is UNIQUE.
+
+### `webhook_operational_events`
+
+Diagnostic and operational event log for webhook processing, caption parsing, and route matching.
+
+| Column | Type | Required | Notes |
+|---|---:|:---:|---|
+| `id` | `TEXT` | yes | Stable generated ID |
+| `event_type` | `TEXT` | yes | `invalid_signature`, `graph_api_failure`, `caption_parse_failed`, `route_match_ambiguous`, `duplicate_beta`, `thumbnail_lookup_failed`, or `thumbnail_copy_failed` |
+| `provider` | `TEXT` | yes | Always `instagram` |
+| `webhook_id` | `TEXT` | no | FK to `webhook_inbox.id` for context |
+| `beta_id` | `TEXT` | no | FK to `betas.id` for context |
+| `request_id` | `TEXT` | yes | Request correlation ID, can be empty |
+| `method` | `TEXT` | yes | HTTP method, can be empty |
+| `path` | `TEXT` | yes | HTTP path, can be empty |
+| `status_code` | `INTEGER` | no | HTTP response status, if applicable |
+| `message` | `TEXT` | yes | Human-readable event description, can be empty |
+| `metadata` | `TEXT` | yes | JSON object with event-specific context, default `{}` |
+| `created_at` | `TEXT` | yes | DB timestamp |
 
 ## Image Model
 

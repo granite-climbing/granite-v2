@@ -23,6 +23,8 @@ export default async function AdminProtectedLayout({ children }: Readonly<{ chil
           <Link href="/admin/content">Content</Link>
           <Link href="/admin/announcements">Announcements</Link>
           <Link href="/admin/audit">Audit</Link>
+          <Link href="/admin/betas">Betas</Link>
+          <Link href="/admin/webhooks">Webhooks</Link>
         </nav>
       </header>
       {children}

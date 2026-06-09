@@ -1109,6 +1109,35 @@ export async function getAreaGradeDistribution(
   }));
 }
 
+/**
+ * Per-crag grade distribution for every published route across all crags.
+ * Returns `cragId -> { gradeNum -> count }` rows; callers bucket into V-grade
+ * labels using `lib/grade-histogram.ts`.
+ */
+export async function getAllCragGradeCounts(): Promise<
+  Array<{ cragId: string; gradeNum: number; count: number }>
+> {
+  return queryD1<{ cragId: string; gradeNum: number; count: number }>(
+    `SELECT s.crag_id AS cragId, r.grade_num AS gradeNum, COUNT(*) AS count
+       FROM routes r
+       JOIN topos t ON t.id = r.topo_id
+       JOIN boulders b ON b.id = t.boulder_id
+       JOIN sectors s ON s.id = b.sector_id
+       JOIN crags c ON c.id = s.crag_id
+      WHERE r.is_published = 1
+        AND t.is_published = 1
+        AND b.is_published = 1
+        AND s.is_published = 1
+        AND c.is_published = 1
+        AND r.deleted_at IS NULL
+        AND t.deleted_at IS NULL
+        AND b.deleted_at IS NULL
+        AND s.deleted_at IS NULL
+        AND c.deleted_at IS NULL
+      GROUP BY s.crag_id, r.grade_num`
+  );
+}
+
 // ---------------------------------------------------------------------------
 // 12. Area crags with coordinates (for overview map)
 // ---------------------------------------------------------------------------

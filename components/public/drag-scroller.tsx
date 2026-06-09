@@ -220,7 +220,7 @@ export const DragScroller = forwardRef<HTMLDivElement, DragScrollerProps>(functi
       onClickCapture={onClickCapture}
       onDragStart={onDragStart}
       onScroll={onScroll}
-      style={{ cursor: "grab", touchAction: "pan-y", userSelect: "none" }}
+      style={{ cursor: "grab", touchAction: "auto", userSelect: "none" }}
     >
       {children}
     </div>

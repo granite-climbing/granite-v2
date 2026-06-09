@@ -3,7 +3,10 @@ import type { Crag } from "@/lib/db/schema";
 import { StatBar } from "./stat-bar";
 
 type CragCardProps = {
-  crag: Crag & { stats: { sectors: number; boulders: number; routes: number } };
+  crag: Crag & {
+    stats: { sectors: number; boulders: number; routes: number };
+    gradeCounts: number[];
+  };
 };
 
 export function CragCard({ crag }: CragCardProps) {
@@ -24,7 +27,7 @@ export function CragCard({ crag }: CragCardProps) {
           </p>
         </div>
         <div className="mt-3">
-          <StatBar gradeCounts={[5, 12, 20, 24, 15, 12, 5]} variant="compact" />
+          <StatBar gradeCounts={crag.gradeCounts} variant="compact" />
         </div>
       </div>
     </Link>

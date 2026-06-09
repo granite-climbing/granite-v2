@@ -2,6 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { findTopoById } from "@/lib/db/repository";
 import { TopoNavArrow } from "@/components/public/topo-nav";
+import { buildInstagramCaption } from "@/lib/beta/caption";
+import { getApprovedBetaVideosByRoute } from "@/lib/db/beta-queries";
+import { parseHashtags } from "@/lib/db/queries";
+import { BetaRouteActions } from "@/components/public/beta-route-actions";
 import type { Route, TopoDetail } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +25,11 @@ export default async function TopoPage({ params, searchParams }: TopoPageProps) 
 
   const selectedRoute = topo.routes.find((route) => route.id === resolvedSearchParams?.route);
   const imageUrl = selectedRoute?.lineImageUrl || topo.baseImageUrl;
+
+  const betaVideoEntries = await Promise.all(
+    topo.routes.map(async (route) => [route.id, await getApprovedBetaVideosByRoute(route.id)] as const)
+  );
+  const betaVideosByRouteId = new Map(betaVideoEntries);
 
   return (
     <main className="min-h-screen bg-white text-[#090909]">
@@ -48,7 +57,7 @@ export default async function TopoPage({ params, searchParams }: TopoPageProps) 
           </svg>
         </Link>
       </section>
-      <TopoRouteSheet topo={topo} selectedRoute={selectedRoute} />
+      <TopoRouteSheet topo={topo} selectedRoute={selectedRoute} betaVideosByRouteId={betaVideosByRouteId} />
     </main>
   );
 }
@@ -68,7 +77,15 @@ function TopoHeader({ topo }: { topo: TopoDetail }) {
   );
 }
 
-function TopoRouteSheet({ topo, selectedRoute }: { topo: TopoDetail; selectedRoute?: Route }) {
+function TopoRouteSheet({
+  topo,
+  selectedRoute,
+  betaVideosByRouteId,
+}: {
+  topo: TopoDetail;
+  selectedRoute?: Route;
+  betaVideosByRouteId: Map<string, Array<{ id: string; mediaUrl: string; thumbnailUrl: string | null; displayName: string }>>;
+}) {
   return (
     <section className="bg-white px-4 pb-10 pt-2">
       <div className="mx-auto h-[2px] w-8 rounded-full bg-[#B8B8B8]" />
@@ -82,43 +99,42 @@ function TopoRouteSheet({ topo, selectedRoute }: { topo: TopoDetail; selectedRou
       <div className="mt-3 border-y border-[#E8E8E8]">
         {topo.routes.map((route, index) => {
           const selected = route.id === selectedRoute?.id;
+          const betaVideos = betaVideosByRouteId.get(route.id) ?? [];
+          const caption = buildInstagramCaption({
+            cragName: topo.crag.name,
+            sectorName: topo.sector.name,
+            boulderName: topo.boulder.name,
+            routeName: route.name,
+            grade: route.grade,
+            boulderHashtags: parseHashtags(topo.boulder.hashtags),
+          });
           return (
-            <Link
+            <div
               key={route.id}
-              href={selected ? `/t/${topo.id}` : `/t/${topo.id}?route=${route.id}`}
               className={`grid min-h-[88px] grid-cols-[24px_1fr_auto] items-center gap-2 border-b border-[#E8E8E8] px-2 last:border-b-0 ${
                 selected ? "bg-[#F1F1F1]" : "bg-white"
               }`}
             >
-              <span className="grid size-6 place-items-center rounded-full bg-[#2A2A2A] text-[14px] font-medium leading-5 text-white">
-                {index + 1}
-              </span>
-              <span>
-                <span className="block text-[18px] font-medium leading-6 text-[#2A2A2A]">{route.name}</span>
-                <span className="mt-1 block text-[10px] font-normal leading-[14px] text-[#7A7A7A]">
-                  {topo.boulder.name}
+              <Link
+                href={selected ? `/t/${topo.id}` : `/t/${topo.id}?route=${route.id}`}
+                className="contents"
+              >
+                <span className="grid size-6 place-items-center rounded-full bg-[#2A2A2A] text-[14px] font-medium leading-5 text-white">
+                  {index + 1}
                 </span>
-                <span className="block text-[10px] font-normal leading-[14px] text-[#7A7A7A]">FA {route.fa}</span>
-              </span>
+                <span>
+                  <span className="block text-[18px] font-medium leading-6 text-[#2A2A2A]">{route.name}</span>
+                  <span className="mt-1 block text-[10px] font-normal leading-[14px] text-[#7A7A7A]">
+                    {topo.boulder.name}
+                  </span>
+                  <span className="block text-[10px] font-normal leading-[14px] text-[#7A7A7A]">FA {route.fa}</span>
+                </span>
+              </Link>
               <span className="flex flex-col items-end gap-2">
                 <span className="text-[18px] font-medium leading-6 text-[#2A2A2A]">{route.grade}</span>
-                <span className="flex h-6 w-[72px] items-center justify-center gap-1 rounded-full bg-[#E8E8E8] text-[12px] font-medium leading-4 text-[#3A3A3A]">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 15 11"
-                    fill="none"
-                    aria-hidden="true"
-                    className="size-[11px] shrink-0 text-[#5A5A5A]"
-                  >
-                    <path
-                      d="M10.6667 3.46667L14.1422 1.03381C14.293 0.928233 14.5009 0.964913 14.6064 1.11573C14.6456 1.17176 14.6667 1.23849 14.6667 1.30689V9.3598C14.6667 9.54387 14.5174 9.69313 14.3333 9.69313C14.2649 9.69313 14.1982 9.67207 14.1422 9.63287L10.6667 7.2V10C10.6667 10.3682 10.3682 10.6667 10 10.6667H0.666667C0.29848 10.6667 0 10.3682 0 10V0.666667C0 0.29848 0.29848 0 0.666667 0H10C10.3682 0 10.6667 0.29848 10.6667 0.666667V3.46667Z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                  beta
-                </span>
+                <BetaRouteActions routeId={route.id} caption={caption} betaVideos={betaVideos} />
               </span>
-            </Link>
+            </div>
           );
         })}
       </div>
