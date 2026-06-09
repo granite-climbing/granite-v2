@@ -45,14 +45,35 @@ export async function setWebhookInboxStatus(
   db: D1Database,
   input: {
     id: string;
-    status: "processing" | "matched" | "unmatched" | "manual_matched" | "rejected" | "duplicate" | "failed";
+    status:
+      | "received"
+      | "processing"
+      | "matched"
+      | "unmatched"
+      | "manual_matched"
+      | "rejected"
+      | "duplicate"
+      | "failed";
     matchedBetaId?: string | null;
     lastErrorCode?: string;
     lastErrorMessage?: string;
     incrementAttempts?: boolean;
+    expectedStatus?: string;
+    expectedAttempts?: number;
   }
-): Promise<void> {
-  await db
+): Promise<{ changes: number }> {
+  let whereClause = `id = ?`;
+  const guardParams: unknown[] = [];
+  if (input.expectedStatus !== undefined) {
+    whereClause += ` AND status = ?`;
+    guardParams.push(input.expectedStatus);
+  }
+  if (input.expectedAttempts !== undefined) {
+    whereClause += ` AND processing_attempts = ?`;
+    guardParams.push(input.expectedAttempts);
+  }
+
+  const result = await db
     .prepare(
       `UPDATE webhook_inbox SET
          status = ?,
@@ -61,7 +82,7 @@ export async function setWebhookInboxStatus(
          last_error_message = COALESCE(?, last_error_message),
          processing_attempts = processing_attempts + ?,
          updated_at = datetime('now')
-       WHERE id = ?`
+       WHERE ${whereClause}`
     )
     .bind(
       input.status,
@@ -69,9 +90,11 @@ export async function setWebhookInboxStatus(
       input.lastErrorCode ?? null,
       input.lastErrorMessage ?? null,
       input.incrementAttempts ? 1 : 0,
-      input.id
+      input.id,
+      ...guardParams
     )
     .run();
+  return { changes: result.meta.changes ?? 0 };
 }
 
 export async function insertWebhookBeta(
@@ -179,7 +202,7 @@ export async function hydrateWebhookInbox(
 export async function tryReclaimWebhookForRetry(
   db: D1Database,
   externalId: string
-): Promise<{ webhookId: string; currentStatus: string } | null> {
+): Promise<{ webhookId: string; currentStatus: string; attempts: number } | null> {
   const updateResult = await db
     .prepare(
       `UPDATE webhook_inbox
@@ -187,7 +210,10 @@ export async function tryReclaimWebhookForRetry(
            processing_attempts = processing_attempts + 1,
            updated_at = datetime('now')
        WHERE external_id = ?
-         AND status IN ('received', 'processing', 'failed', 'unmatched')`
+         AND (
+           status IN ('received', 'failed', 'unmatched')
+           OR (status = 'processing' AND updated_at < datetime('now', '-5 minutes'))
+         )`
     )
     .bind(externalId)
     .run();
@@ -198,13 +224,13 @@ export async function tryReclaimWebhookForRetry(
 
   const row = await db
     .prepare(
-      `SELECT id AS webhookId, status AS currentStatus
+      `SELECT id AS webhookId, status AS currentStatus, processing_attempts AS attempts
        FROM webhook_inbox
        WHERE external_id = ?
        LIMIT 1`
     )
     .bind(externalId)
-    .first<{ webhookId: string; currentStatus: string }>();
+    .first<{ webhookId: string; currentStatus: string; attempts: number }>();
 
   return row;
 }

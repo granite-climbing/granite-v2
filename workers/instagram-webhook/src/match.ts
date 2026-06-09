@@ -38,21 +38,29 @@ export async function processMentionEvent(
   });
 
   let webhookId: string;
+  let leaseAttempts: number;
+
   if (inserted.inserted) {
     webhookId = newWebhookId;
-    await setWebhookInboxStatus(env.granite_v2, {
+    const claimResult = await setWebhookInboxStatus(env.granite_v2, {
       id: webhookId,
       status: "processing",
       incrementAttempts: true,
+      expectedStatus: "received",
     });
+    if (claimResult.changes === 0) {
+      // Defensive: someone else already moved this row. Stop.
+      return;
+    }
+    leaseAttempts = 1;
   } else {
     const reclaim = await tryReclaimWebhookForRetry(env.granite_v2, event.externalId);
     if (!reclaim) {
-      // Existing row is in a terminal status — true idempotent no-op.
+      // Existing row is in a terminal status or still fresh processing — true idempotent no-op.
       return;
     }
     webhookId = reclaim.webhookId;
-    // tryReclaimWebhookForRetry already set status='processing' + incremented attempts.
+    leaseAttempts = reclaim.attempts;
   }
 
   let createdBetaId: string | null = null;
@@ -66,12 +74,14 @@ export async function processMentionEvent(
       accessToken: env.INSTAGRAM_GRAPH_ACCESS_TOKEN,
     });
     if (!comment) {
-      await setWebhookInboxStatus(env.granite_v2, {
+      const r = await setWebhookInboxStatus(env.granite_v2, {
         id: webhookId,
         status: "failed",
         lastErrorCode: "graph_api_failure",
         lastErrorMessage: "mentioned_comment fetch failed",
+        expectedAttempts: leaseAttempts,
       });
+      if (r.changes === 0) return;
       await insertWebhookOperationalEvent(env.granite_v2, {
         id: uuid("opev"),
         eventType: "graph_api_failure",
@@ -95,12 +105,14 @@ export async function processMentionEvent(
     accessToken: env.INSTAGRAM_GRAPH_ACCESS_TOKEN,
   });
   if (!media) {
-    await setWebhookInboxStatus(env.granite_v2, {
+    const r = await setWebhookInboxStatus(env.granite_v2, {
       id: webhookId,
       status: "failed",
       lastErrorCode: "graph_api_failure",
       lastErrorMessage: "mentioned_media fetch failed",
+      expectedAttempts: leaseAttempts,
     });
+    if (r.changes === 0) return;
     await insertWebhookOperationalEvent(env.granite_v2, {
       id: uuid("opev"),
       eventType: "graph_api_failure",
@@ -131,12 +143,14 @@ export async function processMentionEvent(
   // Duplicate check
   const existing = await findExistingBetaByExternalMedia(env.granite_v2, event.mediaId);
   if (existing) {
-    await setWebhookInboxStatus(env.granite_v2, {
+    const r = await setWebhookInboxStatus(env.granite_v2, {
       id: webhookId,
       status: "duplicate",
       matchedBetaId: existing.id,
       lastErrorCode: "duplicate_beta",
+      expectedAttempts: leaseAttempts,
     });
+    if (r.changes === 0) return;
     await insertWebhookOperationalEvent(env.granite_v2, {
       id: uuid("opev"),
       eventType: "duplicate_beta",
@@ -155,11 +169,13 @@ export async function processMentionEvent(
   // Hashtag-based route matching
   const captionTokens = new Set(extractHashtags(captionText));
   if (captionTokens.size === 0) {
-    await setWebhookInboxStatus(env.granite_v2, {
+    const r = await setWebhookInboxStatus(env.granite_v2, {
       id: webhookId,
       status: "unmatched",
       lastErrorCode: "caption_parse_failed",
+      expectedAttempts: leaseAttempts,
     });
+    if (r.changes === 0) return;
     return;
   }
 
@@ -171,11 +187,13 @@ export async function processMentionEvent(
   });
 
   if (matches.length !== 1) {
-    await setWebhookInboxStatus(env.granite_v2, {
+    const r = await setWebhookInboxStatus(env.granite_v2, {
       id: webhookId,
       status: "unmatched",
       lastErrorCode: matches.length > 1 ? "route_match_ambiguous" : "",
+      expectedAttempts: leaseAttempts,
     });
+    if (r.changes === 0) return;
     if (matches.length > 1) {
       await insertWebhookOperationalEvent(env.granite_v2, {
         id: uuid("opev"),
@@ -206,11 +224,15 @@ export async function processMentionEvent(
     sentAt: new Date().toISOString().slice(0, 10),
   });
 
-  await setWebhookInboxStatus(env.granite_v2, {
+  const matchResult = await setWebhookInboxStatus(env.granite_v2, {
     id: webhookId,
     status: "matched",
     matchedBetaId: createdBetaId,
+    expectedAttempts: leaseAttempts,
   });
+  if (matchResult.changes === 0) {
+    return;
+  }
 
   // Thumbnail copy
   const cdnUrl = await attemptThumbnailCopy(env.BUCKET, env.CDN_BASE_URL, createdBetaId, media);
@@ -249,6 +271,7 @@ export async function processMentionEvent(
             id: webhookId,
             status: "matched",
             matchedBetaId: createdBetaId,
+            expectedStatus: "processing",
           });
         } catch {
           // proceed with orphan logging
@@ -259,6 +282,7 @@ export async function processMentionEvent(
         status: "failed",
         lastErrorCode: "graph_api_exception",
         lastErrorMessage: message.slice(0, 500),
+        expectedStatus: "processing",
       });
       await insertWebhookOperationalEvent(env.granite_v2, {
         id: uuid("opev"),

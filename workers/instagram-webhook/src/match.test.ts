@@ -34,7 +34,7 @@ const env = {
 describe("processMentionEvent error boundary", () => {
   beforeEach(() => {
     vi.mocked(d1.insertWebhookInbox).mockReset().mockResolvedValue({ inserted: true });
-    vi.mocked(d1.setWebhookInboxStatus).mockReset().mockResolvedValue(undefined);
+    vi.mocked(d1.setWebhookInboxStatus).mockReset().mockResolvedValue({ changes: 1 });
     vi.mocked(d1.insertWebhookOperationalEvent).mockReset().mockResolvedValue(undefined);
     vi.mocked(d1.tryReclaimWebhookForRetry).mockReset();
     vi.mocked(d1.hydrateWebhookInbox).mockReset().mockResolvedValue(undefined);
@@ -64,7 +64,7 @@ describe("processMentionEvent error boundary", () => {
   it("does not rethrow when the recovery path itself fails", async () => {
     vi.mocked(graph.fetchMentionedMedia).mockRejectedValue(new Error("timeout"));
     vi.mocked(d1.setWebhookInboxStatus)
-      .mockImplementationOnce(async () => undefined) // processing transition succeeds
+      .mockImplementationOnce(async () => ({ changes: 1 })) // processing transition succeeds
       .mockImplementationOnce(async () => {
         throw new Error("d1 down");
       }); // failed transition itself throws
@@ -115,7 +115,7 @@ describe("processMentionEvent error boundary", () => {
 describe("processMentionEvent redelivery", () => {
   beforeEach(() => {
     vi.mocked(d1.insertWebhookInbox).mockReset().mockResolvedValue({ inserted: true });
-    vi.mocked(d1.setWebhookInboxStatus).mockReset().mockResolvedValue(undefined);
+    vi.mocked(d1.setWebhookInboxStatus).mockReset().mockResolvedValue({ changes: 1 });
     vi.mocked(d1.insertWebhookOperationalEvent).mockReset().mockResolvedValue(undefined);
     vi.mocked(d1.tryReclaimWebhookForRetry).mockReset();
     vi.mocked(d1.hydrateWebhookInbox).mockReset().mockResolvedValue(undefined);
@@ -143,6 +143,7 @@ describe("processMentionEvent redelivery", () => {
     vi.mocked(d1.tryReclaimWebhookForRetry).mockResolvedValueOnce({
       webhookId: "webhook_existing",
       currentStatus: "failed",
+      attempts: 2,
     });
     vi.mocked(graph.fetchMentionedMedia).mockResolvedValueOnce({
       username: "@Climber",
@@ -189,7 +190,7 @@ describe("processMentionEvent redelivery", () => {
 describe("processMentionEvent orphan recovery", () => {
   beforeEach(() => {
     vi.mocked(d1.insertWebhookInbox).mockReset().mockResolvedValue({ inserted: true });
-    vi.mocked(d1.setWebhookInboxStatus).mockReset().mockResolvedValue(undefined);
+    vi.mocked(d1.setWebhookInboxStatus).mockReset().mockResolvedValue({ changes: 1 });
     vi.mocked(d1.insertWebhookOperationalEvent).mockReset().mockResolvedValue(undefined);
     vi.mocked(d1.tryReclaimWebhookForRetry).mockReset();
     vi.mocked(d1.hydrateWebhookInbox).mockReset().mockResolvedValue(undefined);
@@ -216,7 +217,7 @@ describe("processMentionEvent orphan recovery", () => {
     vi.mocked(d1.insertWebhookBeta).mockResolvedValueOnce(undefined);
 
     vi.mocked(d1.setWebhookInboxStatus)
-      .mockResolvedValueOnce(undefined) // initial processing transition
+      .mockResolvedValueOnce({ changes: 1 }) // initial processing transition
       .mockImplementationOnce(async () => {
         throw new Error("D1 network blip during matched finalize");
       });
@@ -234,5 +235,65 @@ describe("processMentionEvent orphan recovery", () => {
     });
     expect(orphanCall).toBeDefined();
     expect(orphanCall?.[1].betaId).toMatch(/^beta_/);
+  });
+});
+
+describe("processMentionEvent lease guard", () => {
+  beforeEach(() => {
+    vi.mocked(d1.insertWebhookInbox).mockReset().mockResolvedValue({ inserted: true });
+    vi.mocked(d1.setWebhookInboxStatus).mockReset().mockResolvedValue({ changes: 1 });
+    vi.mocked(d1.insertWebhookOperationalEvent).mockReset().mockResolvedValue(undefined);
+    vi.mocked(d1.tryReclaimWebhookForRetry).mockReset();
+    vi.mocked(d1.hydrateWebhookInbox).mockReset().mockResolvedValue(undefined);
+    vi.mocked(d1.findExistingBetaByExternalMedia).mockReset().mockResolvedValue(null);
+    vi.mocked(d1.findPublishedRouteCandidates).mockReset();
+    vi.mocked(d1.insertWebhookBeta).mockReset();
+    vi.mocked(graph.fetchMentionedMedia).mockReset();
+    vi.mocked(graph.fetchMentionedComment).mockReset();
+  });
+
+  it("no-ops on redelivery when processing row is fresh (lease not stale)", async () => {
+    vi.mocked(d1.insertWebhookInbox).mockResolvedValueOnce({ inserted: false });
+    vi.mocked(d1.tryReclaimWebhookForRetry).mockResolvedValueOnce(null);
+
+    await processMentionEvent(
+      { externalId: "m_fresh", igUserId: "u1", mediaId: "m_fresh", commentId: null },
+      env,
+      "{}"
+    );
+
+    expect(graph.fetchMentionedMedia).not.toHaveBeenCalled();
+  });
+
+  it("stops processing when the lease is lost (setWebhookInboxStatus returns 0 changes)", async () => {
+    vi.mocked(d1.insertWebhookInbox).mockResolvedValueOnce({ inserted: false });
+    vi.mocked(d1.tryReclaimWebhookForRetry).mockResolvedValueOnce({
+      webhookId: "webhook_existing",
+      currentStatus: "failed",
+      attempts: 3,
+    });
+    vi.mocked(graph.fetchMentionedMedia).mockResolvedValueOnce({
+      username: "@Climber",
+      caption: "@granite.kr #큰바위 #SkyHook",
+      mediaUrl: "https://video.cdninstagram.com/abc",
+      thumbnailUrl: null,
+      permalink: "https://www.instagram.com/p/abc/",
+    });
+    vi.mocked(d1.findExistingBetaByExternalMedia).mockResolvedValueOnce(null);
+    vi.mocked(d1.findPublishedRouteCandidates).mockResolvedValueOnce([
+      { routeId: "route_1", routeName: "SkyHook", boulderName: "큰바위", boulderHashtags: "[]" },
+    ]);
+    vi.mocked(d1.insertWebhookBeta).mockResolvedValueOnce(undefined);
+
+    // All subsequent setWebhookInboxStatus calls return 0 changes — lease lost.
+    vi.mocked(d1.setWebhookInboxStatus).mockReset().mockResolvedValue({ changes: 0 });
+
+    await expect(
+      processMentionEvent(
+        { externalId: "m_lost", igUserId: "u1", mediaId: "m_lost", commentId: null },
+        env,
+        "{}"
+      )
+    ).resolves.toBeUndefined();
   });
 });

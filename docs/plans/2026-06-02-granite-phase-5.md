@@ -4777,7 +4777,7 @@ The fix has two parts:
 - Modify: `workers/instagram-webhook/src/match.test.ts`
 - Modify: `docs/plans/2026-06-02-granite-phase-5.md` (checkboxes)
 
-- [ ] **Step 1: Write failing tests for stale window + lease behavior.**
+- [x] **Step 1: Write failing tests for stale window + lease behavior.**
 
 In `workers/instagram-webhook/src/match.test.ts`, append:
 
@@ -4835,7 +4835,7 @@ Update `beforeEach` to default `setWebhookInboxStatus` to `mockResolvedValue({ c
 
 Flip Step 1 checkbox.
 
-- [ ] **Step 2: Run tests, confirm fail.**
+- [x] **Step 2: Run tests, confirm fail.**
 
 ```
 pnpm test workers/instagram-webhook/src/match.test.ts
@@ -4843,7 +4843,7 @@ pnpm test workers/instagram-webhook/src/match.test.ts
 
 Flip Step 2 checkbox.
 
-- [ ] **Step 3: Add stale-window guard to `tryReclaimWebhookForRetry` and return `attempts`.**
+- [x] **Step 3: Add stale-window guard to `tryReclaimWebhookForRetry` and return `attempts`.**
 
 In `workers/instagram-webhook/src/d1.ts`, replace the existing implementation:
 
@@ -4889,7 +4889,7 @@ export async function tryReclaimWebhookForRetry(
 
 Flip Step 3 checkbox.
 
-- [ ] **Step 4: Extend `setWebhookInboxStatus` with lease guards.**
+- [x] **Step 4: Extend `setWebhookInboxStatus` with lease guards.**
 
 Replace the existing signature/body:
 
@@ -4955,7 +4955,7 @@ The return type change from `Promise<void>` to `Promise<{ changes: number }>` is
 
 Flip Step 4 checkbox.
 
-- [ ] **Step 5: Thread the lease token through `processMentionEvent`.**
+- [x] **Step 5: Thread the lease token through `processMentionEvent`.**
 
 Open `workers/instagram-webhook/src/match.ts`. Three changes:
 
@@ -5014,7 +5014,7 @@ For the catch path, the lease check is intentionally relaxed — a thrown except
 
 Flip Step 5 checkbox.
 
-- [ ] **Step 6: Run tests, confirm pass.**
+- [x] **Step 6: Run tests, confirm pass.**
 
 ```
 pnpm test workers/instagram-webhook/src/match.test.ts
@@ -5022,7 +5022,7 @@ pnpm test workers/instagram-webhook/src/match.test.ts
 
 Flip Step 6 checkbox.
 
-- [ ] **Step 7: Full verification.**
+- [x] **Step 7: Full verification.**
 
 ```
 pnpm test workers/instagram-webhook
@@ -5033,11 +5033,11 @@ pnpm build
 
 Flip Step 7 checkbox.
 
-- [ ] **Step 8: Mark Task 20 step checkboxes complete in this plan file.**
+- [x] **Step 8: Mark Task 20 step checkboxes complete in this plan file.**
 
 Verify Steps 1–7 are `[x]`. Flip Step 8 itself.
 
-- [ ] **Step 9: Commit.**
+- [x] **Step 9: Commit.**
 
 ```bash
 git add workers/instagram-webhook/src/d1.ts workers/instagram-webhook/src/match.ts workers/instagram-webhook/src/match.test.ts docs/plans/2026-06-02-granite-phase-5.md
