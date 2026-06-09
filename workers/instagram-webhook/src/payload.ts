@@ -29,11 +29,19 @@ export function extractMentionEvents(payload: unknown): MentionEvent[] {
     if (!Array.isArray(changes)) continue;
     for (const c of changes) {
       if (!isObject(c)) continue;
-      if (c.field !== "mentions") continue;
+      if (c.field !== "mentions" && c.field !== "comments") continue;
       if (!isObject(c.value)) continue;
-      const mediaId = asString(c.value.media_id);
+
+      // `mentions` webhooks use flat snake_case keys.
+      // `comments` webhooks nest the media object and put the comment id at `value.id`.
+      const nestedMedia = isObject(c.value.media) ? c.value.media : null;
+      const mediaId =
+        asString(c.value.media_id) ?? (nestedMedia ? asString(nestedMedia.id) : null);
       if (!mediaId) continue;
-      const commentId = asString(c.value.comment_id);
+      const commentId =
+        asString(c.value.comment_id) ??
+        (c.field === "comments" ? asString(c.value.id) : null);
+
       events.push({
         externalId: commentId ?? mediaId,
         igUserId,

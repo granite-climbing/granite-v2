@@ -100,7 +100,7 @@ export default {
           path: "/webhooks/instagram",
           statusCode: 400,
           message: `JSON parse failed: ${message.slice(0, 300)}`,
-          metadata: JSON.stringify({ bodyBytes: body.length, bodyPreview: body.slice(0, 200) }),
+          metadata: body,
         })
       );
       return new Response("Invalid JSON", { status: 400 });
@@ -120,10 +120,7 @@ export default {
           path: "/webhooks/instagram",
           statusCode: 200,
           message: "Payload parsed but yielded zero mention events",
-          metadata: JSON.stringify({
-            bodyBytes: body.length,
-            bodyPreview: body.slice(0, 500),
-          }),
+          metadata: body,
         })
       );
     }
