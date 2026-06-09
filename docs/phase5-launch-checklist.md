@@ -4,7 +4,7 @@ Phase 5(Instagram 베타 수집/모더레이션) production 출시 전 작업 �
 
 상위 문서:
 - [Phase 5 Plan](plans/2026-06-02-granite-phase-5.md) — 코드 구현 단위
-- [Admin Beta Operations SOP](admin-beta-operations.md) — 출시 후 운영
+- [Admin Operations](admin-operations.md) — 출시 후 운영 (Phase 3 + Phase 5 통합 SOP)
 - [Deployment](deployment.md) — 배포 명령 reference
 - [ROADMAP](ROADMAP.md) — 단계 간 의존
 
@@ -96,7 +96,7 @@ App Review 제출 자료:
 
 System User 사용 시 일반적으로 무관하지만 보안 회전 차원에서:
 
-- [ ] **토큰 갱신 책임자 결정 및 문서 기록** (`docs/admin-beta-operations.md` Graph API token lifecycle 섹션)
+- [ ] **토큰 갱신 책임자 결정 및 문서 기록** (`docs/admin-operations.md` Graph API 토큰 라이프사이클 섹션)
 - [ ] 캘린더 리마인더: 만료 50일째 (long-lived Page token 사용 시)
 - [ ] 갱신 후 검증 절차: test mention 1건이 정상 처리되는지 `/admin/webhooks` 모니터링
 
@@ -235,7 +235,7 @@ Vercel Dashboard → Settings → Environment Variables → Production + Preview
 
 ### 5-G. 운영 SOP / 정책
 
-- [ ] `docs/admin-beta-operations.md` 운영자 검토 완료 (서명자 기록)
+- [ ] `docs/admin-operations.md` Phase 5 섹션 운영자 검토 완료 (서명자 기록)
 - [ ] Raw payload 보관 기간 정책 확정 + 문서 반영
 - [ ] Graph API token 만료일 + 갱신 책임자 확정 + 문서 반영
 
@@ -265,7 +265,7 @@ Vercel Dashboard → Settings → Environment Variables → Production + Preview
 - [ ] `/admin/webhooks` "고립된 매칭" (Task 15) 카운트 = 0 유지
 - [ ] `/admin/webhooks` "자동 매칭 고립 Beta" (Task 18) 카운트 = 0 유지
 
-발생 시 SOP는 [admin-beta-operations.md](admin-beta-operations.md) 참조.
+발생 시 SOP는 [admin-operations.md](admin-operations.md) Phase 5 섹션 참조.
 
 ---
 
@@ -285,6 +285,6 @@ Vercel Dashboard → Settings → Environment Variables → Production + Preview
 ## 참고
 
 - [Phase 5 Plan](plans/2026-06-02-granite-phase-5.md)
-- [Admin Beta Operations SOP](admin-beta-operations.md)
+- [Admin Operations (Phase 3 + Phase 5)](admin-operations.md)
 - [Deployment](deployment.md)
 - [ROADMAP](ROADMAP.md)

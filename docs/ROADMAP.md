@@ -209,7 +209,7 @@ Phase 3까지 확보한 DB-backed public UI와 관리자 운영 UI를 실제 Pha
 - [ ] `META_APP_SECRET`, `META_WEBHOOK_VERIFY_TOKEN` 발급 + Worker secret 등록
 - [ ] 캡션 정규화 규칙과 동명 Boulder/Route 처리 정책 확정
 - [ ] 웹훅 raw payload 보관 기간 확정
-- [ ] 운영 SOP: [Admin Beta Operations](admin-beta-operations.md) 작성 — Phase 5 출시 직전 검토
+- [ ] 운영 SOP: [Admin Operations Phase 5 섹션](admin-operations.md#phase-5--beta--instagram-운영) 검토 — Phase 5 출시 직전
 
 ### 개발 범위
 
@@ -229,10 +229,10 @@ Phase 3까지 확보한 DB-backed public UI와 관리자 운영 UI를 실제 Pha
 - [ ] production secret 기반 HMAC 검증 통과
 - [ ] 캡션 → 매칭 → Beta 생성 end-to-end 시나리오 검증
 - [ ] 동명 Boulder/Route 케이스가 unmatched로 떨어지는지 확인
-- [x] 관리자 인박스 SOP 문서화 — `docs/admin-beta-operations.md` (Task 11)
+- [x] 관리자 인박스 SOP 문서화 — `docs/admin-operations.md` Phase 5 섹션 (Task 11, 이후 통합)
 - 출시 직전 종합 체크리스트: [Phase 5 Launch Checklist](phase5-launch-checklist.md)
 - [ ] 썸네일 수집 실패 시 Beta 생성이 유지되는지 확인
-- [ ] 운영 SOP 문서(`docs/admin-beta-operations.md`) 검토 완료
+- [ ] 운영 SOP (`docs/admin-operations.md` Phase 5 섹션) 검토 완료
 
 ---
 
