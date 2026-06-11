@@ -79,6 +79,26 @@ export function getOAuthClientId(provider: OAuthProviderConfig): string {
   return process.env[provider.clientIdEnv] ?? "";
 }
 
+export function isOAuthProviderConfigured(provider: OAuthProviderConfig): boolean {
+  if (!getOAuthClientId(provider)) {
+    return false;
+  }
+
+  if (!provider.clientSecretEnv) {
+    return true;
+  }
+
+  if (process.env[provider.clientSecretEnv]) {
+    return true;
+  }
+
+  if (provider.provider !== "apple") {
+    return false;
+  }
+
+  return Boolean(process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY);
+}
+
 export async function getOAuthClientSecret(provider: OAuthProviderConfig): Promise<string> {
   const configuredSecret = provider.clientSecretEnv ? process.env[provider.clientSecretEnv] ?? "" : "";
   if (configuredSecret) {

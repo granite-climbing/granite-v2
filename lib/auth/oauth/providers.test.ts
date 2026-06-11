@@ -1,7 +1,13 @@
-import { describe, expect, it } from "vitest";
-import { buildAuthorizationUrl, getOAuthProvider, isOAuthProvider } from "./providers";
+import { afterEach, describe, expect, it } from "vitest";
+import { buildAuthorizationUrl, getOAuthProvider, isOAuthProvider, isOAuthProviderConfigured } from "./providers";
+
+const originalEnv = { ...process.env };
 
 describe("OAuth provider configuration", () => {
+  afterEach(() => {
+    process.env = { ...originalEnv };
+  });
+
   it("builds a Google authorization URL with state, nonce, and the callback URL", () => {
     const url = buildAuthorizationUrl("google", {
       redirectUri: "https://granite.kr/api/auth/callback/google",
@@ -32,11 +38,27 @@ describe("OAuth provider configuration", () => {
     expect(url.searchParams.get("scope")).toBe("name email");
   });
 
-  it("recognizes only supported Phase 5 providers", () => {
+  it("recognizes only supported Phase 6 providers", () => {
     expect(isOAuthProvider("kakao")).toBe(true);
     expect(isOAuthProvider("naver")).toBe(true);
     expect(isOAuthProvider("google")).toBe(true);
     expect(isOAuthProvider("apple")).toBe(true);
     expect(isOAuthProvider("github")).toBe(false);
+  });
+
+  it("reports whether a provider has the required local environment", () => {
+    process.env.KAKAO_OAUTH_CLIENT_ID = "kakao-id";
+    process.env.KAKAO_OAUTH_CLIENT_SECRET = "kakao-secret";
+    process.env.NAVER_OAUTH_CLIENT_ID = "naver-id";
+    process.env.NAVER_OAUTH_CLIENT_SECRET = "naver-secret";
+    process.env.GOOGLE_OAUTH_CLIENT_ID = "";
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET = "";
+    process.env.APPLE_CLIENT_ID = "";
+    process.env.APPLE_CLIENT_SECRET = "";
+
+    expect(isOAuthProviderConfigured(getOAuthProvider("kakao"))).toBe(true);
+    expect(isOAuthProviderConfigured(getOAuthProvider("naver"))).toBe(true);
+    expect(isOAuthProviderConfigured(getOAuthProvider("google"))).toBe(false);
+    expect(isOAuthProviderConfigured(getOAuthProvider("apple"))).toBe(false);
   });
 });

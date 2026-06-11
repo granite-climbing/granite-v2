@@ -88,6 +88,36 @@ export type Announcement = {
   sortOrder: number;
 };
 
+export type OAuthProviderId = "kakao" | "naver" | "google" | "apple";
+
+export type User = {
+  id: string;
+  displayName: string;
+  email: string | null;
+  avatarUrl: string | null;
+  instagramId: string | null;
+  youtubeId: string | null;
+  gender: "male" | "female" | null;
+  heightCm: number | null;
+  apeIndexCm: number | null;
+  topBoulderingGrade: string | null;
+  topSportGrade: string | null;
+  onboardingCompletedAt: string | null;
+  deletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type UserOAuthIdentity = {
+  id: string;
+  userId: string;
+  provider: OAuthProviderId;
+  providerUid: string;
+  emailAtLink: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Stats = {
   crags: number;
   sectors: number;
