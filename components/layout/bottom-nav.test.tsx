@@ -11,6 +11,16 @@ describe("BottomNav", () => {
     expect(html).toContain("마이");
   });
 
+  it("uses filled icons for active tabs and line icons for inactive tabs", () => {
+    const html = renderToStaticMarkup(<BottomNav activeItem="me" />);
+
+    expect(html).toContain('src="/images/figma/icons/icon_my.svg"');
+    expect(html).not.toContain('src="/images/figma/icons/icon_my_line.svg"');
+    expect(html).toContain('src="/images/figma/icons/icon_home_line.svg"');
+    expect(html).toContain('src="/images/figma/icons/icon_project_line.svg"');
+    expect(html).toContain('src="/images/figma/icons/icon_record_line.svg"');
+  });
+
   it("maps site paths to the active bottom tab", () => {
     expect(getBottomNavActiveItem("/")).toBe("home");
     expect(getBottomNavActiveItem("/c/anyang")).toBe("home");
