@@ -1,4 +1,5 @@
 import { Footer } from "@/components/layout/footer";
+import Script from "next/script";
 
 /**
  * Site (public) layout. Wraps every non-admin route in a mobile-first
@@ -12,11 +13,14 @@ export default function SiteLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="mx-auto min-h-screen w-full max-w-[430px] bg-white shadow-card">
-      {children}
-      <div className="site-footer-wrapper mt-10">
-        <Footer />
+    <>
+      <div className="mx-auto min-h-screen w-full max-w-[430px] bg-white shadow-card">
+        {children}
+        <div className="site-footer-wrapper mt-10">
+          <Footer />
+        </div>
       </div>
-    </div>
+      <Script src="//t1.daumcdn.net/kas/static/ba.min.js" strategy="afterInteractive" />
+    </>
   );
 }
