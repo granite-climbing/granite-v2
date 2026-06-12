@@ -4,6 +4,7 @@ import {
   isOAuthProviderConfigured
 } from "@/lib/auth/oauth/providers";
 import type { OAuthProviderId } from "@/lib/auth/oauth/types";
+import { LoginProviderForm } from "./login-provider-form";
 
 type LoginPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -31,25 +32,16 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
         <div className="space-y-3">
           {providers.map((provider) => (
-            <form key={provider.provider} action={startOAuthLoginAction}>
-              <input type="hidden" name="provider" value={provider.provider} />
-              <input type="hidden" name="returnTo" value={returnTo} />
-              <button
-                type="submit"
-                disabled={!provider.enabled}
-                aria-disabled={!provider.enabled}
-                className={`flex h-[54px] w-full items-center justify-center gap-3 rounded-[27px] text-[14px] font-bold transition ${
-                  provider.provider === "kakao"
-                    ? "bg-[#FFE100] text-black"
-                    : provider.provider === "naver"
-                      ? "bg-[#5CC968] text-white"
-                      : "bg-white text-black"
-                } ${provider.enabled ? "" : "cursor-not-allowed"}`}
-              >
-                <ProviderMark provider={provider.provider} />
-                <span>{provider.displayLabel}로 시작하기</span>
-              </button>
-            </form>
+            <LoginProviderForm
+              key={provider.provider}
+              provider={provider.provider}
+              displayLabel={provider.displayLabel}
+              returnTo={returnTo}
+              enabled={provider.enabled}
+              action={startOAuthLoginAction}
+            >
+              <ProviderMark provider={provider.provider} />
+            </LoginProviderForm>
           ))}
         </div>
 
