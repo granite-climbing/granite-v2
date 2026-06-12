@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { executeD1, queryD1First } from "./d1-http";
-import type { User } from "./schema";
+import { executeD1, queryD1, queryD1First } from "./d1-http";
+import type { User, UserOAuthIdentity } from "./schema";
 import type { OAuthProfile, OAuthProviderId } from "@/lib/auth/oauth/types";
 
 export type CompletedSignupInput = {
@@ -35,6 +35,16 @@ type UserSqlRow = {
   updatedAt: string;
 };
 
+type UserOAuthIdentitySqlRow = {
+  id: string;
+  userId: string;
+  provider: UserOAuthIdentity["provider"];
+  providerUid: string;
+  emailAtLink: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 function mapUser(row: UserSqlRow | null): User | null {
   return row;
 }
@@ -64,6 +74,23 @@ export async function findActiveUserById(id: string): Promise<User | null> {
   );
 
   return mapUser(row);
+}
+
+export async function findOAuthIdentitiesByUserId(userId: string): Promise<UserOAuthIdentity[]> {
+  return queryD1<UserOAuthIdentitySqlRow>(
+    `SELECT
+       id,
+       user_id AS userId,
+       provider,
+       provider_uid AS providerUid,
+       email_at_link AS emailAtLink,
+       created_at AS createdAt,
+       updated_at AS updatedAt
+     FROM user_oauth_identities
+     WHERE user_id = ?
+     ORDER BY created_at ASC`,
+    [userId]
+  );
 }
 
 export async function findUserByOAuthIdentity(

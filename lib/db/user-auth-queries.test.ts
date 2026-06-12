@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ensureUserForOAuthProfile, findActiveUserById, findUserByOAuthIdentity } from "./user-auth-queries";
+import {
+  ensureUserForOAuthProfile,
+  findActiveUserById,
+  findOAuthIdentitiesByUserId,
+  findUserByOAuthIdentity
+} from "./user-auth-queries";
 
+const queryD1Mock = vi.hoisted(() => vi.fn());
 const queryD1FirstMock = vi.hoisted(() => vi.fn());
 const executeD1Mock = vi.hoisted(() => vi.fn());
 const randomUUIDMock = vi.hoisted(() => vi.fn());
 
 vi.mock("./d1-http", () => ({
+  queryD1: queryD1Mock,
   queryD1First: queryD1FirstMock,
   executeD1: executeD1Mock
 }));
@@ -16,10 +23,39 @@ vi.mock("node:crypto", () => ({
 
 describe("user auth queries", () => {
   beforeEach(() => {
+    queryD1Mock.mockReset();
     queryD1FirstMock.mockReset();
     executeD1Mock.mockReset();
     randomUUIDMock.mockReset();
     randomUUIDMock.mockReturnValue("uuid-1");
+  });
+
+  it("finds OAuth identities linked to a user", async () => {
+    queryD1Mock.mockResolvedValueOnce([
+      {
+        id: "oauth_1",
+        userId: "user_1",
+        provider: "google",
+        providerUid: "google-user",
+        emailAtLink: "climber@example.com",
+        createdAt: "2026-06-04 00:00:00",
+        updatedAt: "2026-06-04 00:00:00"
+      }
+    ]);
+
+    const identities = await findOAuthIdentitiesByUserId("user_1");
+
+    expect(queryD1Mock).toHaveBeenCalledWith(
+      expect.stringContaining("FROM user_oauth_identities"),
+      ["user_1"]
+    );
+    expect(identities).toEqual([
+      expect.objectContaining({
+        provider: "google",
+        providerUid: "google-user",
+        emailAtLink: "climber@example.com"
+      })
+    ]);
   });
 
   it("finds an active user by provider identity", async () => {

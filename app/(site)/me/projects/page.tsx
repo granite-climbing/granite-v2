@@ -3,7 +3,7 @@ import { BottomNav } from "@/components/layout/bottom-nav";
 
 export default function ProjectsPage() {
   return (
-    <main className="min-h-screen bg-white">
+    <main data-hide-site-footer className="min-h-screen bg-white pb-[90px]">
       <AppHeader />
       <section className="grid min-h-[70vh] place-items-center px-5 text-center">
         <div>
@@ -11,7 +11,7 @@ export default function ProjectsPage() {
           <p className="mt-3 text-sm font-semibold text-[#6F7477]">Route 즐겨찾기는 Phase 6에서 제공됩니다.</p>
         </div>
       </section>
-      <BottomNav />
+      <BottomNav activeItem="projects" />
     </main>
   );
 }

@@ -14,7 +14,7 @@ export default function SiteLayout({
   return (
     <div className="mx-auto min-h-screen w-full max-w-[430px] bg-white shadow-card">
       {children}
-      <div className="mt-10">
+      <div className="site-footer-wrapper mt-10">
         <Footer />
       </div>
     </div>
