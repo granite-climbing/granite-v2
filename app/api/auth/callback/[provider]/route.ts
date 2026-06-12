@@ -79,7 +79,8 @@ async function handleOAuthCallback(
   try {
     tokenSet = await exchangeOAuthCode(providerValue, {
       code: values.code,
-      redirectUri: getOAuthRedirectUri(providerValue)
+      redirectUri: getOAuthRedirectUri(providerValue),
+      state: state.state
     });
   } catch (error) {
     logOAuthCallbackError(providerValue, "token_exchange_failed", error);

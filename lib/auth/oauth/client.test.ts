@@ -32,6 +32,34 @@ describe("OAuth HTTP client", () => {
     expect(tokenSet.accessToken).toBe("access-token");
   });
 
+  it("includes the callback state when exchanging a Naver authorization code", async () => {
+    process.env.NAVER_OAUTH_CLIENT_ID = "naver-client";
+    process.env.NAVER_OAUTH_CLIENT_SECRET = "naver-secret";
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      new Response(
+        JSON.stringify({
+          access_token: "naver-access-token",
+          token_type: "bearer",
+          expires_in: 3600
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+
+    await exchangeOAuthCode("naver", {
+      code: "naver-oauth-code",
+      redirectUri: "https://granite.kr/api/auth/callback/naver",
+      state: "naver-callback-state",
+      fetchImpl
+    });
+
+    const requestBody = fetchImpl.mock.calls[0]?.[1]?.body;
+    expect(String(requestBody)).toContain("client_id=naver-client");
+    expect(String(requestBody)).toContain("client_secret=naver-secret");
+    expect(String(requestBody)).toContain("code=naver-oauth-code");
+    expect(String(requestBody)).toContain("state=naver-callback-state");
+  });
+
   it("fetches and normalizes a provider profile", async () => {
     const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
       new Response(

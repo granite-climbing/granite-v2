@@ -72,7 +72,8 @@ describe("OAuth callback route", () => {
     expect(response.headers.get("location")).toBe("https://granite.kr/me");
     expect(exchangeOAuthCodeMock).toHaveBeenCalledWith("google", {
       code: "abc",
-      redirectUri: "https://granite.kr/api/auth/callback/google"
+      redirectUri: "https://granite.kr/api/auth/callback/google",
+      state: state.state
     });
     expect(findUserByOAuthIdentityMock).toHaveBeenCalledWith("google", "google-user");
     await expect(verifyUserSessionToken(sessionToken ?? "")).resolves.toEqual({
@@ -154,6 +155,48 @@ describe("OAuth callback route", () => {
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("https://granite.kr/login?error=token_exchange_failed");
     expect(fetchOAuthProfileMock).not.toHaveBeenCalled();
+  });
+
+  it("passes the verified callback state to the token exchange", async () => {
+    process.env.APP_BASE_URL = "https://granite.kr";
+    const state = createOAuthState({
+      provider: "naver",
+      returnTo: "/me"
+    });
+    exchangeOAuthCodeMock.mockResolvedValueOnce({
+      accessToken: "access-token",
+      tokenType: "bearer",
+      expiresIn: 3600,
+      refreshToken: null,
+      idToken: null,
+      scope: null
+    });
+    fetchOAuthProfileMock.mockResolvedValueOnce({
+      provider: "naver",
+      providerUserId: "naver-user",
+      email: null,
+      displayName: "Naver Climber",
+      avatarUrl: null
+    });
+    findUserByOAuthIdentityMock.mockResolvedValueOnce({
+      id: "user_naver",
+      email: null,
+      displayName: "Naver Climber",
+      avatarUrl: null
+    });
+    const request = new NextRequest(`https://granite.kr/api/auth/callback/naver?code=abc&state=${state.state}`, {
+      headers: {
+        cookie: `${OAUTH_STATE_COOKIE_NAME}=${encodeURIComponent(state.cookieValue)}`
+      }
+    });
+
+    await GET(request, { params: Promise.resolve({ provider: "naver" }) });
+
+    expect(exchangeOAuthCodeMock).toHaveBeenCalledWith("naver", {
+      code: "abc",
+      redirectUri: "https://granite.kr/api/auth/callback/naver",
+      state: state.state
+    });
   });
 
   it("redirects profile fetch failures with a specific profile_fetch_failed error", async () => {

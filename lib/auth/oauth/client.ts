@@ -8,6 +8,7 @@ type FetchImpl = typeof fetch;
 export type ExchangeOAuthCodeInput = {
   code: string;
   redirectUri: string;
+  state?: string;
   fetchImpl?: FetchImpl;
 };
 
@@ -42,6 +43,10 @@ export async function exchangeOAuthCode(
 
   if (clientSecret) {
     body.set("client_secret", clientSecret);
+  }
+
+  if (provider.provider === "naver" && input.state) {
+    body.set("state", input.state);
   }
 
   const fetchImpl = input.fetchImpl ?? fetch;
