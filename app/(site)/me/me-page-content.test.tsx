@@ -44,6 +44,8 @@ describe("MyPageContent", () => {
     expect(html).toContain("회원탈퇴");
     expect(html).toContain("data-hide-site-footer");
     expect(html).toContain("sticky top-0");
+    expect(html).toContain("h-[56px]");
+    expect(html).not.toContain("h-[96px]");
     expect(html).not.toContain("granite@gmail.com");
     expect(html).not.toContain("******");
   });
