@@ -12,4 +12,20 @@ describe("LoginPage", () => {
     expect(text).toContain('alt=""');
     expect(text).toContain('aria-hidden="true"');
   });
+
+  it("does not render legal links on the login screen", () => {
+    const text = source();
+
+    expect(text).toContain("data-hide-site-footer");
+    expect(text).not.toContain("/terms");
+    expect(text).not.toContain("/privacy");
+    expect(text).not.toContain("이용약관");
+    expect(text).not.toContain("개인정보처리방침");
+  });
+
+  it("keeps provider button backgrounds opaque when a provider is unavailable", () => {
+    const text = source();
+
+    expect(text).not.toContain("opacity-45");
+  });
 });
