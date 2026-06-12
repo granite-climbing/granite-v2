@@ -41,7 +41,7 @@ describe("buildMePageModel", () => {
       { label: "비밀번호 관리", value: "소셜 로그인" }
     ]);
     expect(model.accountConnections).toEqual([
-      { label: "Instagram", status: "연결됨", linked: true },
+      { label: "Instagram", status: "연결안됨", linked: false },
       { label: "Youtube", status: "연결안됨", linked: false }
     ]);
     expect(model.privacyRows.every((row) => row.disabled)).toBe(true);
