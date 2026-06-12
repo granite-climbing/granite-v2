@@ -50,6 +50,21 @@ describe("LoginProviderForm", () => {
     expect(screen.getByDisplayValue("/me")).toHaveAttribute("name", "returnTo");
   });
 
+  it("keeps Naver on web OAuth in Flutter WebView until native Naver is configured", () => {
+    const postMessage = vi.fn();
+    vi.stubGlobal("FlutterWebView", { postMessage });
+
+    render(
+      <LoginProviderForm provider="naver" displayLabel="네이버" returnTo="/me" enabled action={vi.fn()}>
+        icon
+      </LoginProviderForm>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "네이버로 시작하기" }));
+
+    expect(postMessage).not.toHaveBeenCalled();
+  });
+
   it("does not native-bridge Apple and Google", () => {
     const postMessage = vi.fn();
     vi.stubGlobal("FlutterWebView", { postMessage });
