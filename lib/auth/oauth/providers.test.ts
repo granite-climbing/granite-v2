@@ -8,7 +8,7 @@ describe("OAuth provider configuration", () => {
     process.env = { ...originalEnv };
   });
 
-  it("builds a Google authorization URL with state, nonce, and the callback URL", () => {
+  it("builds a Google authorization URL with only the OpenID identity scope", () => {
     const url = buildAuthorizationUrl("google", {
       redirectUri: "https://granite.kr/api/auth/callback/google",
       state: "state-123",
@@ -22,10 +22,10 @@ describe("OAuth provider configuration", () => {
     expect(url.searchParams.get("redirect_uri")).toBe("https://granite.kr/api/auth/callback/google");
     expect(url.searchParams.get("state")).toBe("state-123");
     expect(url.searchParams.get("nonce")).toBe("nonce-123");
-    expect(url.searchParams.get("scope")).toBe("openid email profile");
+    expect(url.searchParams.get("scope")).toBe("openid");
   });
 
-  it("keeps Apple configured for form_post callbacks", () => {
+  it("keeps Apple configured for form_post callbacks without profile scopes", () => {
     const provider = getOAuthProvider("apple");
     const url = buildAuthorizationUrl("apple", {
       redirectUri: "https://granite.kr/api/auth/callback/apple",
@@ -35,7 +35,23 @@ describe("OAuth provider configuration", () => {
 
     expect(provider.provider).toBe("apple");
     expect(url.searchParams.get("response_mode")).toBe("form_post");
-    expect(url.searchParams.get("scope")).toBe("name email");
+    expect(url.searchParams.get("scope")).toBeNull();
+  });
+
+  it("does not request optional Kakao or Naver profile fields during authorization", () => {
+    const kakaoUrl = buildAuthorizationUrl("kakao", {
+      redirectUri: "https://granite.kr/api/auth/callback/kakao",
+      state: "kakao-state",
+      nonce: "kakao-nonce"
+    });
+    const naverUrl = buildAuthorizationUrl("naver", {
+      redirectUri: "https://granite.kr/api/auth/callback/naver",
+      state: "naver-state",
+      nonce: "naver-nonce"
+    });
+
+    expect(kakaoUrl.searchParams.get("scope")).toBeNull();
+    expect(naverUrl.searchParams.get("scope")).toBeNull();
   });
 
   it("recognizes only supported Phase 6 providers", () => {

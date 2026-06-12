@@ -28,7 +28,7 @@ const PROVIDERS: Record<OAuthProviderId, OAuthProviderConfig> = {
     userInfoUrl: "https://kapi.kakao.com/v2/user/me",
     clientIdEnv: "KAKAO_OAUTH_CLIENT_ID",
     clientSecretEnv: "KAKAO_OAUTH_CLIENT_SECRET",
-    scopes: ["account_email", "profile_nickname", "profile_image"]
+    scopes: []
   },
   naver: {
     provider: "naver",
@@ -38,7 +38,7 @@ const PROVIDERS: Record<OAuthProviderId, OAuthProviderConfig> = {
     userInfoUrl: "https://openapi.naver.com/v1/nid/me",
     clientIdEnv: "NAVER_OAUTH_CLIENT_ID",
     clientSecretEnv: "NAVER_OAUTH_CLIENT_SECRET",
-    scopes: ["email", "profile"]
+    scopes: []
   },
   google: {
     provider: "google",
@@ -48,7 +48,7 @@ const PROVIDERS: Record<OAuthProviderId, OAuthProviderConfig> = {
     userInfoUrl: "https://openidconnect.googleapis.com/v1/userinfo",
     clientIdEnv: "GOOGLE_OAUTH_CLIENT_ID",
     clientSecretEnv: "GOOGLE_OAUTH_CLIENT_SECRET",
-    scopes: ["openid", "email", "profile"]
+    scopes: ["openid"]
   },
   apple: {
     provider: "apple",
@@ -58,7 +58,7 @@ const PROVIDERS: Record<OAuthProviderId, OAuthProviderConfig> = {
     userInfoUrl: null,
     clientIdEnv: "APPLE_CLIENT_ID",
     clientSecretEnv: "APPLE_CLIENT_SECRET",
-    scopes: ["name", "email"],
+    scopes: [],
     responseMode: "form_post"
   }
 };
