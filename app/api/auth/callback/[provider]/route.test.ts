@@ -125,6 +125,64 @@ describe("OAuth callback route", () => {
       returnTo: "/r/route_1"
     });
   });
+
+  it("redirects missing OAuth state cookies with a specific invalid_state error", async () => {
+    const request = new NextRequest("https://granite.kr/api/auth/callback/kakao?code=abc&state=missing-cookie");
+
+    const response = await GET(request, { params: Promise.resolve({ provider: "kakao" }) });
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://granite.kr/login?error=invalid_state");
+    expect(exchangeOAuthCodeMock).not.toHaveBeenCalled();
+  });
+
+  it("redirects token exchange failures with a specific token_exchange_failed error", async () => {
+    process.env.APP_BASE_URL = "https://granite.kr";
+    const state = createOAuthState({
+      provider: "kakao",
+      returnTo: "/me"
+    });
+    exchangeOAuthCodeMock.mockRejectedValueOnce(new Error("bad redirect_uri"));
+    const request = new NextRequest(`https://granite.kr/api/auth/callback/kakao?code=abc&state=${state.state}`, {
+      headers: {
+        cookie: `${OAUTH_STATE_COOKIE_NAME}=${encodeURIComponent(state.cookieValue)}`
+      }
+    });
+
+    const response = await GET(request, { params: Promise.resolve({ provider: "kakao" }) });
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://granite.kr/login?error=token_exchange_failed");
+    expect(fetchOAuthProfileMock).not.toHaveBeenCalled();
+  });
+
+  it("redirects profile fetch failures with a specific profile_fetch_failed error", async () => {
+    process.env.APP_BASE_URL = "https://granite.kr";
+    const state = createOAuthState({
+      provider: "kakao",
+      returnTo: "/me"
+    });
+    exchangeOAuthCodeMock.mockResolvedValueOnce({
+      accessToken: "access-token",
+      tokenType: "Bearer",
+      expiresIn: 3600,
+      refreshToken: null,
+      idToken: null,
+      scope: null
+    });
+    fetchOAuthProfileMock.mockRejectedValueOnce(new Error("profile scope denied"));
+    const request = new NextRequest(`https://granite.kr/api/auth/callback/kakao?code=abc&state=${state.state}`, {
+      headers: {
+        cookie: `${OAUTH_STATE_COOKIE_NAME}=${encodeURIComponent(state.cookieValue)}`
+      }
+    });
+
+    const response = await GET(request, { params: Promise.resolve({ provider: "kakao" }) });
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://granite.kr/login?error=profile_fetch_failed");
+    expect(findUserByOAuthIdentityMock).not.toHaveBeenCalled();
+  });
 });
 
 function readCookieValue(setCookie: string, name: string): string | null {

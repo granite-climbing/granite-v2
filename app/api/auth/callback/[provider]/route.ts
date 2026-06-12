@@ -63,20 +63,41 @@ async function handleOAuthCallback(
     return redirectToLogin(request, "missing_code");
   }
 
+  let state: ReturnType<typeof assertOAuthState>;
   try {
-    const state = assertOAuthState(values.state, request.cookies.get(OAUTH_STATE_COOKIE_NAME)?.value);
-    if (state.provider !== providerValue) {
-      return redirectToLogin(request, "provider_mismatch");
-    }
+    state = assertOAuthState(values.state, request.cookies.get(OAUTH_STATE_COOKIE_NAME)?.value);
+  } catch (error) {
+    logOAuthCallbackError(providerValue, "invalid_state", error);
+    return redirectToLogin(request, "invalid_state");
+  }
 
-    const tokenSet = await exchangeOAuthCode(providerValue, {
+  if (state.provider !== providerValue) {
+    return redirectToLogin(request, "provider_mismatch");
+  }
+
+  let tokenSet: Awaited<ReturnType<typeof exchangeOAuthCode>>;
+  try {
+    tokenSet = await exchangeOAuthCode(providerValue, {
       code: values.code,
       redirectUri: getOAuthRedirectUri(providerValue)
     });
-    const profile = await fetchOAuthProfile(providerValue, {
+  } catch (error) {
+    logOAuthCallbackError(providerValue, "token_exchange_failed", error);
+    return redirectToLogin(request, "token_exchange_failed");
+  }
+
+  let profile: Awaited<ReturnType<typeof fetchOAuthProfile>>;
+  try {
+    profile = await fetchOAuthProfile(providerValue, {
       accessToken: tokenSet.accessToken,
       idToken: tokenSet.idToken
     });
+  } catch (error) {
+    logOAuthCallbackError(providerValue, "profile_fetch_failed", error);
+    return redirectToLogin(request, "profile_fetch_failed");
+  }
+
+  try {
     const user = await findUserByOAuthIdentity(profile.provider, profile.providerUserId);
     if (!user) {
       const pendingSignupToken = await createPendingSignupToken({
@@ -99,7 +120,8 @@ async function handleOAuthCallback(
     const response = NextResponse.redirect(new URL(state.returnTo, request.url));
     setSessionCookies(response, sessionToken);
     return response;
-  } catch {
+  } catch (error) {
+    logOAuthCallbackError(providerValue, "callback_failed", error);
     return redirectToLogin(request, "callback_failed");
   }
 }
@@ -111,6 +133,14 @@ function setSessionCookies(response: NextResponse, sessionToken: string): void {
 
 function redirectToLogin(request: NextRequest, error: string): NextResponse {
   return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error)}`, request.url));
+}
+
+function logOAuthCallbackError(provider: string, stage: string, error: unknown): void {
+  console.error("[auth.callback]", {
+    provider,
+    stage,
+    message: error instanceof Error ? error.message : String(error)
+  });
 }
 
 function getFormValue(formData: FormData, key: string): string | null {
