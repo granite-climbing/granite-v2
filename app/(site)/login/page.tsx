@@ -72,20 +72,14 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 }
 
 function ProviderMark({ provider }: { provider: OAuthProviderId }) {
-  if (provider === "apple") {
-    return <span className="text-[24px] leading-none"></span>;
-  }
-  if (provider === "google") {
-    return <span className="text-[26px] font-black leading-none">G</span>;
-  }
-  if (provider === "kakao") {
-    return (
-      <span className="rounded-full bg-[#181600] px-[5px] py-[2px] text-[8px] font-black leading-none text-[#FFE100]">
-        TALK
-      </span>
-    );
-  }
-  return <span className="text-[28px] font-black leading-none">N</span>;
+  return (
+    <img
+      src={`/images/figma/icons/icon_${provider}.svg`}
+      alt=""
+      aria-hidden="true"
+      className="h-6 w-6 shrink-0 object-contain"
+    />
+  );
 }
 
 function getProviderDisplayLabel(provider: OAuthProviderId): string {
