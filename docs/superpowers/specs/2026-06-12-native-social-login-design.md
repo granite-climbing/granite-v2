@@ -1,64 +1,64 @@
-# Native Social Login in Flutter WebView
+# Flutter WebView 네이티브 소셜 로그인 설계
 
-## Context
+## 배경
 
-Granite currently uses one Next.js login page for both the public web and the Flutter app WebView. The Kakao and Naver buttons submit the existing web OAuth form, so a mobile app user may be redirected through a provider web session and return immediately if the provider already has an active account session or prior consent.
+현재 Granite는 일반 웹과 Flutter 앱 WebView에서 같은 Next.js 로그인 페이지를 사용한다. 카카오와 네이버 버튼은 기존 웹 OAuth form을 제출한다. 그래서 모바일 앱 사용자가 카카오/네이버 웹 세션을 거쳐 로그인하게 되고, provider 쪽에 이미 활성 계정 세션이나 기존 동의 이력이 있으면 별도 대기 없이 바로 돌아올 수 있다.
 
-That behavior is valid for web OAuth, but it is not the desired app experience. In the Flutter app, Kakao and Naver should use native provider login first:
+이 동작은 웹 OAuth 관점에서는 정상이다. 하지만 앱 UX로는 원하는 형태가 아니다. Flutter 앱에서는 카카오와 네이버를 먼저 네이티브 provider 로그인으로 처리해야 한다.
 
-- Kakao: prefer KakaoTalk login, then fall back to Kakao Account login.
-- Naver: prefer the native Naver SDK/app login flow, with account login fallback from the provider SDK.
-- Apple and Google stay unchanged for now.
-- The public web login flow must not regress.
+- Kakao: 카카오톡 로그인을 우선 사용하고, 실패하거나 사용할 수 없으면 카카오계정 로그인으로 fallback한다.
+- Naver: 네이버 네이티브 SDK/앱 로그인 흐름을 우선 사용하고, provider SDK의 계정 로그인 fallback을 따른다.
+- Apple과 Google은 이번 범위에서 변경하지 않는다.
+- 일반 웹 로그인 흐름은 깨지면 안 된다.
 
-References:
+참고 문서:
 
 - Kakao Flutter Login docs: https://developers.kakao.com/docs/latest/en/kakaologin/flutter
 - Naver Login developer guide: https://developers.naver.com/docs/login/devguide/devguide.md
 - Naver Android SDK guide: https://developers.naver.com/docs/login/android/android.md
 - Naver iOS SDK guide: https://developers.naver.com/docs/login/ios/ios.md
 
-## Decision
+## 결정
 
-Use progressive enhancement on the existing login page:
+기존 로그인 페이지에 progressive enhancement 방식을 적용한다.
 
-1. Keep the current provider forms as the default behavior.
-2. Add a small client-side bridge layer on the login page.
-3. When `window.FlutterWebView` is available and the provider is `kakao` or `naver`, prevent the form submit and send an `auth.native.login.requested` message to Flutter.
-4. When the bridge is unavailable, or the provider is not native-supported, let the existing web OAuth form submit.
+1. 현재 provider form을 기본 동작으로 유지한다.
+2. 로그인 페이지에 작은 client-side bridge 레이어를 추가한다.
+3. `window.FlutterWebView`가 있고 provider가 `kakao` 또는 `naver`이면 form submit을 막고 Flutter로 `auth.native.login.requested` 메시지를 보낸다.
+4. bridge가 없거나 native 지원 provider가 아니면 기존 웹 OAuth form submit을 그대로 실행한다.
 
-This keeps the web browser path intact and confines app-specific behavior to the WebView surface.
+이 방식은 일반 웹 브라우저 경로를 그대로 유지하면서, 앱 전용 동작을 WebView surface 안에만 가둔다.
 
-## Rejected Alternatives
+## 제외한 대안
 
-### Replace All Web OAuth Buttons with Native Login
+### 모든 웹 OAuth 버튼을 네이티브 로그인으로 교체
 
-This would break or complicate the public web login path. It also forces Apple and Google into scope before we need them.
+일반 웹 로그인 경로를 깨뜨리거나 복잡하게 만든다. 또한 아직 필요하지 않은 Apple과 Google까지 범위에 들어온다.
 
-### Use Provider Tokens Directly in the WebView
+### Provider 토큰을 WebView에서 직접 세션처럼 사용
 
-The WebView should not receive long-lived provider tokens as a browser-accessible session primitive. Provider tokens should be sent from the app to the server, verified server-side, and exchanged for a Granite session.
+WebView는 장기 provider 토큰을 브라우저에서 접근 가능한 세션 값으로 받아서는 안 된다. provider 토큰은 앱에서 서버로 보내고, 서버에서 검증한 뒤 Granite 세션으로 교환해야 한다.
 
-### Open Provider Authorization URLs Externally from WebView
+### WebView에서 provider authorization URL을 외부 브라우저로 열기
 
-This would improve some mobile browser behavior, but it still does not give the app a clean native SDK flow, token lifecycle, or provider-app fallback control.
+일부 모바일 브라우저 동작은 개선될 수 있지만, 앱 SDK 기반 로그인 흐름, 토큰 생명주기, provider 앱 fallback 제어를 깔끔하게 확보하지 못한다.
 
-## Architecture
+## 아키텍처
 
-### Web Login Page
+### 웹 로그인 페이지
 
-Add a client component around provider buttons, for example `LoginProviderForm`.
+provider 버튼 주변에 client component를 추가한다. 예: `LoginProviderForm`.
 
-Responsibilities:
+역할:
 
-- Render the existing form fields: `provider`, `returnTo`.
-- Submit normally by default.
-- On submit, detect a native bridge and native-supported providers.
-- Send a bridge message to Flutter for `kakao` and `naver`.
-- Show a short pending state while the app handles native login.
-- If bridge sending fails, fall back to normal web submit.
+- 기존 form field인 `provider`, `returnTo`를 렌더링한다.
+- 기본값은 일반 submit이다.
+- submit 시점에 native bridge와 native 지원 provider 여부를 확인한다.
+- `kakao`, `naver`이면 Flutter로 bridge 메시지를 보낸다.
+- 앱이 native login을 처리하는 동안 짧은 pending 상태를 보여준다.
+- bridge 전송이 실패하면 일반 웹 submit으로 fallback한다.
 
-Suggested bridge message:
+권장 bridge 메시지:
 
 ```json
 {
@@ -74,42 +74,42 @@ Suggested bridge message:
 }
 ```
 
-The current `auth.login.requested` bridge message exists in the Flutter app, but it is tied to older session handoff scaffolding. Use a new message type so this flow can be implemented without reviving ambiguous legacy behavior.
+현재 Flutter 앱에는 `auth.login.requested` bridge 메시지가 이미 있다. 다만 이 메시지는 이전 session handoff scaffolding과 연결되어 있다. 애매한 legacy 동작을 되살리지 않기 위해 이 흐름에는 새 메시지 타입을 사용한다.
 
-### Flutter App
+### Flutter 앱
 
-Add a native auth bridge handler for `auth.native.login.requested`.
+`auth.native.login.requested`를 처리하는 native auth bridge handler를 추가한다.
 
-Responsibilities:
+역할:
 
-- Read `provider` and `returnTo`.
-- Call the provider-specific native service.
-- Send provider credential material to the Granite server over HTTPS.
-- Receive a short-lived handoff code.
-- Load the WebView to the server consume endpoint.
+- `provider`, `returnTo`를 읽는다.
+- provider별 native service를 호출한다.
+- provider credential을 Granite 서버로 HTTPS 전송한다.
+- 짧게 살아있는 handoff code를 받는다.
+- WebView를 서버 consume endpoint로 이동시킨다.
 
-Kakao service behavior:
+Kakao service 동작:
 
-- Initialize Kakao SDK at app startup with the native app key.
-- If KakaoTalk login is available, call KakaoTalk login.
-- Otherwise call Kakao Account login.
-- Return the Kakao access token to the app-side bridge service for server exchange.
+- 앱 시작 시 Kakao SDK를 native app key로 초기화한다.
+- 카카오톡 로그인이 가능하면 카카오톡 로그인을 호출한다.
+- 그렇지 않으면 카카오계정 로그인을 호출한다.
+- Kakao access token을 앱 쪽 bridge service에 반환해서 서버 교환에 사용한다.
 
-Naver service behavior:
+Naver service 동작:
 
-- Connect the official Android/iOS Naver SDKs through platform channels.
-- Keep the Dart interface provider-agnostic so platform-channel internals remain isolated from the WebView bridge and server exchange.
-- Return the Naver access token to the app-side bridge service for server exchange.
+- 공식 Android/iOS Naver SDK를 platform channel로 연결한다.
+- Dart interface는 provider-agnostic하게 유지해서 platform-channel 내부 구현이 WebView bridge와 server exchange에서 격리되게 한다.
+- Naver access token을 앱 쪽 bridge service에 반환해서 서버 교환에 사용한다.
 
-### Server Native Auth Exchange
+### 서버 native auth exchange
 
-Add a server endpoint:
+서버 endpoint를 추가한다.
 
 ```text
 POST /api/auth/native/exchange
 ```
 
-Request body:
+요청 body:
 
 ```json
 {
@@ -119,16 +119,16 @@ Request body:
 }
 ```
 
-Server behavior:
+서버 동작:
 
-1. Validate `provider` is `kakao` or `naver`.
-2. Fetch the provider profile server-side using the provider access token.
-3. Reuse existing profile normalization where possible.
-4. If a Granite user exists, create a one-time handoff code tied to that user and return target.
-5. If the user is new, create a pending signup token or handoff code that routes to `/signup`.
-6. Return only the one-time handoff code to Flutter.
+1. `provider`가 `kakao` 또는 `naver`인지 검증한다.
+2. provider access token으로 provider profile을 서버에서 조회한다.
+3. 가능한 범위에서 기존 profile normalization을 재사용한다.
+4. 기존 Granite 사용자가 있으면 user와 return target에 묶인 one-time handoff code를 만든다.
+5. 신규 사용자이면 `/signup`으로 이어질 pending signup token 또는 handoff code를 만든다.
+6. Flutter에는 one-time handoff code만 반환한다.
 
-Response body:
+응답 body:
 
 ```json
 {
@@ -137,23 +137,23 @@ Response body:
 }
 ```
 
-Add a consume endpoint:
+consume endpoint를 추가한다.
 
 ```text
 GET /api/auth/native/consume?code=<handoffCode>
 ```
 
-Server behavior:
+서버 동작:
 
-1. Validate and consume the one-time code.
-2. Set the existing `granite_session` httpOnly cookie for returning users, or set the existing pending signup cookie for new users.
-3. Redirect to `/me` or `/signup`.
+1. one-time code를 검증하고 소비한다.
+2. 기존 사용자이면 `granite_session` httpOnly cookie를 설정하고, 신규 사용자이면 기존 pending signup cookie를 설정한다.
+3. `/me` 또는 `/signup`으로 redirect한다.
 
-The code must be single-use and short-lived.
+handoff code는 반드시 single-use이고 short-lived여야 한다.
 
-## Data Flow
+## 데이터 흐름
 
-### Public Web
+### 일반 웹
 
 ```text
 Login button
@@ -186,74 +186,74 @@ Login button
 -> Existing web OAuth flow
 ```
 
-## Configuration
+## 설정
 
 ### Kakao
 
-Needed in Flutter app config:
+Flutter 앱 설정에 필요한 값:
 
 - Kakao native app key.
-- iOS URL scheme and `LSApplicationQueriesSchemes` entries required by Kakao SDK.
-- Android manifest settings required by Kakao SDK.
+- Kakao SDK가 요구하는 iOS URL scheme 및 `LSApplicationQueriesSchemes`.
+- Kakao SDK가 요구하는 Android manifest 설정.
 
-Needed in Kakao developer console:
+Kakao developer console에서 필요한 설정:
 
-- Android package name and key hash.
+- Android package name 및 key hash.
 - iOS bundle ID.
-- Redirect URI remains required for web OAuth.
+- 기존 웹 OAuth를 위한 redirect URI는 계속 필요하다.
 
 ### Naver
 
-Needed in Flutter app config:
+Flutter 앱 설정에 필요한 값:
 
 - Naver client ID.
-- Naver client secret or client metadata required by the native SDK setup.
-- iOS URL scheme and query schemes.
-- Android package/application settings.
+- Native SDK 설정에 필요한 Naver client secret 또는 client metadata.
+- iOS URL scheme 및 query schemes.
+- Android package/application 설정.
 
-Needed in Naver developer console:
+Naver developer console에서 필요한 설정:
 
-- Android app settings.
-- iOS app settings.
-- Existing web OAuth settings remain for the public web.
+- Android 앱 설정.
+- iOS 앱 설정.
+- 일반 웹을 위한 기존 web OAuth 설정은 유지한다.
 
-Do not remove existing web OAuth environment variables. They continue to serve public web login and Apple/Google fallback behavior.
+기존 web OAuth 환경변수는 제거하지 않는다. 일반 웹 로그인과 Apple/Google fallback 동작에 계속 사용된다.
 
-## Error Handling
+## 에러 처리
 
-Flutter should map native failures into predictable WebView destinations:
+Flutter는 native 실패를 예측 가능한 WebView 목적지로 매핑한다.
 
-- User cancels provider login: stay on `/login?returnTo=/me` and show no scary error.
-- Provider SDK failure: navigate to `/login?error=native_login_failed`.
-- Server exchange failure: navigate to `/login?error=native_exchange_failed`.
-- Handoff consume failure: navigate to `/login?error=native_handoff_failed`.
+- 사용자가 provider 로그인을 취소함: `/login?returnTo=/me`에 머물고 무서운 에러를 보여주지 않는다.
+- Provider SDK 실패: `/login?error=native_login_failed`로 이동한다.
+- Server exchange 실패: `/login?error=native_exchange_failed`로 이동한다.
+- Handoff consume 실패: `/login?error=native_handoff_failed`로 이동한다.
 
-Server logs should include provider and stage, but never log access tokens.
+서버 로그에는 provider와 stage를 남기되, access token은 절대 기록하지 않는다.
 
-## Testing
+## 테스트
 
 Web repo:
 
-- Unit test that web login forms still contain the normal server action fallback.
-- Unit/client test that bridge-enabled Kakao/Naver submits send native bridge messages instead of form submit.
-- Unit/client test that Apple/Google still use web submit.
-- Route tests for `/api/auth/native/exchange`.
-- Route tests for `/api/auth/native/consume`.
-- Regression tests for existing OAuth callback behavior.
+- 웹 로그인 form이 여전히 일반 server action fallback을 가지고 있는지 테스트한다.
+- bridge가 있는 환경에서 Kakao/Naver submit이 form submit 대신 native bridge message를 보내는지 테스트한다.
+- Apple/Google이 계속 웹 submit을 사용하는지 테스트한다.
+- `/api/auth/native/exchange` route test를 추가한다.
+- `/api/auth/native/consume` route test를 추가한다.
+- 기존 OAuth callback 동작에 대한 regression test를 유지한다.
 
 Flutter repo:
 
-- Bridge handler tests for `auth.native.login.requested`.
-- Provider service tests using fake Kakao/Naver clients.
-- WebView screen test or handler test proving the consume URL is loaded after a successful handoff.
-- Manual simulator/device test:
-  - KakaoTalk installed.
-  - KakaoTalk not installed.
-  - Naver app installed.
-  - Naver app not installed.
+- `auth.native.login.requested` bridge handler test를 추가한다.
+- fake Kakao/Naver client를 사용한 provider service test를 추가한다.
+- 성공적인 handoff 이후 consume URL을 로드하는 WebView screen test 또는 handler test를 추가한다.
+- 수동 simulator/device test:
+  - 카카오톡 설치됨.
+  - 카카오톡 설치되지 않음.
+  - 네이버 앱 설치됨.
+  - 네이버 앱 설치되지 않음.
 
-## Rollout
+## 롤아웃
 
-Implement Kakao first because Kakao has an official Flutter SDK. Implement Naver second through official Android/iOS SDK platform channels. Keep the web OAuth path available throughout the rollout.
+Kakao는 공식 Flutter SDK가 있으므로 먼저 구현한다. Naver는 공식 Android/iOS SDK를 platform channel로 연결하는 방식으로 두 번째에 구현한다. 롤아웃 중에도 web OAuth 경로는 계속 사용할 수 있어야 한다.
 
-Apple and Google stay out of scope until Kakao/Naver native login is stable.
+Apple과 Google은 Kakao/Naver native login이 안정화될 때까지 범위에서 제외한다.
