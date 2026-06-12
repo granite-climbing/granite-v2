@@ -10,19 +10,7 @@ type MyPageContentProps = {
 export function MyPageContent({ model, logoutSlot }: MyPageContentProps) {
   return (
     <main data-hide-site-footer className="min-h-screen bg-[#F7F7F7] pb-[90px] text-[#050505]">
-      <header className="flex h-[96px] items-end justify-between bg-white px-4 pb-[17px]">
-        <h1 className="text-[17px] font-semibold leading-none">마이</h1>
-        <button
-          type="button"
-          aria-label="메뉴 열기"
-          className="flex size-7 flex-col items-center justify-center gap-[5px]"
-          disabled
-        >
-          <span className="h-[2px] w-[18px] bg-black" />
-          <span className="h-[2px] w-[18px] bg-black" />
-          <span className="h-[2px] w-[18px] bg-black" />
-        </button>
-      </header>
+      <MyPageHeader />
 
       <section className="bg-white px-4 pb-[22px]">
         <div className="flex justify-center pt-[14px]">
@@ -73,6 +61,24 @@ export function MyPageContent({ model, logoutSlot }: MyPageContentProps) {
       </Section>
 
     </main>
+  );
+}
+
+export function MyPageHeader() {
+  return (
+    <header className="sticky top-0 z-20 flex h-[96px] items-end justify-between bg-white px-4 pb-[17px]">
+      <h1 className="text-[17px] font-semibold leading-none">마이</h1>
+      <button
+        type="button"
+        aria-label="메뉴 열기"
+        className="flex size-7 flex-col items-center justify-center gap-[5px]"
+        disabled
+      >
+        <span className="h-[2px] w-[18px] bg-black" />
+        <span className="h-[2px] w-[18px] bg-black" />
+        <span className="h-[2px] w-[18px] bg-black" />
+      </button>
+    </header>
   );
 }
 

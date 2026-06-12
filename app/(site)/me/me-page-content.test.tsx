@@ -43,6 +43,7 @@ describe("MyPageContent", () => {
     expect(html).toContain("알림 설정");
     expect(html).toContain("회원탈퇴");
     expect(html).toContain("data-hide-site-footer");
+    expect(html).toContain("sticky top-0");
     expect(html).not.toContain("granite@gmail.com");
     expect(html).not.toContain("******");
   });
