@@ -65,18 +65,30 @@ describe("LoginProviderForm", () => {
     expect(postMessage).not.toHaveBeenCalled();
   });
 
-  it("does not native-bridge Apple and Google", () => {
+  it.each([
+    ["apple", "Apple"],
+    ["google", "Google"]
+  ] as const)("posts a native bridge message for %s in Flutter WebView", (provider, displayLabel) => {
     const postMessage = vi.fn();
     vi.stubGlobal("FlutterWebView", { postMessage });
 
     render(
-      <LoginProviderForm provider="google" displayLabel="Google" returnTo="/me" enabled action={vi.fn()}>
+      <LoginProviderForm provider={provider} displayLabel={displayLabel} returnTo="/me" enabled action={vi.fn()}>
         icon
       </LoginProviderForm>
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Google로 시작하기" }));
+    fireEvent.click(screen.getByRole("button", { name: `${displayLabel}로 시작하기` }));
 
-    expect(postMessage).not.toHaveBeenCalled();
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(postMessage.mock.calls[0][0])).toMatchObject({
+      type: "auth.native.login.requested",
+      direction: "web-to-native",
+      payload: {
+        provider,
+        returnTo: "/me",
+        surface: "flutter-webview"
+      }
+    });
   });
 });

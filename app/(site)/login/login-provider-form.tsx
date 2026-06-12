@@ -29,7 +29,7 @@ export function LoginProviderForm({
   action,
   children
 }: LoginProviderFormProps) {
-  const nativeBridgeProvider = provider === "kakao";
+  const nativeBridgeProvider = provider === "kakao" || provider === "google" || provider === "apple";
 
   return (
     <form

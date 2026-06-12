@@ -91,4 +91,31 @@ describe("OAuth HTTP client", () => {
       email: "google@example.com"
     });
   });
+
+  it("normalizes a Google profile from a native id token when no access token is provided", async () => {
+    const profile = await fetchOAuthProfile("google", {
+      accessToken: "",
+      idToken: unsignedJwt({
+        sub: "native-google-user",
+        email: "native-google@example.com",
+        name: "Native Google Climber"
+      }),
+      fetchImpl: vi.fn()
+    });
+
+    expect(profile).toMatchObject({
+      provider: "google",
+      providerUserId: "native-google-user",
+      email: "native-google@example.com",
+      displayName: "Native Google Climber"
+    });
+  });
 });
+
+function unsignedJwt(payload: Record<string, unknown>): string {
+  return [
+    Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url"),
+    Buffer.from(JSON.stringify(payload)).toString("base64url"),
+    ""
+  ].join(".");
+}

@@ -102,10 +102,40 @@ describe("native auth exchange route", () => {
     });
   });
 
+  it.each([
+    ["google", "google-id-token"],
+    ["apple", "apple-id-token"]
+  ] as const)("accepts a native %s id token", async (provider, idToken) => {
+    process.env.JWT_SECRET = "native-exchange-test-secret";
+    fetchOAuthProfileMock.mockResolvedValueOnce({
+      provider,
+      providerUserId: `${provider}-user`,
+      email: null,
+      displayName: `${provider} Climber`,
+      avatarUrl: null
+    });
+    findUserByOAuthIdentityMock.mockResolvedValueOnce({
+      id: `user_${provider}`
+    });
+    storeNativeAuthHandoffTokenMock.mockResolvedValueOnce("handoff-code");
+
+    const response = await POST(jsonRequest({
+      provider,
+      idToken,
+      returnTo: "/me"
+    }));
+
+    expect(response.status).toBe(200);
+    expect(fetchOAuthProfileMock).toHaveBeenCalledWith(provider, {
+      accessToken: "",
+      idToken
+    });
+  });
+
   it("rejects unsupported native providers", async () => {
     const response = await POST(jsonRequest({
-      provider: "google",
-      accessToken: "google-access-token",
+      provider: "email",
+      accessToken: "email-access-token",
       returnTo: "/me"
     }));
 

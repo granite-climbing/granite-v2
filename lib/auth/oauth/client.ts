@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { getOAuthClientId, getOAuthClientSecret, getOAuthProvider } from "./providers";
-import { normalizeAppleProfileFromIdToken, normalizeOAuthProfile } from "./profile";
+import { normalizeAppleProfileFromIdToken, normalizeGoogleProfileFromIdToken, normalizeOAuthProfile } from "./profile";
 import type { OAuthProfile, OAuthProviderId, OAuthTokenSet } from "./types";
 
 type FetchImpl = typeof fetch;
@@ -92,6 +92,10 @@ export async function fetchOAuthProfile(
 
   if (!provider.userInfoUrl) {
     throw new Error(`OAuth provider ${provider.provider} has no userinfo endpoint`);
+  }
+
+  if (provider.provider === "google" && !input.accessToken && input.idToken) {
+    return normalizeGoogleProfileFromIdToken(input.idToken);
   }
 
   if (!input.accessToken) {

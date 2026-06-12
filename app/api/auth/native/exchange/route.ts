@@ -9,27 +9,29 @@ export const runtime = "nodejs";
 type NativeExchangeBody = {
   provider?: unknown;
   accessToken?: unknown;
+  idToken?: unknown;
   returnTo?: unknown;
 };
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const body = await readBody(request);
   const provider = body?.provider;
-  const accessToken = body?.accessToken;
+  const accessToken = typeof body?.accessToken === "string" ? body.accessToken : "";
+  const idToken = typeof body?.idToken === "string" ? body.idToken : null;
   const returnTo = sanitizeReturnTo(typeof body?.returnTo === "string" ? body.returnTo : "/me");
 
-  if (provider !== "kakao" && provider !== "naver") {
+  if (!isNativeExchangeProvider(provider)) {
     return NextResponse.json({ error: "unsupported_provider" }, { status: 400 });
   }
 
-  if (typeof accessToken !== "string" || !accessToken) {
-    return NextResponse.json({ error: "missing_access_token" }, { status: 400 });
+  if (!hasProviderToken(provider, accessToken, idToken)) {
+    return NextResponse.json({ error: "missing_provider_token" }, { status: 400 });
   }
 
   try {
     const profile = await fetchOAuthProfile(provider, {
       accessToken,
-      idToken: null
+      idToken
     });
     const user = await findUserByOAuthIdentity(profile.provider, profile.providerUserId);
     const token = await createNativeAuthHandoffToken(
@@ -79,4 +81,20 @@ function sanitizeReturnTo(value: string): string {
   }
 
   return value;
+}
+
+function isNativeExchangeProvider(value: unknown): value is "kakao" | "naver" | "google" | "apple" {
+  return value === "kakao" || value === "naver" || value === "google" || value === "apple";
+}
+
+function hasProviderToken(provider: "kakao" | "naver" | "google" | "apple", accessToken: string, idToken: string | null): boolean {
+  if (provider === "apple") {
+    return Boolean(idToken);
+  }
+
+  if (provider === "google") {
+    return Boolean(accessToken || idToken);
+  }
+
+  return Boolean(accessToken);
 }
