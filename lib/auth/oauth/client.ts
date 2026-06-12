@@ -21,7 +21,7 @@ export type FetchOAuthProfileInput = {
 const tokenResponseSchema = z.object({
   access_token: z.string().optional(),
   token_type: z.string().optional(),
-  expires_in: z.number().optional(),
+  expires_in: z.coerce.number().optional(),
   refresh_token: z.string().optional(),
   id_token: z.string().optional(),
   scope: z.string().optional()

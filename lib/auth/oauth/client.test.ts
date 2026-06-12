@@ -40,13 +40,13 @@ describe("OAuth HTTP client", () => {
         JSON.stringify({
           access_token: "naver-access-token",
           token_type: "bearer",
-          expires_in: 3600
+          expires_in: "3600"
         }),
         { status: 200, headers: { "content-type": "application/json" } }
       )
     );
 
-    await exchangeOAuthCode("naver", {
+    const tokenSet = await exchangeOAuthCode("naver", {
       code: "naver-oauth-code",
       redirectUri: "https://granite.kr/api/auth/callback/naver",
       state: "naver-callback-state",
@@ -58,6 +58,7 @@ describe("OAuth HTTP client", () => {
     expect(String(requestBody)).toContain("client_secret=naver-secret");
     expect(String(requestBody)).toContain("code=naver-oauth-code");
     expect(String(requestBody)).toContain("state=naver-callback-state");
+    expect(tokenSet.expiresIn).toBe(3600);
   });
 
   it("fetches and normalizes a provider profile", async () => {
