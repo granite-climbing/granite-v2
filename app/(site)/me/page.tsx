@@ -1,4 +1,3 @@
-import { BottomNav } from "@/components/layout/bottom-nav";
 import { cookies } from "next/headers";
 import { USER_SESSION_COOKIE_NAME, verifyUserSessionToken } from "@/lib/auth/session";
 import { findActiveUserById, findOAuthIdentitiesByUserId } from "@/lib/db/user-auth-queries";
@@ -50,7 +49,6 @@ function LoggedOut() {
           </a>
         </div>
       </section>
-      <BottomNav activeItem="me" />
     </main>
   );
 }

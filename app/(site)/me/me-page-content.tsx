@@ -1,6 +1,5 @@
 import React from "react";
 import Link from "next/link";
-import { BottomNav } from "@/components/layout/bottom-nav";
 import type { AccountConnectionRow, MePageModel, PrivacyRow, ProfileRow } from "./me-page-model";
 
 type MyPageContentProps = {
@@ -73,7 +72,6 @@ export function MyPageContent({ model, logoutSlot }: MyPageContentProps) {
         </div>
       </Section>
 
-      <BottomNav activeItem="me" />
     </main>
   );
 }

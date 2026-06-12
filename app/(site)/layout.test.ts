@@ -12,4 +12,11 @@ describe("SiteLayout", () => {
     expect(text).toContain("//t1.daumcdn.net/kas/static/ba.min.js");
     expect(text).toContain('strategy="afterInteractive"');
   });
+
+  it("renders the shared site bottom navigation", () => {
+    const text = source();
+
+    expect(text).toContain("SiteBottomNav");
+    expect(text).toContain("<SiteBottomNav />");
+  });
 });

@@ -1,4 +1,5 @@
 import { Footer } from "@/components/layout/footer";
+import { SiteBottomNav } from "@/components/layout/site-bottom-nav";
 import Script from "next/script";
 
 /**
@@ -20,6 +21,7 @@ export default function SiteLayout({
           <Footer />
         </div>
       </div>
+      <SiteBottomNav />
       <Script src="//t1.daumcdn.net/kas/static/ba.min.js" strategy="afterInteractive" />
     </>
   );

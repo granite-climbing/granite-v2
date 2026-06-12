@@ -1,5 +1,4 @@
 import { AppHeader } from "@/components/layout/app-header";
-import { BottomNav } from "@/components/layout/bottom-nav";
 
 export default function RecordsPage() {
   return (
@@ -11,7 +10,6 @@ export default function RecordsPage() {
           <p className="mt-3 text-sm font-semibold text-[#6F7477]">완등 기록은 Phase 6에서 로그인과 함께 제공됩니다.</p>
         </div>
       </section>
-      <BottomNav activeItem="records" />
     </main>
   );
 }

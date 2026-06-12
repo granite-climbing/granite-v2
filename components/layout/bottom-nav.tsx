@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 
-type BottomNavItemId = "home" | "projects" | "records" | "me";
+export type BottomNavItemId = "home" | "projects" | "records" | "me";
 
 const navItems: Array<{ id: BottomNavItemId; href: string; label: string }> = [
   { id: "home", href: "/", label: "홈" },
@@ -32,6 +32,26 @@ export function BottomNav({ activeItem = "home" }: { activeItem?: BottomNavItemI
       })}
     </nav>
   );
+}
+
+export function getBottomNavActiveItem(pathname: string): BottomNavItemId {
+  if (pathname === "/me/projects" || pathname.startsWith("/me/projects/")) {
+    return "projects";
+  }
+
+  if (pathname === "/me/records" || pathname.startsWith("/me/records/")) {
+    return "records";
+  }
+
+  if (pathname === "/me" || pathname.startsWith("/me/")) {
+    return "me";
+  }
+
+  return "home";
+}
+
+export function shouldShowBottomNav(pathname: string): boolean {
+  return pathname !== "/login" && pathname !== "/signup";
 }
 
 function NavIcon({ id, active }: { id: BottomNavItemId; active: boolean }) {

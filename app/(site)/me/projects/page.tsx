@@ -1,5 +1,4 @@
 import { AppHeader } from "@/components/layout/app-header";
-import { BottomNav } from "@/components/layout/bottom-nav";
 
 export default function ProjectsPage() {
   return (
@@ -11,7 +10,6 @@ export default function ProjectsPage() {
           <p className="mt-3 text-sm font-semibold text-[#6F7477]">Route 즐겨찾기는 Phase 6에서 제공됩니다.</p>
         </div>
       </section>
-      <BottomNav activeItem="projects" />
     </main>
   );
 }
