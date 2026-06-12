@@ -11,5 +11,5 @@ export async function logoutAction(): Promise<void> {
     maxAge: 0
   });
 
-  redirect("/me");
+  redirect("/login");
 }

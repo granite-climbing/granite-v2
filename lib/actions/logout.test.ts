@@ -23,13 +23,13 @@ describe("logoutAction", () => {
     redirectMock.mockClear();
   });
 
-  it("clears the user session cookie and redirects to /me", async () => {
+  it("clears the user session cookie and redirects to /login", async () => {
     const cookieSetMock = vi.fn();
     cookiesMock.mockResolvedValue({
       set: cookieSetMock
     });
 
-    await expect(logoutAction()).rejects.toThrow("NEXT_REDIRECT:/me");
+    await expect(logoutAction()).rejects.toThrow("NEXT_REDIRECT:/login");
 
     expect(cookieSetMock).toHaveBeenCalledWith(
       USER_SESSION_COOKIE_NAME,
