@@ -2,43 +2,40 @@
 
 Granite has two runtime surfaces:
 
-- **Web browser:** the website owns navigation and authentication UI.
-- **Flutter app:** the native shell owns app startup, app login state, and when the WebView may be shown.
+- **Web browser:** the website owns navigation, authentication UI, and the web session cookie.
+- **Flutter app:** the native shell owns the WebView container and app-native integrations, but uses the same web login screen for authentication.
 
-The app must not show protected WebView fallback screens such as "로그인이 필요합니다." as the first experience. If an app user is not authenticated, the app shows a native login screen before opening the WebView.
+The app must not show protected WebView fallback screens such as "로그인이 필요합니다." as the first experience. Instead, the app opens the web app entrypoint at `/app`; the web server redirects authenticated users to `/me` and unauthenticated users to `/login?returnTo=/me`.
 
 ## Session Ownership
 
-- Flutter stores the app session in app-owned storage.
 - Granite web stores the web session as a server-set HttpOnly cookie.
-- The app does not inject long-lived app tokens into WebView JavaScript.
-- The app may open a short-lived handoff URL in WebView after native login.
+- The app does not store a separate login session for the current web-login implementation.
+- The app does not inject tokens into WebView JavaScript.
+- WebView cookies are isolated from the user's normal browser cookies, so the app and browser can keep their sessions independently while sharing the same web login UI.
 
-## Handoff Flow
+## App Entrypoint Flow
 
 ```text
 App launches
-  -> AuthGate checks app session
-  -> no app session: show NativeLoginScreen
-  -> native login succeeds
-  -> app stores app session
-  -> app requests or builds a short-lived web handoff
-  -> WebView opens /api/auth/app-handoff?code=...
-  -> server verifies handoff
-  -> server sets Granite web HttpOnly cookie
-  -> server redirects WebView to the intended destination
+  -> WebView opens /app
+  -> server checks granite_session cookie
+  -> valid session: redirect to /me
+  -> no valid session: redirect to /login?returnTo=/me
+  -> OAuth callback sets Granite web HttpOnly cookie
+  -> callback redirects to /me or signup
 ```
 
 ## Protected Routes
 
-The app treats these destinations as protected:
+Protected destinations still validate the web session server-side:
 
 - `/me`
 - `/me/projects`
 - `/me/records`
 
-When the app user is logged out, tapping these destinations must not navigate the WebView first. The app should route to native login and then continue to the intended destination after session sync.
+The app should enter these destinations through `/app` or a future app-specific web entrypoint so logged-out users land on the web login screen instead of a logged-out protected fallback.
 
-## Web Fallback
+## Native Auth
 
-The web app still handles direct browser visits safely. A browser user who opens `/me` without a web session may see a web login or fallback state. That fallback is not the app's primary auth UX.
+Native provider SDK login and app-to-web session handoff are intentionally deferred. They can be added later if a provider blocks WebView OAuth or if we need app-owned credentials, but they are not required for the current app login flow.
