@@ -1,7 +1,20 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { generateKeyPair, SignJWT } from "jose";
 import { exchangeOAuthCode, fetchOAuthProfile } from "./client";
 
+const originalEnv = {
+  APPLE_CLIENT_ID: process.env.APPLE_CLIENT_ID,
+  APPLE_WEB_CLIENT_ID: process.env.APPLE_WEB_CLIENT_ID,
+  APPLE_IOS_CLIENT_ID: process.env.APPLE_IOS_CLIENT_ID
+};
+
 describe("OAuth HTTP client", () => {
+  afterEach(() => {
+    process.env.APPLE_CLIENT_ID = originalEnv.APPLE_CLIENT_ID;
+    process.env.APPLE_WEB_CLIENT_ID = originalEnv.APPLE_WEB_CLIENT_ID;
+    process.env.APPLE_IOS_CLIENT_ID = originalEnv.APPLE_IOS_CLIENT_ID;
+  });
+
   it("exchanges an authorization code with provider token endpoints", async () => {
     process.env.GOOGLE_OAUTH_CLIENT_ID = "google-client";
     process.env.GOOGLE_OAUTH_CLIENT_SECRET = "google-secret";
@@ -110,6 +123,49 @@ describe("OAuth HTTP client", () => {
       displayName: "Native Google Climber"
     });
   });
+
+  it("accepts Apple native id tokens for the configured iOS app audience", async () => {
+    process.env.APPLE_WEB_CLIENT_ID = "kr.granite.web";
+    process.env.APPLE_IOS_CLIENT_ID = "com.granite.climbing";
+    const { privateKey, publicKey } = await generateKeyPair("ES256");
+
+    const profile = await fetchOAuthProfile("apple", {
+      accessToken: "",
+      idToken: await signedJwt(privateKey, {
+        iss: "https://appleid.apple.com",
+        aud: "com.granite.climbing",
+        sub: "apple-user",
+        email: "apple@example.com"
+      }),
+      appleVerifyKey: async () => publicKey,
+      fetchImpl: vi.fn()
+    });
+
+    expect(profile).toMatchObject({
+      provider: "apple",
+      providerUserId: "apple-user",
+      email: "apple@example.com"
+    });
+  });
+
+  it("rejects Apple id tokens for unknown audiences", async () => {
+    process.env.APPLE_WEB_CLIENT_ID = "kr.granite.web";
+    process.env.APPLE_IOS_CLIENT_ID = "com.granite.climbing";
+    const { privateKey, publicKey } = await generateKeyPair("ES256");
+
+    await expect(
+      fetchOAuthProfile("apple", {
+        accessToken: "",
+        idToken: await signedJwt(privateKey, {
+          iss: "https://appleid.apple.com",
+          aud: "other.client",
+          sub: "apple-user"
+        }),
+        appleVerifyKey: async () => publicKey,
+        fetchImpl: vi.fn()
+      })
+    ).rejects.toThrow("unexpected \"aud\" claim value");
+  });
 });
 
 function unsignedJwt(payload: Record<string, unknown>): string {
@@ -118,4 +174,13 @@ function unsignedJwt(payload: Record<string, unknown>): string {
     Buffer.from(JSON.stringify(payload)).toString("base64url"),
     ""
   ].join(".");
+}
+
+async function signedJwt(
+  privateKey: CryptoKey,
+  payload: Record<string, unknown>
+): Promise<string> {
+  return new SignJWT(payload)
+    .setProtectedHeader({ alg: "ES256" })
+    .sign(privateKey);
 }

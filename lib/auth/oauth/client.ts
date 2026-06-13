@@ -1,9 +1,11 @@
 import { z } from "zod";
-import { getOAuthClientId, getOAuthClientSecret, getOAuthProvider } from "./providers";
-import { normalizeAppleProfileFromIdToken, normalizeGoogleProfileFromIdToken, normalizeOAuthProfile } from "./profile";
+import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
+import { getAppleAllowedClientIds, getOAuthClientId, getOAuthClientSecret, getOAuthProvider } from "./providers";
+import { normalizeGoogleProfileFromIdToken, normalizeOAuthProfile } from "./profile";
 import type { OAuthProfile, OAuthProviderId, OAuthTokenSet } from "./types";
 
 type FetchImpl = typeof fetch;
+type AppleVerifyKey = JWTVerifyGetKey;
 
 export type ExchangeOAuthCodeInput = {
   code: string;
@@ -16,6 +18,7 @@ export type FetchOAuthProfileInput = {
   accessToken: string;
   idToken: string | null;
   fetchImpl?: FetchImpl;
+  appleVerifyKey?: AppleVerifyKey;
 };
 
 const tokenResponseSchema = z.object({
@@ -26,6 +29,8 @@ const tokenResponseSchema = z.object({
   id_token: z.string().optional(),
   scope: z.string().optional()
 });
+
+const appleJwks = createRemoteJWKSet(new URL("https://appleid.apple.com/auth/keys"));
 
 export async function exchangeOAuthCode(
   providerId: OAuthProviderId,
@@ -87,7 +92,7 @@ export async function fetchOAuthProfile(
     if (!input.idToken) {
       throw new Error("Apple OAuth response did not include id_token");
     }
-    return normalizeAppleProfileFromIdToken(input.idToken);
+    return fetchAppleProfileFromIdToken(input.idToken, input.appleVerifyKey ?? appleJwks);
   }
 
   if (!provider.userInfoUrl) {
@@ -114,4 +119,21 @@ export async function fetchOAuthProfile(
   }
 
   return normalizeOAuthProfile(provider.provider, await response.json());
+}
+
+async function fetchAppleProfileFromIdToken(
+  idToken: string,
+  verifyKey: AppleVerifyKey
+): Promise<OAuthProfile> {
+  const allowedAudiences = getAppleAllowedClientIds();
+  if (allowedAudiences.length === 0) {
+    throw new Error("Apple OAuth audience is not configured");
+  }
+
+  const verified = await jwtVerify(idToken, verifyKey, {
+    issuer: "https://appleid.apple.com",
+    audience: allowedAudiences
+  });
+
+  return normalizeOAuthProfile("apple", verified.payload);
 }

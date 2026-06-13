@@ -8,6 +8,7 @@ export type OAuthProviderConfig = {
   tokenUrl: string;
   userInfoUrl: string | null;
   clientIdEnv: string;
+  clientIdFallbackEnv?: string;
   clientSecretEnv: string | null;
   scopes: string[];
   responseMode?: "query" | "form_post";
@@ -56,7 +57,8 @@ const PROVIDERS: Record<OAuthProviderId, OAuthProviderConfig> = {
     authorizationUrl: "https://appleid.apple.com/auth/authorize",
     tokenUrl: "https://appleid.apple.com/auth/token",
     userInfoUrl: null,
-    clientIdEnv: "APPLE_CLIENT_ID",
+    clientIdEnv: "APPLE_WEB_CLIENT_ID",
+    clientIdFallbackEnv: "APPLE_CLIENT_ID",
     clientSecretEnv: "APPLE_CLIENT_SECRET",
     scopes: [],
     responseMode: "form_post"
@@ -76,7 +78,22 @@ export function getOAuthProvider(provider: OAuthProviderId): OAuthProviderConfig
 }
 
 export function getOAuthClientId(provider: OAuthProviderConfig): string {
-  return process.env[provider.clientIdEnv] ?? "";
+  const clientId = process.env[provider.clientIdEnv] ?? "";
+  if (clientId || !provider.clientIdFallbackEnv) {
+    return clientId;
+  }
+
+  return process.env[provider.clientIdFallbackEnv] ?? "";
+}
+
+export function getAppleAllowedClientIds(): string[] {
+  return Array.from(
+    new Set([
+      getOAuthClientId(PROVIDERS.apple),
+      process.env.APPLE_IOS_CLIENT_ID ?? "",
+      process.env.APPLE_CLIENT_ID ?? ""
+    ].filter(Boolean))
+  );
 }
 
 export function isOAuthProviderConfigured(provider: OAuthProviderConfig): boolean {

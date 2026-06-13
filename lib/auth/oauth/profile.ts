@@ -84,10 +84,6 @@ export function normalizeOAuthProfile(provider: OAuthProviderId, payload: unknow
   };
 }
 
-export function normalizeAppleProfileFromIdToken(idToken: string): OAuthProfile {
-  return normalizeOAuthProfile("apple", decodeJwt(idToken));
-}
-
 export function normalizeGoogleProfileFromIdToken(idToken: string): OAuthProfile {
   return normalizeOAuthProfile("google", decodeJwt(idToken));
 }

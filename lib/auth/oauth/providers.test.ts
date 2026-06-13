@@ -26,6 +26,7 @@ describe("OAuth provider configuration", () => {
   });
 
   it("keeps Apple configured for form_post callbacks without profile scopes", () => {
+    process.env.APPLE_WEB_CLIENT_ID = "kr.granite.web";
     const provider = getOAuthProvider("apple");
     const url = buildAuthorizationUrl("apple", {
       redirectUri: "https://granite.kr/api/auth/callback/apple",
@@ -34,6 +35,7 @@ describe("OAuth provider configuration", () => {
     });
 
     expect(provider.provider).toBe("apple");
+    expect(url.searchParams.get("client_id")).toBe("kr.granite.web");
     expect(url.searchParams.get("response_mode")).toBe("form_post");
     expect(url.searchParams.get("scope")).toBeNull();
   });
@@ -70,11 +72,26 @@ describe("OAuth provider configuration", () => {
     process.env.GOOGLE_OAUTH_CLIENT_ID = "";
     process.env.GOOGLE_OAUTH_CLIENT_SECRET = "";
     process.env.APPLE_CLIENT_ID = "";
+    process.env.APPLE_WEB_CLIENT_ID = "";
+    process.env.APPLE_IOS_CLIENT_ID = "";
     process.env.APPLE_CLIENT_SECRET = "";
 
     expect(isOAuthProviderConfigured(getOAuthProvider("kakao"))).toBe(true);
     expect(isOAuthProviderConfigured(getOAuthProvider("naver"))).toBe(true);
     expect(isOAuthProviderConfigured(getOAuthProvider("google"))).toBe(false);
     expect(isOAuthProviderConfigured(getOAuthProvider("apple"))).toBe(false);
+  });
+
+  it("uses the legacy Apple client id only when the web Services ID is not configured", () => {
+    process.env.APPLE_WEB_CLIENT_ID = "";
+    process.env.APPLE_CLIENT_ID = "legacy.apple.service";
+
+    const url = buildAuthorizationUrl("apple", {
+      redirectUri: "https://granite.kr/api/auth/callback/apple",
+      state: "apple-state",
+      nonce: "apple-nonce"
+    });
+
+    expect(url.searchParams.get("client_id")).toBe("legacy.apple.service");
   });
 });
