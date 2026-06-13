@@ -59,7 +59,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         avatarUrl: profile.avatarUrl,
         returnTo
       });
-      const response = NextResponse.redirect(new URL("/signup", request.url), 303);
+      const response = createNativeSessionNavigationResponse("/signup");
       response.cookies.set(PENDING_SIGNUP_COOKIE_NAME, pendingSignupToken, getPendingSignupCookieOptions());
       return response;
     }
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const sessionToken = await createUserSessionToken({
       userId: user.id
     });
-    const response = NextResponse.redirect(new URL(returnTo, request.url), 303);
+    const response = createNativeSessionNavigationResponse(returnTo);
     response.cookies.set(USER_SESSION_COOKIE_NAME, sessionToken, getUserSessionCookieOptions());
     return response;
   } catch (error) {
@@ -102,6 +102,29 @@ async function readBody(request: NextRequest): Promise<NativeSessionBody | null>
 
 function redirectToLogin(request: NextRequest, error: string): NextResponse {
   return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error)}`, request.url), 303);
+}
+
+function createNativeSessionNavigationResponse(path: string): NextResponse {
+  const target = sanitizeReturnTo(path);
+  const targetJson = JSON.stringify(target);
+  return new NextResponse(
+    `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <script>window.location.replace(${targetJson});</script>
+  </head>
+  <body></body>
+</html>`,
+    {
+      status: 200,
+      headers: {
+        "cache-control": "no-store",
+        "content-type": "text/html; charset=utf-8"
+      }
+    }
+  );
 }
 
 function sanitizeReturnTo(value: string): string {

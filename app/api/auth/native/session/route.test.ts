@@ -45,8 +45,9 @@ describe("native auth session route", () => {
     const setCookie = response.headers.get("set-cookie") ?? "";
     const sessionToken = readCookieValue(setCookie, USER_SESSION_COOKIE_NAME);
 
-    expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("https://granite.kr/me");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    expect(await response.text()).toContain("location.replace(\"/me\")");
     expect(fetchOAuthProfileMock).toHaveBeenCalledWith("apple", {
       accessToken: "",
       idToken: "apple-id-token"
@@ -76,8 +77,9 @@ describe("native auth session route", () => {
     const setCookie = response.headers.get("set-cookie") ?? "";
     const pendingToken = readCookieValue(setCookie, PENDING_SIGNUP_COOKIE_NAME);
 
-    expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("https://granite.kr/signup");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    expect(await response.text()).toContain("location.replace(\"/signup\")");
     await expect(verifyPendingSignupToken(pendingToken ?? "")).resolves.toEqual({
       provider: "kakao",
       providerUserId: "kakao-user",
