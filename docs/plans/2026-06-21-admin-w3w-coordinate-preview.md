@@ -655,7 +655,7 @@ git commit -m "feat: add coordinate tools to admin forms"
 **Files:**
 - No production file changes expected.
 
-- [ ] **Step 1: Run targeted tests**
+- [x] **Step 1: Run targeted tests**
 
 Run:
 
@@ -665,7 +665,7 @@ pnpm test lib/location/what3words.test.ts lib/actions/admin-location.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 2: Run existing admin content tests**
+- [x] **Step 2: Run existing admin content tests**
 
 Run:
 
@@ -675,7 +675,7 @@ pnpm test lib/actions/admin-content.test.ts
 
 Expected: PASS. This confirms the existing save parsers still accept the `lat` and `lng` payload shape.
 
-- [ ] **Step 3: Run full typecheck**
+- [x] **Step 3: Run full typecheck**
 
 Run:
 
@@ -706,7 +706,7 @@ Use an admin session and confirm:
 - With `W3W_API_KEY` configured, converting `///filled.count.soap` fills both coordinate fields.
 - With `W3W_API_KEY` missing, conversion shows `what3words API key is not configured.` and direct coordinate entry still works.
 
-- [ ] **Step 6: Commit any documentation-only environment note**
+- [x] **Step 6: Commit any documentation-only environment note**
 
 If implementation added `W3W_API_KEY` to project environment docs, commit it:
 
