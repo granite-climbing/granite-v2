@@ -24,7 +24,7 @@ describe("convertW3wToCoordinates", () => {
   });
 
   it("returns WGS84 coordinates from a successful API response", async () => {
-    const fetchImpl = vi.fn(async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
       return new Response(
         JSON.stringify({
           coordinates: { lat: 51.520847, lng: -0.195521 },
@@ -50,7 +50,7 @@ describe("convertW3wToCoordinates", () => {
   });
 
   it("maps BadWords API responses to an invalid address error", async () => {
-    const fetchImpl = vi.fn(async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
       return new Response(
         JSON.stringify({
           error: { code: "BadWords", message: "Invalid or non-existent 3 word address" },
