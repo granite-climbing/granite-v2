@@ -376,7 +376,7 @@ git commit -m "feat: add admin w3w conversion action"
 **Files:**
 - Create: `components/admin/location-coordinate-field.tsx`
 
-- [ ] **Step 1: Create the client component**
+- [x] **Step 1: Create the client component**
 
 Create `components/admin/location-coordinate-field.tsx`:
 
@@ -519,7 +519,7 @@ export function LocationCoordinateField({
 }
 ```
 
-- [ ] **Step 2: Run typecheck for the new component**
+- [x] **Step 2: Run typecheck for the new component**
 
 Run:
 
@@ -529,7 +529,7 @@ pnpm typecheck
 
 Expected: PASS. If the import of a Server Action into a client component causes a Next type error, move the action call behind a tiny client-safe prop wrapper only if required by the compiler.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add components/admin/location-coordinate-field.tsx
