@@ -83,8 +83,10 @@ granite-v2/
 │   ├── PRD.md
 │   ├── ARCHITECTURE.md
 │   ├── ROADMAP.md
+│   ├── plans/
+│   ├── specs/
 │   ├── decisions/
-│   └── superpowers/
+│   └── data/
 ├── wrangler.toml
 └── AGENTS.md
 ```

@@ -25,7 +25,7 @@ The spec must state:
 - [ ] **Step 2: Commit**
 
 ```bash
-git add docs/specs/2026-06-12-app-auth-boundary.md docs/superpowers/plans/2026-06-12-app-auth-gate.md
+git add docs/specs/2026-06-12-app-auth-boundary.md docs/plans/2026-06-12-app-auth-gate.md
 git commit -m "docs(auth): use web login for app entry"
 ```
 
