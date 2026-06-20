@@ -28,7 +28,7 @@
 - Create: `lib/location/what3words.ts`
 - Test: `lib/location/what3words.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `lib/location/what3words.test.ts`:
 
@@ -101,7 +101,7 @@ describe("convertW3wToCoordinates", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run:
 
@@ -111,7 +111,7 @@ pnpm test lib/location/what3words.test.ts
 
 Expected: FAIL because `lib/location/what3words.ts` does not exist.
 
-- [ ] **Step 3: Implement the API client**
+- [x] **Step 3: Implement the API client**
 
 Create `lib/location/what3words.ts`:
 
@@ -204,7 +204,7 @@ export async function convertW3wToCoordinates(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run:
 
@@ -214,7 +214,7 @@ pnpm test lib/location/what3words.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/location/what3words.ts lib/location/what3words.test.ts
