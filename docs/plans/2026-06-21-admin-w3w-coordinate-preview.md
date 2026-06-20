@@ -227,7 +227,7 @@ git commit -m "feat: add what3words coordinate client"
 - Create: `lib/actions/admin-location.ts`
 - Test: `lib/actions/admin-location.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `lib/actions/admin-location.test.ts`:
 
@@ -296,7 +296,7 @@ describe("convertW3wToCoordinatesAction", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run:
 
@@ -306,7 +306,7 @@ pnpm test lib/actions/admin-location.test.ts
 
 Expected: FAIL because `lib/actions/admin-location.ts` does not exist.
 
-- [ ] **Step 3: Implement the Server Action**
+- [x] **Step 3: Implement the Server Action**
 
 Create `lib/actions/admin-location.ts`:
 
@@ -354,7 +354,7 @@ export async function convertW3wToCoordinatesAction(input: unknown): Promise<Con
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run:
 
@@ -364,7 +364,7 @@ pnpm test lib/actions/admin-location.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/admin-location.ts lib/actions/admin-location.test.ts
