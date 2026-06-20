@@ -543,7 +543,7 @@ git commit -m "feat: add admin coordinate preview field"
 - Modify: `app/admin/(protected)/content/sectors/page.tsx`
 - Modify: `app/admin/(protected)/content/boulders/page.tsx`
 
-- [ ] **Step 1: Add imports**
+- [x] **Step 1: Add imports**
 
 In each page, add:
 
@@ -551,7 +551,7 @@ In each page, add:
 import { LocationCoordinateField } from "@/components/admin/location-coordinate-field";
 ```
 
-- [ ] **Step 2: Replace Crag Location sections**
+- [x] **Step 2: Replace Crag Location sections**
 
 In `app/admin/(protected)/content/crags/page.tsx`, replace the create Location section body with:
 
@@ -573,7 +573,7 @@ Replace the edit Location section body with:
 </FormSection>
 ```
 
-- [ ] **Step 3: Replace Sector Location sections**
+- [x] **Step 3: Replace Sector Location sections**
 
 In `app/admin/(protected)/content/sectors/page.tsx`, replace the create Location section body with:
 
@@ -595,7 +595,7 @@ Replace the edit Location section body with:
 </FormSection>
 ```
 
-- [ ] **Step 4: Replace Boulder Location sections**
+- [x] **Step 4: Replace Boulder Location sections**
 
 In `app/admin/(protected)/content/boulders/page.tsx`, replace the create Location section body with:
 
@@ -623,7 +623,7 @@ Replace the edit Location section body with:
 </FormSection>
 ```
 
-- [ ] **Step 5: Verify old inputs are gone and form names are preserved**
+- [x] **Step 5: Verify old inputs are gone and form names are preserved**
 
 Run:
 
@@ -633,7 +633,7 @@ rg -n 'name="lat"|name="lng"|LocationCoordinateField' 'app/admin/(protected)/con
 
 Expected: each page imports and renders `LocationCoordinateField`; raw `name="lat"` and `name="lng"` appear only inside `components/admin/location-coordinate-field.tsx`.
 
-- [ ] **Step 6: Run typecheck**
+- [x] **Step 6: Run typecheck**
 
 Run:
 
@@ -643,7 +643,7 @@ pnpm typecheck
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add 'app/admin/(protected)/content/crags/page.tsx' 'app/admin/(protected)/content/sectors/page.tsx' 'app/admin/(protected)/content/boulders/page.tsx'

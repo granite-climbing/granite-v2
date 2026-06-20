@@ -21,6 +21,7 @@ import { ImageUploadField } from "@/components/admin/image-upload-field";
 import { EditDrawer } from "@/components/admin/edit-drawer";
 import { FormSection, FullWidth } from "@/components/admin/form-section";
 import { ParentFilter } from "@/components/admin/parent-filter";
+import { LocationCoordinateField } from "@/components/admin/location-coordinate-field";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -170,14 +171,11 @@ export default async function AdminBouldersPage({ searchParams }: Props) {
               </div>
             </FormSection>
             <FormSection title="Location" cols={2}>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-[#374151]">Lat (required)</label>
-                <input name="lat" type="number" step="any" required className={inputCls} placeholder="37.42" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-[#374151]">Lng (required)</label>
-                <input name="lng" type="number" step="any" required className={inputCls} placeholder="126.92" />
-              </div>
+              <LocationCoordinateField
+                latRequired
+                lngRequired
+                previewName="Boulder location preview"
+              />
             </FormSection>
             <FormSection title="Tags" cols={1}>
               <FullWidth>
@@ -240,14 +238,13 @@ export default async function AdminBouldersPage({ searchParams }: Props) {
               </div>
             </FormSection>
             <FormSection title="Location" cols={2}>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-[#374151]">Lat (required)</label>
-                <input name="lat" type="number" step="any" required defaultValue={editRow.lat} className={inputCls} />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-[#374151]">Lng (required)</label>
-                <input name="lng" type="number" step="any" required defaultValue={editRow.lng} className={inputCls} />
-              </div>
+              <LocationCoordinateField
+                latDefaultValue={editRow.lat}
+                lngDefaultValue={editRow.lng}
+                latRequired
+                lngRequired
+                previewName={editRow.name}
+              />
             </FormSection>
             <FormSection title="Tags" cols={1}>
               <FullWidth>
