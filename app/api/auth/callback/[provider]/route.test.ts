@@ -20,11 +20,13 @@ vi.mock("@/lib/db/user-auth-queries", () => ({
 
 const originalJwtSecret = process.env.JWT_SECRET;
 const originalAppBaseUrl = process.env.APP_BASE_URL;
+const originalOAuthAllowedOrigins = process.env.OAUTH_ALLOWED_ORIGINS;
 
 describe("OAuth callback route", () => {
   afterEach(() => {
     process.env.JWT_SECRET = originalJwtSecret;
     process.env.APP_BASE_URL = originalAppBaseUrl;
+    process.env.OAUTH_ALLOWED_ORIGINS = originalOAuthAllowedOrigins;
     exchangeOAuthCodeMock.mockReset();
     fetchOAuthProfileMock.mockReset();
     findUserByOAuthIdentityMock.mockReset();
@@ -78,6 +80,51 @@ describe("OAuth callback route", () => {
     expect(findUserByOAuthIdentityMock).toHaveBeenCalledWith("google", "google-user");
     await expect(verifyUserSessionToken(sessionToken ?? "")).resolves.toEqual({
       userId: "user_google"
+    });
+  });
+
+  it("uses the current allowed request origin for the token exchange redirect URI", async () => {
+    process.env.JWT_SECRET = "callback-test-secret";
+    process.env.APP_BASE_URL = "https://v2.granite.kr";
+    process.env.OAUTH_ALLOWED_ORIGINS = "https://v2.granite.kr,https://v2-preview.granite.kr";
+    const state = createOAuthState({
+      provider: "google",
+      returnTo: "/me"
+    });
+    exchangeOAuthCodeMock.mockResolvedValueOnce({
+      accessToken: "access-token",
+      tokenType: "Bearer",
+      expiresIn: 3600,
+      refreshToken: null,
+      idToken: "id-token",
+      scope: "openid email profile"
+    });
+    fetchOAuthProfileMock.mockResolvedValueOnce({
+      provider: "google",
+      providerUserId: "google-user",
+      email: "google@example.com",
+      displayName: "Google Climber",
+      avatarUrl: null
+    });
+    findUserByOAuthIdentityMock.mockResolvedValueOnce({
+      id: "user_google",
+      email: "google@example.com",
+      displayName: "Google Climber",
+      avatarUrl: null
+    });
+
+    const request = new NextRequest(`https://v2-preview.granite.kr/api/auth/callback/google?code=abc&state=${state.state}`, {
+      headers: {
+        cookie: `${OAUTH_STATE_COOKIE_NAME}=${encodeURIComponent(state.cookieValue)}`
+      }
+    });
+
+    await GET(request, { params: Promise.resolve({ provider: "google" }) });
+
+    expect(exchangeOAuthCodeMock).toHaveBeenCalledWith("google", {
+      code: "abc",
+      redirectUri: "https://v2-preview.granite.kr/api/auth/callback/google",
+      state: state.state
     });
   });
 

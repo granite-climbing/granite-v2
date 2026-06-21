@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { exchangeOAuthCode, fetchOAuthProfile } from "@/lib/auth/oauth/client";
 import { isOAuthProvider } from "@/lib/auth/oauth/providers";
 import { assertOAuthState, OAUTH_STATE_COOKIE_NAME } from "@/lib/auth/oauth/state";
-import { getOAuthRedirectUri } from "@/lib/auth/oauth/url";
+import { getOAuthRedirectUri, resolveAllowedOAuthOrigin } from "@/lib/auth/oauth/url";
 import {
   createPendingSignupToken,
   getPendingSignupCookieOptions,
@@ -75,11 +75,16 @@ async function handleOAuthCallback(
     return redirectToLogin(request, "provider_mismatch");
   }
 
+  const origin = resolveAllowedOAuthOrigin(new URL(request.url).origin);
+  if (!origin) {
+    return redirectToLogin(request, "invalid_origin");
+  }
+
   let tokenSet: Awaited<ReturnType<typeof exchangeOAuthCode>>;
   try {
     tokenSet = await exchangeOAuthCode(providerValue, {
       code: values.code,
-      redirectUri: getOAuthRedirectUri(providerValue),
+      redirectUri: getOAuthRedirectUri(providerValue, origin),
       state: state.state
     });
   } catch (error) {
