@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { convertW3wToCoordinatesAction } from "@/lib/actions/admin-location";
 import { inputCls, btnPrimaryCls } from "@/components/admin/admin-field";
 import { KakaoMap } from "@/components/public/kakao-map";
+
+type Toast = { kind: "success" | "error"; text: string };
 
 type LocationCoordinateFieldProps = {
   latDefaultValue?: number | string | null;
@@ -34,8 +36,14 @@ export function LocationCoordinateField({
   const [words, setWords] = useState("");
   const [lat, setLat] = useState(toInputValue(latDefaultValue));
   const [lng, setLng] = useState(toInputValue(lngDefaultValue));
-  const [message, setMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<Toast | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   const marker = useMemo(() => {
     const parsedLat = parseCoordinate(lat);
@@ -45,16 +53,16 @@ export function LocationCoordinateField({
   }, [lat, lng]);
 
   function convertWords() {
-    setMessage(null);
+    setToast(null);
     startTransition(async () => {
       const result = await convertW3wToCoordinatesAction({ words });
       if (!result.ok) {
-        setMessage(result.message);
+        setToast({ kind: "error", text: result.message });
         return;
       }
       setLat(String(result.lat));
       setLng(String(result.lng));
-      setMessage("Coordinates updated from what3words.");
+      setToast({ kind: "success", text: "Coordinates updated from what3words." });
     });
   }
 
@@ -87,7 +95,6 @@ export function LocationCoordinateField({
               {isPending ? "Converting..." : "Convert"}
             </button>
           </div>
-          {message ? <p className="mt-1 text-xs text-[#57606A]">{message}</p> : null}
         </div>
 
         <div>
@@ -131,6 +138,28 @@ export function LocationCoordinateField({
           </div>
         )}
       </div>
+
+      {toast ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`fixed bottom-4 right-4 z-50 flex max-w-sm items-start gap-3 rounded-md border px-4 py-3 text-sm shadow-lg ${
+            toast.kind === "success"
+              ? "border-[#A7E3B8] bg-[#E8F6EC] text-[#1A7F37]"
+              : "border-[#F5B7B7] bg-[#FBEAEA] text-[#B42318]"
+          }`}
+        >
+          <span className="flex-1">{toast.text}</span>
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            aria-label="Dismiss"
+            className="-mr-1 -mt-0.5 shrink-0 text-base leading-none opacity-60 hover:opacity-100"
+          >
+            ×
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
