@@ -20,13 +20,11 @@ vi.mock("@/lib/db/user-auth-queries", () => ({
 
 const originalJwtSecret = process.env.JWT_SECRET;
 const originalAppBaseUrl = process.env.APP_BASE_URL;
-const originalOAuthAllowedOrigins = process.env.OAUTH_ALLOWED_ORIGINS;
 
 describe("OAuth callback route", () => {
   afterEach(() => {
     process.env.JWT_SECRET = originalJwtSecret;
     process.env.APP_BASE_URL = originalAppBaseUrl;
-    process.env.OAUTH_ALLOWED_ORIGINS = originalOAuthAllowedOrigins;
     exchangeOAuthCodeMock.mockReset();
     fetchOAuthProfileMock.mockReset();
     findUserByOAuthIdentityMock.mockReset();
@@ -83,10 +81,9 @@ describe("OAuth callback route", () => {
     });
   });
 
-  it("uses the current allowed request origin for the token exchange redirect URI", async () => {
+  it("uses APP_BASE_URL for the token exchange redirect URI", async () => {
     process.env.JWT_SECRET = "callback-test-secret";
     process.env.APP_BASE_URL = "https://v2.granite.kr";
-    process.env.OAUTH_ALLOWED_ORIGINS = "https://v2.granite.kr,https://v2-preview.granite.kr";
     const state = createOAuthState({
       provider: "google",
       returnTo: "/me"
@@ -123,7 +120,7 @@ describe("OAuth callback route", () => {
 
     expect(exchangeOAuthCodeMock).toHaveBeenCalledWith("google", {
       code: "abc",
-      redirectUri: "https://v2-preview.granite.kr/api/auth/callback/google",
+      redirectUri: "https://v2.granite.kr/api/auth/callback/google",
       state: state.state
     });
   });
