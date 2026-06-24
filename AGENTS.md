@@ -177,6 +177,7 @@ granite-v2/
 | `NAVER_OAUTH_CLIENT_ID` / `NAVER_OAUTH_CLIENT_SECRET` | Naver OAuth |
 | `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | Google OAuth |
 | `APPLE_TEAM_ID` / `APPLE_KEY_ID` / `APPLE_PRIVATE_KEY` / `APPLE_CLIENT_ID` | Apple OAuth |
+| `W3W_API_KEY` | what3words convert-to-coordinates (어드민 Location w3w→lat/lng, 서버 전용) |
 
 ## 개발/배포 명령 (예정)
 
