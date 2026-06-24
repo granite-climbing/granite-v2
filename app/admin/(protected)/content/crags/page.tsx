@@ -15,6 +15,7 @@ import { ImageUploadField } from "@/components/admin/image-upload-field";
 import { EditDrawer } from "@/components/admin/edit-drawer";
 import { FormSection, FullWidth } from "@/components/admin/form-section";
 import { ParentFilter } from "@/components/admin/parent-filter";
+import { LocationCoordinateField } from "@/components/admin/location-coordinate-field";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -144,14 +145,7 @@ export default async function AdminCragsPage({ searchParams }: Props) {
               </FullWidth>
             </FormSection>
             <FormSection title="Location" cols={2}>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-[#374151]">Lat</label>
-                <input name="lat" type="number" step="any" className={inputCls} placeholder="37.42" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-[#374151]">Lng</label>
-                <input name="lng" type="number" step="any" className={inputCls} placeholder="126.92" />
-              </div>
+              <LocationCoordinateField previewName="Crag location preview" />
             </FormSection>
             <FormSection title="Content" cols={1}>
               <FullWidth>
@@ -216,14 +210,11 @@ export default async function AdminCragsPage({ searchParams }: Props) {
               </FullWidth>
             </FormSection>
             <FormSection title="Location" cols={2}>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-[#374151]">Lat</label>
-                <input name="lat" type="number" step="any" defaultValue={editRow.lat ?? ""} className={inputCls} />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-[#374151]">Lng</label>
-                <input name="lng" type="number" step="any" defaultValue={editRow.lng ?? ""} className={inputCls} />
-              </div>
+              <LocationCoordinateField
+                latDefaultValue={editRow.lat ?? ""}
+                lngDefaultValue={editRow.lng ?? ""}
+                previewName={editRow.name}
+              />
             </FormSection>
             <FormSection title="Content" cols={1}>
               <FullWidth>
