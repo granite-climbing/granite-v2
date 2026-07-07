@@ -45,15 +45,21 @@ export function RouteMoreSheet({
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
+      if (event.key === "Escape" && !event.defaultPrevented) {
+        // Escape dismisses only the topmost layer: the manual beta form
+        // first (keeping the sheet underneath), then the sheet itself.
+        if (showManualForm) {
+          setShowManualForm(false);
+        } else {
+          onClose();
+        }
       }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onClose]);
+  }, [onClose, showManualForm]);
 
   const instagramHref = useMemo(
     () => `https://www.instagram.com/?caption=${encodeURIComponent(caption)}`,

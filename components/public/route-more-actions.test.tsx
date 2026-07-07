@@ -90,6 +90,23 @@ describe("RouteMoreActions", () => {
     expect(screen.queryByRole("dialog", { name: "Little Finger 상세 정보" })).not.toBeInTheDocument();
   });
 
+  it("dismisses only the topmost layer on Escape when the manual beta form is open", () => {
+    render(<RouteMoreActions {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    fireEvent.click(screen.getByRole("button", { name: "베타 영상 올리기" }));
+    expect(screen.getByText("영상 URL")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByText("영상 URL")).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Little Finger 상세 정보" })).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: "Little Finger 상세 정보" })).not.toBeInTheDocument();
+  });
+
   it("moves focus to the close button when the sheet opens", () => {
     render(<RouteMoreActions {...baseProps} />);
 
@@ -100,7 +117,7 @@ describe("RouteMoreActions", () => {
 
   it("still opens Instagram when the clipboard write fails", () => {
     const writeText = vi.fn().mockRejectedValue(new Error("clipboard unavailable"));
-    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
     const open = vi.fn();
     vi.stubGlobal("open", open);
 
