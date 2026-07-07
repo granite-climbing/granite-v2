@@ -155,4 +155,63 @@ describe("record queries", () => {
     });
     expect(model.gradeBuckets).toEqual([{ grade: "V5", gradeNum: 5, count: 1 }]);
   });
+
+  it("builds an empty records model with fallbacks", () => {
+    const model = buildUserRecordsModel({ records: [], claimCandidates: [] });
+
+    expect(model.summary.highestGrade).toBe("-");
+    expect(model.summary.latestSentAt).toBeNull();
+    expect(model.summary.totalRecords).toBe(0);
+    expect(model.summary.claimCandidateCount).toBe(0);
+    expect(model.gradeBuckets).toEqual([]);
+  });
+
+  it("picks the highest grade even when it is not the latest record", () => {
+    const baseRecord = {
+      topoId: "topo_1",
+      boulderName: "리틀핑거 바위",
+      sectorName: "메인 섹터",
+      cragName: "현충바위",
+      platform: "instagram" as const,
+      mediaUrl: "https://www.instagram.com/reel/example/",
+      thumbnailUrl: null,
+      displayName: "granite_user"
+    };
+
+    const model = buildUserRecordsModel({
+      records: [
+        {
+          ...baseRecord,
+          betaId: "beta_1",
+          routeId: "route_1",
+          routeName: "Latest Route",
+          routeGrade: "V5",
+          routeGradeNum: 5,
+          sentAt: "2026-07-03T00:00:00.000Z"
+        },
+        {
+          ...baseRecord,
+          betaId: "beta_2",
+          routeId: "route_2",
+          routeName: "Hardest Route",
+          routeGrade: "V8",
+          routeGradeNum: 8,
+          sentAt: "2026-07-02T00:00:00.000Z"
+        },
+        {
+          ...baseRecord,
+          betaId: "beta_3",
+          routeId: "route_3",
+          routeName: "Easiest Route",
+          routeGrade: "V3",
+          routeGradeNum: 3,
+          sentAt: "2026-07-01T00:00:00.000Z"
+        }
+      ],
+      claimCandidates: []
+    });
+
+    expect(model.summary.highestGrade).toBe("V8");
+    expect(model.summary.latestSentAt).toBe("2026-07-03T00:00:00.000Z");
+  });
 });
