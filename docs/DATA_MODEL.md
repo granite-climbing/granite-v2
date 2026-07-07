@@ -201,12 +201,54 @@ Phase 3 uses `admins.email` only for login lookup. JWT sessions use `admins.id` 
 
 Content tables and `announcements` use `deleted_at` for soft delete. Public read queries must always exclude rows where `deleted_at IS NOT NULL`. Admin read queries include deleted rows by default and label them as deleted; restore actions set `deleted_at = NULL`.
 
-### `users`, `user_oauth_identities`, `favorites`
+### `users` and `user_oauth_identities`
 
-Phase 6 user identity and saved projects.
+Phase 6 user identity and social login provider mapping.
 
-- `users`: profile and soft-delete fields.
-- `user_oauth_identities`: provider identity mapping.
+#### `users`
+
+| Column | Type | Required | Notes |
+|---|---:|:---:|---|
+| `id` | `TEXT` | yes | Stable generated ID |
+| `display_name` | `TEXT` | yes | User-facing profile name from OAuth or later profile edit |
+| `email` | `TEXT` | no | Email from OAuth provider; nullable because providers may omit it |
+| `avatar_url` | `TEXT` | no | OAuth profile image URL or later uploaded avatar URL |
+| `instagram_id` | `TEXT` | no | User-entered Instagram handle for future unclaimed Beta claims |
+| `youtube_id` | `TEXT` | no | User-entered YouTube channel ID or URL |
+| `gender` | `TEXT` | no | Signup onboarding value: `male` or `female` |
+| `height_cm` | `INTEGER` | no | Signup onboarding height in centimeters |
+| `ape_index_cm` | `INTEGER` | no | Signup onboarding arm span in centimeters |
+| `top_bouldering_grade` | `TEXT` | no | Signup onboarding redpoint bouldering grade |
+| `top_sport_grade` | `TEXT` | no | Signup onboarding Yosemite sport grade |
+| `onboarding_completed_at` | `TEXT` | no | Timestamp set after first-time OAuth signup profile completion |
+| `deleted_at` | `TEXT` | no | Soft delete marker for account withdrawal |
+| `created_at` | `TEXT` | yes | DB timestamp |
+| `updated_at` | `TEXT` | yes | DB timestamp |
+
+Indexes:
+
+- `idx_users_email` for future same-email merge discovery.
+- `idx_users_deleted_at` for filtering active/deleted accounts.
+- `idx_users_instagram_id` is unique for active, non-null Instagram handles only.
+
+#### `user_oauth_identities`
+
+| Column | Type | Required | Notes |
+|---|---:|:---:|---|
+| `id` | `TEXT` | yes | Stable generated ID |
+| `user_id` | `TEXT` | yes | FK to `users.id`, cascade delete |
+| `provider` | `TEXT` | yes | `kakao`, `naver`, `google`, or `apple` |
+| `provider_uid` | `TEXT` | yes | Provider-specific stable user ID |
+| `email_at_link` | `TEXT` | no | Email observed when linking the provider |
+| `created_at` | `TEXT` | yes | DB timestamp |
+| `updated_at` | `TEXT` | yes | DB timestamp |
+
+Constraint: `UNIQUE(provider, provider_uid)`.
+
+### `favorites`
+
+Phase 6 saved projects follow after social login.
+
 - `favorites`: unique `user_id + target_type + target_id`; `target_type` is `crag`, `sector`, `boulder`, or `route`.
 
 ### `betas`

@@ -1,21 +1,23 @@
-import { AppHeader } from "@/components/layout/app-header";
-import { BottomNav } from "@/components/layout/bottom-nav";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { USER_SESSION_COOKIE_NAME, verifyUserSessionToken } from "@/lib/auth/session";
+import { findActiveUserById, findOAuthIdentitiesByUserId } from "@/lib/db/user-auth-queries";
+import { buildMePageModel } from "./me-page-model";
+import { MyPageContent } from "./me-page-content";
+import { LogoutButton } from "./logout-button";
 
-export default function MePage() {
-  return <ComingSoon title="마이" />;
-}
+export default async function MePage() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(USER_SESSION_COOKIE_NAME)?.value;
+  const session = token ? await verifyUserSessionToken(token) : null;
+  const user = session ? await findActiveUserById(session.userId) : null;
 
-function ComingSoon({ title }: { title: string }) {
-  return (
-    <main className="min-h-screen bg-white">
-      <AppHeader />
-      <section className="grid min-h-[70vh] place-items-center px-5 text-center">
-        <div>
-          <h1 className="text-3xl font-black tracking-[-0.06em]">{title}</h1>
-          <p className="mt-3 text-sm font-semibold text-[#6F7477]">로그인/개인화 기능은 Phase 3 범위입니다.</p>
-        </div>
-      </section>
-      <BottomNav />
-    </main>
-  );
+  if (!user) {
+    redirect("/login?returnTo=/me");
+  }
+
+  const identities = await findOAuthIdentitiesByUserId(user.id);
+  const model = buildMePageModel(user, identities);
+
+  return <MyPageContent model={model} logoutSlot={<LogoutButton />} />;
 }

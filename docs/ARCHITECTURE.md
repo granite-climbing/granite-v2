@@ -518,7 +518,7 @@ Phase별 개인정보 처리:
 | `KAKAO_OAUTH_CLIENT_ID` / `_SECRET` | 카카오 로그인 | 6 |
 | `NAVER_OAUTH_CLIENT_ID` / `_SECRET` | 네이버 로그인 | 6 |
 | `GOOGLE_OAUTH_CLIENT_ID` / `_SECRET` | 구글 로그인 | 6 |
-| `APPLE_TEAM_ID` / `APPLE_KEY_ID` / `APPLE_PRIVATE_KEY` / `APPLE_CLIENT_ID` | 애플 로그인 | 6 |
+| `APPLE_TEAM_ID` / `APPLE_KEY_ID` / `APPLE_PRIVATE_KEY` / `APPLE_WEB_CLIENT_ID` / `APPLE_IOS_CLIENT_ID` | 애플 로그인 | 6 |
 
 ### 16.2 Cloudflare Worker
 

@@ -42,3 +42,7 @@ select {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+main[data-hide-site-footer] + .site-footer-wrapper {
+  display: none;
+}

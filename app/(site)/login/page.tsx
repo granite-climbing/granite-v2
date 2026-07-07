@@ -1,0 +1,95 @@
+import { startOAuthLoginAction } from "@/lib/actions/oauth-login";
+import {
+  getOAuthProvider,
+  isOAuthProviderConfigured
+} from "@/lib/auth/oauth/providers";
+import type { OAuthProviderId } from "@/lib/auth/oauth/types";
+import { LoginProviderForm } from "./login-provider-form";
+
+type LoginPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = (await searchParams) ?? {};
+  const returnTo = sanitizeReturnTo(getParam(params.returnTo));
+  const error = getParam(params.error);
+  const providers = (["apple", "google", "kakao", "naver"] as OAuthProviderId[]).map((id) => {
+    const provider = getOAuthProvider(id);
+    return {
+      ...provider,
+      displayLabel: getProviderDisplayLabel(id),
+      enabled: isOAuthProviderConfigured(provider)
+    };
+  });
+
+  return (
+    <main data-hide-site-footer className="min-h-screen bg-black px-5 text-white">
+      <section className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col justify-end pb-11 pt-16">
+        <div className="flex flex-1 items-center justify-center pb-14">
+          <img src="/images/figma/granite-logo.svg" alt="Granite" className="h-auto w-[150px]" />
+        </div>
+
+        <div className="space-y-3">
+          {providers.map((provider) => (
+            <LoginProviderForm
+              key={provider.provider}
+              provider={provider.provider}
+              displayLabel={provider.displayLabel}
+              returnTo={returnTo}
+              enabled={provider.enabled}
+              action={startOAuthLoginAction}
+            >
+              <ProviderMark provider={provider.provider} />
+            </LoginProviderForm>
+          ))}
+        </div>
+
+        {error ? (
+          <p className="mt-4 text-center text-[12px] font-semibold text-[#FF6868]">로그인에 실패했습니다: {error}</p>
+        ) : null}
+
+        <button type="button" disabled className="mx-auto mt-6 block text-[14px] font-semibold text-[#A7A7A7]">
+          이메일로 시작하기
+        </button>
+      </section>
+    </main>
+  );
+}
+
+function ProviderMark({ provider }: { provider: OAuthProviderId }) {
+  return (
+    <img
+      src={`/images/figma/icons/icon_${provider}.svg`}
+      alt=""
+      aria-hidden="true"
+      className="h-6 w-6 shrink-0 object-contain"
+    />
+  );
+}
+
+function getProviderDisplayLabel(provider: OAuthProviderId): string {
+  if (provider === "kakao") {
+    return "카카오";
+  }
+  if (provider === "naver") {
+    return "네이버";
+  }
+  return getOAuthProvider(provider).label;
+}
+
+function getParam(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value ?? null;
+}
+
+function sanitizeReturnTo(value: string | null): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return "/me";
+  }
+
+  return value;
+}

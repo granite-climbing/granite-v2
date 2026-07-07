@@ -1,29 +1,68 @@
+import React from "react";
 import Link from "next/link";
 
-const navItems = [
-  { href: "/", label: "홈", icon: "⌂", active: true },
-  { href: "/me/records", label: "기록", icon: "◷", active: false },
-  { href: "/me/projects", label: "프로젝트", icon: "◇", active: false },
-  { href: "/me", label: "마이", icon: "○", active: false }
+export type BottomNavItemId = "home" | "projects" | "records" | "me";
+
+const navItems: Array<{ id: BottomNavItemId; href: string; iconName: string; label: string }> = [
+  { id: "home", href: "/", iconName: "home", label: "홈" },
+  { id: "projects", href: "/me/projects", iconName: "project", label: "프로젝트" },
+  { id: "records", href: "/me/records", iconName: "record", label: "기록" },
+  { id: "me", href: "/me", iconName: "my", label: "마이" }
 ];
 
-export function BottomNav() {
+export function BottomNav({ activeItem = "home" }: { activeItem?: BottomNavItemId }) {
   return (
-    <nav className="sticky bottom-0 z-20 grid h-[74px] grid-cols-4 border-t border-[#E8E8E8] bg-white px-2 pb-2 pt-1">
-      {navItems.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className={`flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-1 text-[11px] font-bold ${
-            item.active ? "text-[#1A1A1A]" : "text-[#9A9EA1]"
-          }`}
-        >
-          <span aria-hidden className={`text-[21px] leading-none ${item.active ? "text-[#1A1A1A]" : "text-[#B5B8BA]"}`}>
-            {item.icon}
-          </span>
-          {item.label}
-        </Link>
-      ))}
+    <nav className="fixed bottom-0 left-1/2 z-30 grid h-[74px] w-full max-w-[430px] -translate-x-1/2 grid-cols-4 border-t border-[#E8E8E8] bg-white px-2 pb-2 pt-1">
+      {navItems.map((item) => {
+        const active = item.id === activeItem;
+
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            className={`flex flex-col items-center justify-center gap-[5px] px-2 py-1 text-[11px] font-medium ${
+              active ? "text-black" : "text-[#A8A8A8]"
+            }`}
+          >
+            <NavIcon iconName={item.iconName} active={active} />
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
     </nav>
+  );
+}
+
+export function getBottomNavActiveItem(pathname: string): BottomNavItemId {
+  if (pathname === "/me/projects" || pathname.startsWith("/me/projects/")) {
+    return "projects";
+  }
+
+  if (pathname === "/me/records" || pathname.startsWith("/me/records/")) {
+    return "records";
+  }
+
+  if (pathname === "/me" || pathname.startsWith("/me/")) {
+    return "me";
+  }
+
+  return "home";
+}
+
+export function shouldShowBottomNav(pathname: string): boolean {
+  return pathname !== "/login" && pathname !== "/signup";
+}
+
+function NavIcon({ iconName, active }: { iconName: string; active: boolean }) {
+  const suffix = active ? "" : "_line";
+
+  return (
+    <img
+      src={`/images/figma/icons/icon_${iconName}${suffix}.svg`}
+      alt=""
+      aria-hidden
+      className="size-6"
+    />
   );
 }
