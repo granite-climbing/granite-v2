@@ -1,10 +1,6 @@
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createUserSessionToken, USER_SESSION_COOKIE_NAME } from "@/lib/auth/session";
-import {
-  getApprovedClaimCandidateRecordsByInstagramId,
-  getApprovedRecordsByUserId
-} from "@/lib/db/record-queries";
 import RecordsPage from "./page";
 
 const source = readFileSync("app/(site)/me/records/page.tsx", "utf8");
@@ -16,8 +12,6 @@ const redirectMock = vi.hoisted(() =>
   })
 );
 const findActiveUserByIdMock = vi.hoisted(() => vi.fn());
-const getApprovedRecordsByUserIdMock = vi.hoisted(() => vi.fn());
-const getApprovedClaimCandidateRecordsByInstagramIdMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/headers", () => ({
   cookies: cookiesMock
@@ -31,15 +25,6 @@ vi.mock("@/lib/db/user-auth-queries", () => ({
   findActiveUserById: findActiveUserByIdMock
 }));
 
-vi.mock("@/lib/db/record-queries", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/db/record-queries")>("@/lib/db/record-queries");
-  return {
-    ...actual,
-    getApprovedRecordsByUserId: getApprovedRecordsByUserIdMock,
-    getApprovedClaimCandidateRecordsByInstagramId: getApprovedClaimCandidateRecordsByInstagramIdMock
-  };
-});
-
 describe("records page source", () => {
   it("uses user session auth and redirects anonymous users", () => {
     expect(source).toContain("USER_SESSION_COOKIE_NAME");
@@ -47,14 +32,13 @@ describe("records page source", () => {
     expect(source).toContain('redirect("/login?returnTo=/me/records")');
   });
 
-  it("loads the records model and renders dashboard components", () => {
-    expect(source).toContain("getApprovedRecordsByUserId");
-    expect(source).toContain("getApprovedClaimCandidateRecordsByInstagramId");
-    expect(source).toContain("buildUserRecordsModel");
-    expect(source).toContain("RecordSummary");
-    expect(source).toContain("RecordGradeDistribution");
+  it("renders the records dashboard sections from the mock model", () => {
+    expect(source).toContain("MOCK_RECORDS_MODEL");
+    expect(source).toContain("RecordsProfileHeader");
+    expect(source).toContain("RecordsTabs");
+    expect(source).toContain("RecordSendChart");
     expect(source).toContain("RecordList");
-    expect(source).toContain("RecordClaimCandidates");
+    expect(source).toContain("RecordVideoGrid");
   });
 });
 
@@ -64,10 +48,6 @@ describe("RecordsPage", () => {
     cookiesMock.mockReset();
     redirectMock.mockClear();
     findActiveUserByIdMock.mockReset();
-    getApprovedRecordsByUserIdMock.mockReset();
-    getApprovedRecordsByUserIdMock.mockResolvedValue([]);
-    getApprovedClaimCandidateRecordsByInstagramIdMock.mockReset();
-    getApprovedClaimCandidateRecordsByInstagramIdMock.mockResolvedValue([]);
   });
 
   function stubSessionCookie(token: string | undefined) {
@@ -77,62 +57,66 @@ describe("RecordsPage", () => {
     });
   }
 
+  const activeUser = {
+    id: "user_records",
+    displayName: "granite_climber",
+    instagramId: "@Climber.One",
+    avatarUrl: null,
+    heightCm: null,
+    apeIndexCm: null
+  };
+
   it("redirects visitors without a session cookie to login with a records return target", async () => {
     stubSessionCookie(undefined);
 
-    await expect(RecordsPage()).rejects.toThrow("NEXT_REDIRECT:/login?returnTo=/me/records");
+    await expect(RecordsPage({})).rejects.toThrow("NEXT_REDIRECT:/login?returnTo=/me/records");
 
     expect(findActiveUserByIdMock).not.toHaveBeenCalled();
-    expect(getApprovedRecordsByUserId).not.toHaveBeenCalled();
-    expect(getApprovedClaimCandidateRecordsByInstagramId).not.toHaveBeenCalled();
   });
 
-  it("redirects visitors with an invalid session token to login without loading records", async () => {
+  it("redirects visitors with an invalid session token to login", async () => {
     stubSessionCookie("not-a-valid-jwt");
 
-    await expect(RecordsPage()).rejects.toThrow("NEXT_REDIRECT:/login?returnTo=/me/records");
+    await expect(RecordsPage({})).rejects.toThrow("NEXT_REDIRECT:/login?returnTo=/me/records");
 
     expect(findActiveUserByIdMock).not.toHaveBeenCalled();
-    expect(getApprovedRecordsByUserId).not.toHaveBeenCalled();
-    expect(getApprovedClaimCandidateRecordsByInstagramId).not.toHaveBeenCalled();
   });
 
-  it("redirects stale sessions whose user no longer exists without loading records", async () => {
+  it("redirects stale sessions whose user no longer exists", async () => {
     stubSessionCookie(await createUserSessionToken({ userId: "deleted_user" }));
     findActiveUserByIdMock.mockResolvedValue(null);
 
-    await expect(RecordsPage()).rejects.toThrow("NEXT_REDIRECT:/login?returnTo=/me/records");
+    await expect(RecordsPage({})).rejects.toThrow("NEXT_REDIRECT:/login?returnTo=/me/records");
 
     expect(findActiveUserByIdMock).toHaveBeenCalledWith("deleted_user");
-    expect(getApprovedRecordsByUserId).not.toHaveBeenCalled();
-    expect(getApprovedClaimCandidateRecordsByInstagramId).not.toHaveBeenCalled();
   });
 
-  it("loads records and claim candidates with a normalized handle for users with an Instagram ID", async () => {
+  it("renders the videos tab by default for a logged-in user", async () => {
     stubSessionCookie(await createUserSessionToken({ userId: "user_records" }));
-    findActiveUserByIdMock.mockResolvedValue({
-      id: "user_records",
-      instagramId: "@Climber.One"
-    });
+    findActiveUserByIdMock.mockResolvedValue(activeUser);
 
-    await RecordsPage();
+    const page = await RecordsPage({});
 
     expect(redirectMock).not.toHaveBeenCalled();
-    expect(getApprovedRecordsByUserId).toHaveBeenCalledWith("user_records");
-    expect(getApprovedClaimCandidateRecordsByInstagramId).toHaveBeenCalledWith("climber.one");
+    expect(JSON.stringify(page)).toContain('"active":"video"');
   });
 
-  it("passes a null handle for users without an Instagram ID", async () => {
-    stubSessionCookie(await createUserSessionToken({ userId: "user_no_instagram" }));
-    findActiveUserByIdMock.mockResolvedValue({
-      id: "user_no_instagram",
-      instagramId: null
-    });
+  it("renders the records tab when ?tab=record is set", async () => {
+    stubSessionCookie(await createUserSessionToken({ userId: "user_records" }));
+    findActiveUserByIdMock.mockResolvedValue(activeUser);
 
-    await RecordsPage();
+    const page = await RecordsPage({ searchParams: Promise.resolve({ tab: "record" }) });
 
     expect(redirectMock).not.toHaveBeenCalled();
-    expect(getApprovedRecordsByUserId).toHaveBeenCalledWith("user_no_instagram");
-    expect(getApprovedClaimCandidateRecordsByInstagramId).toHaveBeenCalledWith(null);
+    expect(JSON.stringify(page)).toContain('"active":"record"');
+  });
+
+  it("passes the normalized Instagram handle to the profile header", async () => {
+    stubSessionCookie(await createUserSessionToken({ userId: "user_records" }));
+    findActiveUserByIdMock.mockResolvedValue(activeUser);
+
+    const page = await RecordsPage({});
+
+    expect(JSON.stringify(page)).toContain('"instagramId":"climber.one"');
   });
 });
