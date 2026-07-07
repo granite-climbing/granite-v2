@@ -1,4 +1,3 @@
-import React from "react";
 import type { UserRecordClaimCandidate } from "@/lib/db/schema";
 
 export function RecordClaimCandidates({

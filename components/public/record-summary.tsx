@@ -1,26 +1,11 @@
-import React from "react";
 import type { UserRecordsModel } from "@/lib/db/schema";
-
-function formatDate(value: string | null): string {
-  if (!value) {
-    return "-";
-  }
-
-  return new Intl.DateTimeFormat("ko-KR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  })
-    .format(new Date(value))
-    .replace(/\.\s?/g, ".")
-    .replace(/\.$/, "");
-}
+import { formatDateDots } from "@/lib/format/date";
 
 export function RecordSummary({ summary }: { summary: UserRecordsModel["summary"] }) {
   const metrics = [
     { label: "기록", value: String(summary.totalRecords) },
     { label: "최고", value: summary.highestGrade },
-    { label: "최근", value: formatDate(summary.latestSentAt) },
+    { label: "최근", value: formatDateDots(summary.latestSentAt) },
     { label: "연결", value: String(summary.claimCandidateCount) }
   ];
 

@@ -1,4 +1,3 @@
-import React from "react";
 import type { UserRecordGradeBucket } from "@/lib/db/schema";
 
 export function RecordGradeDistribution({ buckets }: { buckets: UserRecordGradeBucket[] }) {

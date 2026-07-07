@@ -1,17 +1,6 @@
 import Link from "next/link";
-import React from "react";
 import type { UserRecordListItem } from "@/lib/db/schema";
-
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat("ko-KR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  })
-    .format(new Date(value))
-    .replace(/\.\s?/g, ".")
-    .replace(/\.$/, "");
-}
+import { formatDateDots } from "@/lib/format/date";
 
 function platformLabel(platform: UserRecordListItem["platform"]): string {
   return platform === "instagram" ? "Instagram" : "YouTube";
@@ -43,16 +32,16 @@ export function RecordList({ records }: { records: UserRecordListItem[] }) {
                     )}
                   </a>
                   <div className="min-w-0 flex-1">
-                    <Link href={routeHref} className="block" aria-label={`${record.routeName} ${record.routeGrade}`}>
+                    <Link href={routeHref} className="block">
                       <span className="block text-[16px] font-black leading-5 text-black">
                         {record.routeName} <span className="text-[#6F7477]">{record.routeGrade}</span>
                       </span>
-                      <span className="mt-1 block text-[12px] font-semibold leading-4 text-[#6F7477]">{context}</span>
                     </Link>
+                    <span className="mt-1 block text-[12px] font-semibold leading-4 text-[#6F7477]">{context}</span>
                     <div className="mt-2 flex items-center gap-2 text-[11px] font-bold text-[#8A8A8A]">
                       <span>{platformLabel(record.platform)}</span>
                       <span aria-hidden>·</span>
-                      <time dateTime={record.sentAt}>{formatDate(record.sentAt)}</time>
+                      <time dateTime={record.sentAt}>{formatDateDots(record.sentAt)}</time>
                     </div>
                   </div>
                 </div>
