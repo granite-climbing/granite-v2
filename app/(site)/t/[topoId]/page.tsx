@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { findTopoById } from "@/lib/db/repository";
 import { TopoNavArrow } from "@/components/public/topo-nav";
@@ -6,6 +7,10 @@ import { buildInstagramCaption } from "@/lib/beta/caption";
 import { getApprovedBetaVideosByRoute } from "@/lib/db/beta-queries";
 import { getPublishedAreas, parseHashtags } from "@/lib/db/queries";
 import { RouteMoreActions } from "@/components/public/route-more-actions";
+import { RouteSaveAction } from "@/components/public/route-save-action";
+import { removeRouteProjectAction, saveRouteProjectAction } from "@/lib/actions/project";
+import { USER_SESSION_COOKIE_NAME, verifyUserSessionToken } from "@/lib/auth/session";
+import { listFavoritedRouteIdsForUser } from "@/lib/db/project-queries";
 import type { Route, TopoDetail } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +38,16 @@ export default async function TopoPage({ params, searchParams }: TopoPageProps) 
   const betaVideosByRouteId = new Map(betaVideoEntries);
   const areaName = areas.find((area) => area.id === topo.crag.areaId)?.name ?? null;
 
+  const cookieStore = await cookies();
+  const token = cookieStore.get(USER_SESSION_COOKIE_NAME)?.value;
+  const session = token ? await verifyUserSessionToken(token) : null;
+  const savedRouteIds = session
+    ? await listFavoritedRouteIdsForUser(
+        session.userId,
+        topo.routes.map((route) => route.id)
+      )
+    : new Set<string>();
+
   return (
     <main className="min-h-screen bg-white text-[#090909]">
       <TopoHeader topo={topo} />
@@ -55,6 +70,8 @@ export default async function TopoPage({ params, searchParams }: TopoPageProps) 
         selectedRoute={selectedRoute}
         betaVideosByRouteId={betaVideosByRouteId}
         areaName={areaName}
+        loggedIn={Boolean(session)}
+        savedRouteIds={savedRouteIds}
       />
     </main>
   );
@@ -91,11 +108,15 @@ function TopoRouteSheet({
   selectedRoute,
   betaVideosByRouteId,
   areaName,
+  loggedIn,
+  savedRouteIds,
 }: {
   topo: TopoDetail;
   selectedRoute?: Route;
   betaVideosByRouteId: Map<string, Array<{ id: string; mediaUrl: string; thumbnailUrl: string | null; displayName: string }>>;
   areaName: string | null;
+  loggedIn: boolean;
+  savedRouteIds: Set<string>;
 }) {
   return (
     <section className="bg-white px-4 pb-10 pt-2">
@@ -159,6 +180,14 @@ function TopoRouteSheet({
                   }}
                   caption={caption}
                   betaVideos={betaVideos}
+                />
+                <RouteSaveAction
+                  routeId={route.id}
+                  saved={savedRouteIds.has(route.id)}
+                  loggedIn={loggedIn}
+                  returnTo={`/t/${topo.id}?route=${route.id}`}
+                  saveAction={saveRouteProjectAction}
+                  removeAction={removeRouteProjectAction}
                 />
               </span>
             </div>
