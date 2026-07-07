@@ -286,6 +286,10 @@ Phase 6는 기존 명칭의 `Login / Favorites / Claims` 전체가 아니라, �
 
 - [프로젝트 탭](https://www.figma.com/design/NICa8b5vZ1Ij8PYABEN3zk/%EA%B7%B8%EB%9D%BC%EB%82%98%EC%9D%B4%ED%8A%B8--dudco-?node-id=56-975&t=Nj8NzKW38WUPfN3F-4)
 
+### 참고 문서
+
+- [Phase 8 Plan](plans/2026-07-07-granite-phase-8.md)
+
 ### 개발 범위
 
 - `favorites` migration 추가
