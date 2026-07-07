@@ -1,5 +1,6 @@
 "use client";
 
+// The default React import is required: vitest compiles JSX with the classic runtime.
 import React, { useActionState } from "react";
 import Link from "next/link";
 import type { ProjectActionResult } from "@/lib/actions/project";
@@ -11,6 +12,8 @@ type ProjectRouteCardProps = {
 };
 
 export function ProjectRouteCard({ route, removeAction }: ProjectRouteCardProps) {
+  // Result is discarded: removeRouteProjectAction never returns ok:false today.
+  // Surface the message here if the remove action ever gains a failure path.
   const [, formAction, pending] = useActionState(
     async (_state: ProjectActionResult | null, formData: FormData) => removeAction(formData),
     null
@@ -36,7 +39,7 @@ export function ProjectRouteCard({ route, removeAction }: ProjectRouteCardProps)
           <button
             type="submit"
             disabled={pending}
-            className="h-8 shrink-0 rounded-full border border-[#D9D9D9] px-3 text-[12px] font-bold text-[#4F5558]"
+            className="h-8 shrink-0 rounded-full border border-[#D9D9D9] px-3 text-[12px] font-bold text-[#4F5558] disabled:opacity-50"
           >
             프로젝트에서 제거
           </button>
