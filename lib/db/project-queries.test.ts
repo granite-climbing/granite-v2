@@ -122,7 +122,7 @@ describe("project queries", () => {
 
     const favorited = await listFavoritedRouteIdsForUser("user_1", ["route_1", "route_2"]);
 
-    expect(queryD1Mock).toHaveBeenCalledWith(expect.stringContaining("IN"), [
+    expect(queryD1Mock).toHaveBeenCalledWith(expect.stringContaining("IN (?, ?)"), [
       "user_1",
       "route",
       "route_1",

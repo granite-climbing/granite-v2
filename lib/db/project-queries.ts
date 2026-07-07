@@ -162,7 +162,7 @@ export async function isRouteFavoritedByUser(userId: string, routeId: string): P
  */
 export async function listFavoritedRouteIdsForUser(userId: string, routeIds: string[]): Promise<Set<string>> {
   if (routeIds.length === 0) {
-    return new Set();
+    return new Set<string>();
   }
 
   const placeholders = routeIds.map(() => "?").join(", ");
