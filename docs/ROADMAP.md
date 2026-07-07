@@ -336,6 +336,10 @@ Phase 6는 기존 명칭의 `Login / Favorites / Claims` 전체가 아니라, �
 - [기록 탭 화면 1](https://www.figma.com/design/NICa8b5vZ1Ij8PYABEN3zk/%EA%B7%B8%EB%9D%BC%EB%82%98%EC%9D%B4%ED%8A%B8--dudco-?node-id=56-1299&t=Nj8NzKW38WUPfN3F-4)
 - [기록 탭 화면 2](https://www.figma.com/design/NICa8b5vZ1Ij8PYABEN3zk/%EA%B7%B8%EB%9D%BC%EB%82%98%EC%9D%B4%ED%8A%B8--dudco-?node-id=56-1399&t=Nj8NzKW38WUPfN3F-4)
 
+### 참고 문서
+
+- [Phase 9 Plan](plans/2026-07-07-granite-phase-9.md)
+
 ### 개발 범위
 
 - `/me/records` 본 화면 구현
