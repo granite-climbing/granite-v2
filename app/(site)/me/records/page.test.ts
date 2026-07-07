@@ -91,24 +91,24 @@ describe("RecordsPage", () => {
     expect(findActiveUserByIdMock).toHaveBeenCalledWith("deleted_user");
   });
 
-  it("renders the videos tab by default for a logged-in user", async () => {
+  it("renders the records tab by default for a logged-in user", async () => {
     stubSessionCookie(await createUserSessionToken({ userId: "user_records" }));
     findActiveUserByIdMock.mockResolvedValue(activeUser);
 
     const page = await RecordsPage({});
 
     expect(redirectMock).not.toHaveBeenCalled();
-    expect(JSON.stringify(page)).toContain('"active":"video"');
+    expect(JSON.stringify(page)).toContain('"active":"record"');
   });
 
-  it("renders the records tab when ?tab=record is set", async () => {
+  it("renders the videos tab when ?tab=video is set", async () => {
     stubSessionCookie(await createUserSessionToken({ userId: "user_records" }));
     findActiveUserByIdMock.mockResolvedValue(activeUser);
 
-    const page = await RecordsPage({ searchParams: Promise.resolve({ tab: "record" }) });
+    const page = await RecordsPage({ searchParams: Promise.resolve({ tab: "video" }) });
 
     expect(redirectMock).not.toHaveBeenCalled();
-    expect(JSON.stringify(page)).toContain('"active":"record"');
+    expect(JSON.stringify(page)).toContain('"active":"video"');
   });
 
   it("passes the normalized Instagram handle to the profile header", async () => {

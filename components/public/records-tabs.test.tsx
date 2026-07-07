@@ -20,9 +20,9 @@ describe("RecordsTabs", () => {
 });
 
 describe("resolveRecordsTab", () => {
-  it("defaults to the video tab", () => {
-    expect(resolveRecordsTab(undefined)).toBe("video");
-    expect(resolveRecordsTab("unknown")).toBe("video");
-    expect(resolveRecordsTab("record")).toBe("record");
+  it("defaults to the record tab", () => {
+    expect(resolveRecordsTab(undefined)).toBe("record");
+    expect(resolveRecordsTab("unknown")).toBe("record");
+    expect(resolveRecordsTab("video")).toBe("video");
   });
 });

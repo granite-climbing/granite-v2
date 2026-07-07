@@ -31,5 +31,5 @@ export function RecordsTabs({ active }: { active: RecordsTabId }) {
 }
 
 export function resolveRecordsTab(tab: string | undefined): RecordsTabId {
-  return tab === "record" ? "record" : "video";
+  return tab === "video" ? "video" : "record";
 }
