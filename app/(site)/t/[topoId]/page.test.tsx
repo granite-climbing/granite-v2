@@ -13,4 +13,10 @@ describe("Topo route detail page Phase 7 wiring", () => {
     expect(text).toContain("breadcrumb=");
     expect(text).toContain(">Location<");
   });
+
+  it("renders the Location pill text on a span wrapper so text-white wins over the global anchor color rule", () => {
+    const text = source();
+
+    expect(text).toMatch(/<span className="[^"]*text-white[^"]*">/);
+  });
 });

@@ -42,10 +42,12 @@ export default async function TopoPage({ params, searchParams }: TopoPageProps) 
       >
         <Link
           href={`/c/${topo.crag.slug}?tab=route`}
-          className="absolute bottom-3 right-4 flex h-6 w-[88px] items-center justify-center gap-1 rounded-full bg-[#2A2A2A] text-[12px] font-medium leading-4 text-white"
+          className="absolute bottom-3 right-4 flex h-6 w-[88px] items-center justify-center rounded-full bg-[#2A2A2A]"
         >
-          <LocationIcon className="size-4" />
-          <span>Location</span>
+          <span className="flex items-center gap-1 text-[12px] font-medium leading-4 text-white">
+            <LocationIcon className="size-4" />
+            <span>Location</span>
+          </span>
         </Link>
       </section>
       <TopoRouteSheet
