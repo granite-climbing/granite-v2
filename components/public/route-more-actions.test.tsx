@@ -2,7 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RouteMoreActions } from "./route-more-actions";
 import type { BetaVideoItem } from "./beta-video-grid";
@@ -55,8 +55,8 @@ describe("RouteMoreActions", () => {
     expect(screen.getByRole("dialog", { name: "Little Finger 상세 정보" })).toBeInTheDocument();
     expect(screen.getByText("서울 > 현충바위 > 메인섹터 >")).toBeInTheDocument();
     expect(screen.getByText("리틀핑거 바위")).toBeInTheDocument();
-    expect(screen.getByText("Little Finger")).toBeInTheDocument();
-    expect(screen.getByText("V5")).toBeInTheDocument();
+    const nameRow = screen.getByText("Little Finger").parentElement as HTMLElement;
+    expect(within(nameRow).getByText("V5")).toBeInTheDocument();
     expect(screen.getByText("FA @someone")).toBeInTheDocument();
     expect(screen.getByText("왼손 언더와 오른손 크림프를 이용해 오른다.")).toBeInTheDocument();
   });
@@ -73,6 +73,37 @@ describe("RouteMoreActions", () => {
 
     expect(screen.queryByText(/^FA /)).not.toBeInTheDocument();
     expect(screen.queryByText("왼손 언더와 오른손 크림프를 이용해 오른다.")).not.toBeInTheDocument();
+  });
+
+  it("renders the header action icon buttons", () => {
+    render(<RouteMoreActions {...baseProps} />);
+
+    openDialog();
+
+    expect(screen.getByRole("button", { name: "북마크" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "완등 기록" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "공유하기" })).toBeInTheDocument();
+  });
+
+  it("renders mock rating stats", () => {
+    render(<RouteMoreActions {...baseProps} />);
+
+    openDialog();
+
+    expect(screen.getByText("4.5, Solid V4")).toBeInTheDocument();
+    expect(screen.getByText("Feels V4.1")).toBeInTheDocument();
+    expect(screen.getByText("Ascents 1,027")).toBeInTheDocument();
+  });
+
+  it("renders mock comments", () => {
+    render(<RouteMoreActions {...baseProps} />);
+
+    openDialog();
+
+    expect(screen.getByText("Ascents comment")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "기록하기" })).toBeInTheDocument();
+    expect(screen.getAllByText("완등이 어려웠어요ㅜㅜ").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("7months ago").length).toBeGreaterThan(0);
   });
 
   it("closes the sheet with the back arrow", () => {
