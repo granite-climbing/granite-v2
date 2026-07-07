@@ -47,7 +47,8 @@ async function requireUserSessionOrRedirect(returnTo: string) {
 
 function revalidateProjectPaths(returnTo: string) {
   revalidatePath("/me/projects");
-  revalidatePath(returnTo);
+  // revalidatePath ignores query strings, so revalidate the pathname only.
+  revalidatePath(new URL(returnTo, "http://localhost").pathname);
 }
 
 export async function saveRouteProjectAction(formData: FormData): Promise<ProjectActionResult> {

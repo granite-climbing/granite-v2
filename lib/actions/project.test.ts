@@ -84,7 +84,7 @@ describe("project actions", () => {
     expect(findPublishedRouteForFavorite).toHaveBeenCalledWith("route_1");
     expect(addRouteFavorite).toHaveBeenCalledWith("user_1", "route_1");
     expect(revalidatePathMock).toHaveBeenCalledWith("/me/projects");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/t/topo_1?route=route_1");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/t/topo_1");
     expect(result).toEqual({ ok: true, message: "프로젝트에 저장했습니다." });
   });
 
@@ -102,6 +102,18 @@ describe("project actions", () => {
 
     expect(result).toEqual({ ok: false, message: "저장할 수 없는 루트입니다." });
     expect(addRouteFavoriteMock).not.toHaveBeenCalled();
+  });
+
+  it("redirects anonymous users to login when removing", async () => {
+    cookiesMock.mockResolvedValue({ get: () => undefined });
+    const formData = new FormData();
+    formData.set("routeId", "route_1");
+    formData.set("returnTo", "/me/projects");
+
+    await expect(removeRouteProjectAction(formData)).rejects.toThrow(
+      "NEXT_REDIRECT:/login?returnTo=%2Fme%2Fprojects"
+    );
+    expect(removeRouteFavoriteMock).not.toHaveBeenCalled();
   });
 
   it("removes a route favorite for the logged-in user", async () => {
