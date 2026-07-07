@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ManualBetaForm } from "./manual-beta-form";
-import { BetaVideoGrid, type BetaVideoItem } from "./beta-video-grid";
+import React, { useEffect, useRef, useState } from "react";
+import { BetaVideoSheet } from "./beta-video-sheet";
+import type { BetaVideoItem } from "./beta-video-grid";
 
 export type RouteMoreSheetProps = {
   route: {
@@ -12,8 +12,12 @@ export type RouteMoreSheetProps = {
     fa: string;
     description: string;
   };
-  locationLabel: string;
-  locationValue: string;
+  breadcrumb: {
+    areaName: string | null;
+    cragName: string;
+    sectorName: string;
+    boulderName: string;
+  };
   caption: string;
   betaVideos: BetaVideoItem[];
   onClose: () => void;
@@ -21,13 +25,12 @@ export type RouteMoreSheetProps = {
 
 export function RouteMoreSheet({
   route,
-  locationLabel,
-  locationValue,
+  breadcrumb,
   caption,
   betaVideos,
   onClose
 }: RouteMoreSheetProps) {
-  const [showManualForm, setShowManualForm] = useState(false);
+  const [showBetaSheet, setShowBetaSheet] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -46,35 +49,18 @@ export function RouteMoreSheet({
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape" && !event.defaultPrevented) {
-        // Escape dismisses only the topmost layer: the manual beta form
-        // first (keeping the sheet underneath), then the sheet itself.
-        if (showManualForm) {
-          setShowManualForm(false);
-        } else {
-          onClose();
-        }
+        onClose();
       }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onClose, showManualForm]);
+  }, [onClose]);
 
-  const instagramHref = useMemo(
-    () => `https://www.instagram.com/?caption=${encodeURIComponent(caption)}`,
-    [caption]
-  );
-
-  async function copyAndOpenInstagram() {
-    try {
-      await navigator.clipboard.writeText(caption);
-    } catch {
-      // Best-effort copy: opening Instagram is the primary action, so we
-      // continue even if the clipboard write is unavailable or rejected.
-    }
-    window.open(instagramHref, "_blank", "noopener,noreferrer");
-  }
+  const breadcrumbPrefix = [breadcrumb.areaName, breadcrumb.cragName, breadcrumb.sectorName]
+    .filter((part): part is string => Boolean(part))
+    .join(" > ");
 
   return (
     <div className="fixed inset-0 left-1/2 z-50 w-full max-w-[430px] -translate-x-1/2 bg-black/60">
@@ -85,73 +71,77 @@ export function RouteMoreSheet({
         className="absolute inset-x-0 bottom-0 max-h-[78vh] overflow-y-auto rounded-t-[12px] bg-white"
       >
         <div className="mx-auto mt-2 h-[2px] w-8 rounded-full bg-[#B8B8B8]" />
-        <header className="relative flex h-[44px] items-center justify-center border-b border-[#E8E8E8]">
-          <h2 className="text-[18px] font-medium leading-6 text-[#090909]">More</h2>
+        <header className="flex h-[44px] items-center px-4">
           <button
             ref={closeButtonRef}
             type="button"
             onClick={onClose}
-            className="absolute right-4 grid size-6 place-items-center text-[28px] leading-none text-[#121212]"
             aria-label="닫기"
+            className="grid size-6 place-items-center text-[#121212]"
           >
-            ×
+            <ArrowLeftIcon className="size-6" />
           </button>
         </header>
 
-        <div className="px-4 pb-6 pt-4">
-          <div className="border-b border-[#E8E8E8] pb-4">
-            <h3 className="text-[20px] font-semibold leading-7 text-[#090909]">{route.name}</h3>
-            <dl className="mt-4 space-y-3 text-[14px] leading-5">
-              <RouteDetailRow label="Grade" value={route.grade} />
-              <RouteDetailRow label={locationLabel} value={locationValue} />
-              <RouteDetailRow label="FA" value={route.fa || "-"} />
-              <RouteDetailRow label="Description" value={route.description || "-"} />
-            </dl>
+        <div className="px-4 pb-6">
+          <p className="text-[10px] font-normal leading-[14px]">
+            <span className="text-[#B8B8B8]">{breadcrumbPrefix} &gt; </span>
+            <span className="text-[#5A5A5A]">{breadcrumb.boulderName}</span>
+          </p>
+          <div className="mt-1 flex items-baseline justify-between">
+            <h3 className="text-[20px] font-medium leading-7 text-[#2A2A2A]">{route.name}</h3>
+            <span className="text-[18px] font-medium leading-6 text-[#2A2A2A]">{route.grade}</span>
           </div>
+          {route.fa ? (
+            <p className="mt-1 text-[10px] leading-[14px] text-[#7A7A7A]">FA {route.fa}</p>
+          ) : null}
+          {route.description ? (
+            <p className="mt-1 text-[10px] leading-[14px] text-[#7A7A7A]">{route.description}</p>
+          ) : null}
 
-          <section className="pt-4">
-            <h3 className="text-[18px] font-medium leading-6 text-[#090909]">베타 동영상</h3>
-            <p className="mt-2 text-[14px] font-normal leading-5 text-[#2A2A2A]">
-              캡션을 복사하여 인스타그램 게시물에 넣어주면 베타 영상이 루트에 연결됩니다.
-            </p>
-            <div className="mt-4 rounded-[10px] bg-[#F7F8F8] px-4 py-3 text-[14px] font-normal leading-5 text-[#2A2A2A]">
-              <p>캡션</p>
-              <p className="line-clamp-2 whitespace-pre-wrap">{caption}</p>
-            </div>
-            <div className="mt-2 space-y-2">
-              <button
-                type="button"
-                onClick={copyAndOpenInstagram}
-                className="h-8 w-full rounded-full bg-[#1A1A1A] text-[14px] font-medium leading-5 text-white"
-              >
-                캡션 복사하고 Instagram 열기
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowManualForm(true)}
-                className="h-8 w-full rounded-full bg-[#1A1A1A] text-[14px] font-medium leading-5 text-white"
-              >
-                베타 영상 올리기
-              </button>
-            </div>
-          </section>
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShowBetaSheet(true)}
+              className="flex h-6 w-[72px] items-center justify-center gap-1 rounded-full bg-[#E8E8E8] text-[12px] font-medium leading-4 text-[#3A3A3A]"
+            >
+              <VideoIcon className="size-4" />
+              beta
+            </button>
+          </div>
         </div>
-
-        <BetaVideoGrid items={betaVideos} />
       </section>
 
-      {showManualForm ? (
-        <ManualBetaForm routeId={route.id} onClose={() => setShowManualForm(false)} />
+      {showBetaSheet ? (
+        <BetaVideoSheet
+          routeId={route.id}
+          caption={caption}
+          betaVideos={betaVideos}
+          onClose={() => setShowBetaSheet(false)}
+        />
       ) : null}
     </div>
   );
 }
 
-function RouteDetailRow({ label, value }: { label: string; value: string }) {
+function ArrowLeftIcon({ className }: { className?: string }) {
   return (
-    <div className="grid grid-cols-[86px_1fr] gap-3">
-      <dt className="font-medium text-[#7A7A7A]">{label}</dt>
-      <dd className="min-w-0 whitespace-pre-wrap font-medium text-[#2A2A2A]">{value}</dd>
-    </div>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
+      <path
+        d="M7.82843 10.9999H20V12.9999H7.82843L13.1924 18.3638L11.7782 19.778L4 11.9999L11.7782 4.22168L13.1924 5.63589L7.82843 10.9999Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function VideoIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" aria-hidden="true" className={className}>
+      <path
+        d="M11.3333 6.13333L14.8089 3.70047C14.9597 3.5949 15.1675 3.63158 15.2731 3.7824C15.3123 3.83843 15.3333 3.90516 15.3333 3.97355V12.0265C15.3333 12.2105 15.1841 12.3598 15 12.3598C14.9316 12.3598 14.8649 12.3387 14.8089 12.2995L11.3333 9.86667V12.6667C11.3333 13.0349 11.0349 13.3333 10.6667 13.3333H1.33333C0.965147 13.3333 0.666667 13.0349 0.666667 12.6667V3.33333C0.666667 2.96515 0.965147 2.66667 1.33333 2.66667H10.6667C11.0349 2.66667 11.3333 2.96515 11.3333 3.33333V6.13333Z"
+        fill="currentColor"
+      />
+    </svg>
   );
 }

@@ -4,7 +4,7 @@ import { findTopoById } from "@/lib/db/repository";
 import { TopoNavArrow } from "@/components/public/topo-nav";
 import { buildInstagramCaption } from "@/lib/beta/caption";
 import { getApprovedBetaVideosByRoute } from "@/lib/db/beta-queries";
-import { parseHashtags } from "@/lib/db/queries";
+import { getPublishedAreas, parseHashtags } from "@/lib/db/queries";
 import { RouteMoreActions } from "@/components/public/route-more-actions";
 import type { Route, TopoDetail } from "@/lib/db/schema";
 
@@ -26,10 +26,12 @@ export default async function TopoPage({ params, searchParams }: TopoPageProps) 
   const selectedRoute = topo.routes.find((route) => route.id === resolvedSearchParams?.route);
   const imageUrl = selectedRoute?.lineImageUrl || topo.baseImageUrl;
 
-  const betaVideoEntries = await Promise.all(
-    topo.routes.map(async (route) => [route.id, await getApprovedBetaVideosByRoute(route.id)] as const)
-  );
+  const [betaVideoEntries, areas] = await Promise.all([
+    Promise.all(topo.routes.map(async (route) => [route.id, await getApprovedBetaVideosByRoute(route.id)] as const)),
+    getPublishedAreas()
+  ]);
   const betaVideosByRouteId = new Map(betaVideoEntries);
+  const areaName = areas.find((area) => area.id === topo.crag.areaId)?.name ?? null;
 
   return (
     <main className="min-h-screen bg-white text-[#090909]">
@@ -46,7 +48,12 @@ export default async function TopoPage({ params, searchParams }: TopoPageProps) 
           <span>Location</span>
         </Link>
       </section>
-      <TopoRouteSheet topo={topo} selectedRoute={selectedRoute} betaVideosByRouteId={betaVideosByRouteId} />
+      <TopoRouteSheet
+        topo={topo}
+        selectedRoute={selectedRoute}
+        betaVideosByRouteId={betaVideosByRouteId}
+        areaName={areaName}
+      />
     </main>
   );
 }
@@ -81,10 +88,12 @@ function TopoRouteSheet({
   topo,
   selectedRoute,
   betaVideosByRouteId,
+  areaName,
 }: {
   topo: TopoDetail;
   selectedRoute?: Route;
   betaVideosByRouteId: Map<string, Array<{ id: string; mediaUrl: string; thumbnailUrl: string | null; displayName: string }>>;
+  areaName: string | null;
 }) {
   return (
     <section className="bg-white px-4 pb-10 pt-2">
@@ -140,8 +149,12 @@ function TopoRouteSheet({
                     fa: route.fa,
                     description: route.description
                   }}
-                  locationLabel="Location"
-                  locationValue={`${topo.crag.name} · ${topo.sector.name} · ${topo.boulder.name}`}
+                  breadcrumb={{
+                    areaName,
+                    cragName: topo.crag.name,
+                    sectorName: topo.sector.name,
+                    boulderName: topo.boulder.name
+                  }}
                   caption={caption}
                   betaVideos={betaVideos}
                 />

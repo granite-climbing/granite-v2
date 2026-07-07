@@ -10,8 +10,7 @@ describe("Topo route detail page Phase 7 wiring", () => {
 
     expect(text).toContain('import { RouteMoreActions } from "@/components/public/route-more-actions"');
     expect(text).not.toContain("BetaRouteActions");
-    expect(text).toContain("locationLabel=\"Location\"");
-    expect(text).toContain("locationValue=");
+    expect(text).toContain("breadcrumb=");
     expect(text).toContain(">Location<");
   });
 });

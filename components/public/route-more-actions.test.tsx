@@ -21,14 +21,26 @@ const baseProps = {
     id: "route_1",
     name: "Little Finger",
     grade: "V5",
-    fa: "FA Unknown",
+    fa: "@someone",
     description: "왼손 언더와 오른손 크림프를 이용해 오른다."
   },
-  locationLabel: "Location",
-  locationValue: "현충바위 · 메인섹터 · 리틀핑거 바위",
+  breadcrumb: {
+    areaName: "서울",
+    cragName: "현충바위",
+    sectorName: "메인섹터",
+    boulderName: "리틀핑거 바위"
+  },
   caption: "[현충바위] 메인섹터 / 리틀핑거 바위 / Little Finger (V5)\n@granite.kr #리틀핑거바위 #LittleFinger",
   betaVideos
 };
+
+function openDialog() {
+  fireEvent.click(screen.getByRole("button", { name: "More" }));
+}
+
+function openBetaSheet() {
+  fireEvent.click(screen.getByRole("button", { name: "beta" }));
+}
 
 describe("RouteMoreActions", () => {
   afterEach(() => {
@@ -38,33 +50,38 @@ describe("RouteMoreActions", () => {
   it("opens route details from the More button", () => {
     render(<RouteMoreActions {...baseProps} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    openDialog();
 
     expect(screen.getByRole("dialog", { name: "Little Finger 상세 정보" })).toBeInTheDocument();
-    expect(screen.getByText("Location")).toBeInTheDocument();
-    expect(screen.getByText("현충바위 · 메인섹터 · 리틀핑거 바위")).toBeInTheDocument();
+    expect(screen.getByText("서울 > 현충바위 > 메인섹터 >")).toBeInTheDocument();
+    expect(screen.getByText("리틀핑거 바위")).toBeInTheDocument();
+    expect(screen.getByText("Little Finger")).toBeInTheDocument();
     expect(screen.getByText("V5")).toBeInTheDocument();
-    expect(screen.getByText("FA Unknown")).toBeInTheDocument();
-    expect(screen.getByText("베타 동영상")).toBeInTheDocument();
-    expect(screen.getByLabelText("granite_user 베타 영상 열기")).toBeInTheDocument();
+    expect(screen.getByText("FA @someone")).toBeInTheDocument();
+    expect(screen.getByText("왼손 언더와 오른손 크림프를 이용해 오른다.")).toBeInTheDocument();
   });
 
-  it("closes the sheet", () => {
+  it("omits the FA and description lines when empty", () => {
+    render(
+      <RouteMoreActions
+        {...baseProps}
+        route={{ ...baseProps.route, fa: "", description: "" }}
+      />
+    );
+
+    openDialog();
+
+    expect(screen.queryByText(/^FA /)).not.toBeInTheDocument();
+    expect(screen.queryByText("왼손 언더와 오른손 크림프를 이용해 오른다.")).not.toBeInTheDocument();
+  });
+
+  it("closes the sheet with the back arrow", () => {
     render(<RouteMoreActions {...baseProps} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    openDialog();
     fireEvent.click(screen.getByRole("button", { name: "닫기" }));
 
     expect(screen.queryByRole("dialog", { name: "Little Finger 상세 정보" })).not.toBeInTheDocument();
-  });
-
-  it("opens the manual beta form from the More sheet", () => {
-    render(<RouteMoreActions {...baseProps} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "More" }));
-    fireEvent.click(screen.getByRole("button", { name: "베타 영상 올리기" }));
-
-    expect(screen.getByText("영상 URL")).toBeInTheDocument();
   });
 
   it("marks the More trigger with dialog popup semantics that reflect open state", () => {
@@ -79,10 +96,39 @@ describe("RouteMoreActions", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("closes the sheet when Escape is pressed", () => {
+  it("opens the beta video sheet from the beta pill", () => {
     render(<RouteMoreActions {...baseProps} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    openDialog();
+    openBetaSheet();
+
+    expect(screen.getByText("베타 동영상")).toBeInTheDocument();
+    expect(screen.getByLabelText("granite_user 베타 영상 열기")).toBeInTheDocument();
+    expect(
+      screen.getByText((_, element) => element?.textContent === baseProps.caption)
+    ).toBeInTheDocument();
+  });
+
+  it("opens the manual beta form from the beta video sheet", () => {
+    render(<RouteMoreActions {...baseProps} />);
+
+    openDialog();
+    openBetaSheet();
+    fireEvent.click(screen.getByRole("button", { name: "베타 영상 올리기" }));
+
+    expect(screen.getByText("영상 URL")).toBeInTheDocument();
+  });
+
+  it("dismisses only the topmost layer on Escape", () => {
+    render(<RouteMoreActions {...baseProps} />);
+
+    openDialog();
+    openBetaSheet();
+    expect(screen.getByText("베타 동영상")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByText("베타 동영상")).not.toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "Little Finger 상세 정보" })).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: "Escape" });
@@ -90,27 +136,24 @@ describe("RouteMoreActions", () => {
     expect(screen.queryByRole("dialog", { name: "Little Finger 상세 정보" })).not.toBeInTheDocument();
   });
 
-  it("dismisses only the topmost layer on Escape when the manual beta form is open", () => {
+  it("dismisses only the manual form on Escape when it is open inside the beta sheet", () => {
     render(<RouteMoreActions {...baseProps} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    openDialog();
+    openBetaSheet();
     fireEvent.click(screen.getByRole("button", { name: "베타 영상 올리기" }));
     expect(screen.getByText("영상 URL")).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: "Escape" });
 
     expect(screen.queryByText("영상 URL")).not.toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: "Little Finger 상세 정보" })).toBeInTheDocument();
-
-    fireEvent.keyDown(document, { key: "Escape" });
-
-    expect(screen.queryByRole("dialog", { name: "Little Finger 상세 정보" })).not.toBeInTheDocument();
+    expect(screen.getByText("베타 동영상")).toBeInTheDocument();
   });
 
-  it("moves focus to the close button when the sheet opens", () => {
+  it("moves focus to the back arrow when the sheet opens", () => {
     render(<RouteMoreActions {...baseProps} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    openDialog();
 
     expect(screen.getByRole("button", { name: "닫기" })).toHaveFocus();
   });
@@ -123,7 +166,8 @@ describe("RouteMoreActions", () => {
 
     render(<RouteMoreActions {...baseProps} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    openDialog();
+    openBetaSheet();
     fireEvent.click(screen.getByRole("button", { name: "캡션 복사하고 Instagram 열기" }));
 
     return new Promise((resolve) => setTimeout(resolve, 0)).then(() => {
