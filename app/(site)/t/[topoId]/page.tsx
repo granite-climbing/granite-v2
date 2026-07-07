@@ -5,7 +5,7 @@ import { TopoNavArrow } from "@/components/public/topo-nav";
 import { buildInstagramCaption } from "@/lib/beta/caption";
 import { getApprovedBetaVideosByRoute } from "@/lib/db/beta-queries";
 import { parseHashtags } from "@/lib/db/queries";
-import { BetaRouteActions } from "@/components/public/beta-route-actions";
+import { RouteMoreActions } from "@/components/public/route-more-actions";
 import type { Route, TopoDetail } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
@@ -132,7 +132,19 @@ function TopoRouteSheet({
               </Link>
               <span className="flex flex-col items-end gap-2">
                 <span className="text-[18px] font-medium leading-6 text-[#2A2A2A]">{route.grade}</span>
-                <BetaRouteActions routeId={route.id} caption={caption} betaVideos={betaVideos} />
+                <RouteMoreActions
+                  route={{
+                    id: route.id,
+                    name: route.name,
+                    grade: route.grade,
+                    fa: route.fa,
+                    description: route.description
+                  }}
+                  locationLabel="Location"
+                  locationValue={`${topo.crag.name} · ${topo.sector.name} · ${topo.boulder.name}`}
+                  caption={caption}
+                  betaVideos={betaVideos}
+                />
               </span>
             </div>
           );
