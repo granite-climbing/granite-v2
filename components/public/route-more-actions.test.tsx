@@ -3,7 +3,7 @@
 import "@testing-library/jest-dom/vitest";
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { RouteMoreActions } from "./route-more-actions";
 import type { BetaVideoItem } from "./beta-video-grid";
 
@@ -31,6 +31,10 @@ const baseProps = {
 };
 
 describe("RouteMoreActions", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("opens route details from the More button", () => {
     render(<RouteMoreActions {...baseProps} />);
 
@@ -61,5 +65,57 @@ describe("RouteMoreActions", () => {
     fireEvent.click(screen.getByRole("button", { name: "베타 영상 올리기" }));
 
     expect(screen.getByText("영상 URL")).toBeInTheDocument();
+  });
+
+  it("marks the More trigger with dialog popup semantics that reflect open state", () => {
+    render(<RouteMoreActions {...baseProps} />);
+
+    const trigger = screen.getByRole("button", { name: "More" });
+    expect(trigger).toHaveAttribute("aria-haspopup", "dialog");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(trigger);
+
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("closes the sheet when Escape is pressed", () => {
+    render(<RouteMoreActions {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    expect(screen.getByRole("dialog", { name: "Little Finger 상세 정보" })).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: "Little Finger 상세 정보" })).not.toBeInTheDocument();
+  });
+
+  it("moves focus to the close button when the sheet opens", () => {
+    render(<RouteMoreActions {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+
+    expect(screen.getByRole("button", { name: "닫기" })).toHaveFocus();
+  });
+
+  it("still opens Instagram when the clipboard write fails", () => {
+    const writeText = vi.fn().mockRejectedValue(new Error("clipboard unavailable"));
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    const open = vi.fn();
+    vi.stubGlobal("open", open);
+
+    render(<RouteMoreActions {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    fireEvent.click(screen.getByRole("button", { name: "캡션 복사하고 Instagram 열기" }));
+
+    return new Promise((resolve) => setTimeout(resolve, 0)).then(() => {
+      expect(writeText).toHaveBeenCalledWith(baseProps.caption);
+      expect(open).toHaveBeenCalledWith(
+        expect.stringContaining("https://www.instagram.com/?caption="),
+        "_blank",
+        "noopener,noreferrer"
+      );
+    });
   });
 });

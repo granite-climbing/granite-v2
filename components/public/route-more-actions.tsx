@@ -13,6 +13,8 @@ export function RouteMoreActions(props: RouteMoreActionsProps) {
       <button
         type="button"
         onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
         className="flex h-6 w-[72px] items-center justify-center rounded-full bg-[#E8E8E8] text-[12px] font-medium leading-4 text-[#3A3A3A]"
       >
         More

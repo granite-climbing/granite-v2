@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ManualBetaForm } from "./manual-beta-form";
 import { BetaVideoGrid, type BetaVideoItem } from "./beta-video-grid";
 
@@ -28,6 +28,7 @@ export function RouteMoreSheet({
   onClose
 }: RouteMoreSheetProps) {
   const [showManualForm, setShowManualForm] = useState(false);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const { body } = document;
@@ -38,13 +39,34 @@ export function RouteMoreSheet({
     };
   }, []);
 
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
   const instagramHref = useMemo(
     () => `https://www.instagram.com/?caption=${encodeURIComponent(caption)}`,
     [caption]
   );
 
   async function copyAndOpenInstagram() {
-    await navigator.clipboard.writeText(caption);
+    try {
+      await navigator.clipboard.writeText(caption);
+    } catch {
+      // Best-effort copy: opening Instagram is the primary action, so we
+      // continue even if the clipboard write is unavailable or rejected.
+    }
     window.open(instagramHref, "_blank", "noopener,noreferrer");
   }
 
@@ -60,6 +82,7 @@ export function RouteMoreSheet({
         <header className="relative flex h-[44px] items-center justify-center border-b border-[#E8E8E8]">
           <h2 className="text-[18px] font-medium leading-6 text-[#090909]">More</h2>
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
             className="absolute right-4 grid size-6 place-items-center text-[28px] leading-none text-[#121212]"
