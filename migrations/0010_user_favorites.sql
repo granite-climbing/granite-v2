@@ -15,5 +15,6 @@ CREATE TABLE IF NOT EXISTS favorites (
 CREATE INDEX IF NOT EXISTS idx_favorites_user_created_at
   ON favorites (user_id, created_at DESC);
 
+-- Reverse lookup ("who saved this target"), e.g. future save counts per route.
 CREATE INDEX IF NOT EXISTS idx_favorites_target
   ON favorites (target_type, target_id);
