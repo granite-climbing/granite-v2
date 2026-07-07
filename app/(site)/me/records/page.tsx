@@ -32,7 +32,7 @@ export default async function RecordsPage() {
   const model = buildUserRecordsModel({ records, claimCandidates });
 
   return (
-    <main data-hide-site-footer className="min-h-screen bg-[#F7F7F7] pb-[90px] text-black">
+    <main data-hide-site-footer className="min-h-screen bg-[#F7F7F7] pb-[90px] text-[#050505]">
       <AppHeader />
       <section className="bg-white px-5 pb-5 pt-6">
         <h1 className="text-[28px] font-black leading-9 text-black">기록</h1>
