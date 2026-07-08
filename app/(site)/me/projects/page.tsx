@@ -1,15 +1,20 @@
-import { AppHeader } from "@/components/layout/app-header";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { ProjectRoutesView } from "@/components/public/project-routes-view";
+import { removeRouteProjectAction } from "@/lib/actions/project";
+import { USER_SESSION_COOKIE_NAME, verifyUserSessionToken } from "@/lib/auth/session";
+import { listSavedRoutesForUser } from "@/lib/db/project-queries";
 
-export default function ProjectsPage() {
-  return (
-    <main data-hide-site-footer className="min-h-screen bg-white pb-[90px]">
-      <AppHeader />
-      <section className="grid min-h-[70vh] place-items-center px-5 text-center">
-        <div>
-          <h1 className="text-3xl font-black tracking-[-0.06em]">프로젝트</h1>
-          <p className="mt-3 text-sm font-semibold text-[#6F7477]">Route 즐겨찾기는 Phase 6에서 제공됩니다.</p>
-        </div>
-      </section>
-    </main>
-  );
+export default async function ProjectsPage() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(USER_SESSION_COOKIE_NAME)?.value;
+  const session = token ? await verifyUserSessionToken(token) : null;
+
+  if (!session) {
+    redirect("/login?returnTo=/me/projects");
+  }
+
+  const routes = await listSavedRoutesForUser(session.userId);
+
+  return <ProjectRoutesView routes={routes} removeAction={removeRouteProjectAction} />;
 }
