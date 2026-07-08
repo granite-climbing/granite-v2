@@ -54,11 +54,6 @@ export function RouteMoreSheet({
 }: RouteMoreSheetProps) {
   const [showBetaSheet, setShowBetaSheet] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const [, bookmarkFormAction, bookmarkPending] = useActionState(
-    async (_state: ProjectActionResult | null, formData: FormData) =>
-      saved ? removeAction(formData) : saveAction(formData),
-    null
-  );
 
   useEffect(() => {
     const { body } = document;
@@ -111,19 +106,13 @@ export function RouteMoreSheet({
             <ArrowLeftIcon className="size-6" />
           </button>
           <div className="flex items-center gap-2">
-            <form action={bookmarkFormAction} className="contents">
-              <input type="hidden" name="routeId" value={route.id} />
-              <input type="hidden" name="returnTo" value={returnTo} />
-              <button
-                type="submit"
-                aria-label="북마크"
-                aria-pressed={saved}
-                disabled={bookmarkPending}
-                className="size-6 text-[#121212] disabled:opacity-50"
-              >
-                <BookmarkIcon className="size-6" filled={saved} />
-              </button>
-            </form>
+            <BookmarkToggleButton
+              routeId={route.id}
+              saved={saved}
+              returnTo={returnTo}
+              saveAction={saveAction}
+              removeAction={removeAction}
+            />
             <button type="button" aria-label="완등 기록" className="size-6 text-[#121212]">
               <DoubleCheckIcon className="size-6" />
             </button>
@@ -253,6 +242,46 @@ export function RouteMoreSheet({
         />
       ) : null}
     </div>
+  );
+}
+
+function BookmarkToggleButton({
+  routeId,
+  saved,
+  returnTo,
+  saveAction,
+  removeAction
+}: {
+  routeId: string;
+  saved: boolean;
+  returnTo: string;
+  saveAction: (formData: FormData) => Promise<ProjectActionResult>;
+  removeAction: (formData: FormData) => Promise<ProjectActionResult>;
+}) {
+  const [result, formAction, pending] = useActionState(
+    async (_state: ProjectActionResult | null, formData: FormData) =>
+      saved ? removeAction(formData) : saveAction(formData),
+    null
+  );
+
+  return (
+    <form action={formAction} className="contents">
+      <input type="hidden" name="routeId" value={routeId} />
+      <input type="hidden" name="returnTo" value={returnTo} />
+      <button
+        type="submit"
+        aria-label="북마크"
+        aria-pressed={saved}
+        disabled={pending}
+        className="size-6 text-[#121212] disabled:opacity-50"
+      >
+        <BookmarkIcon className="size-6" filled={saved} />
+      </button>
+      {/* Always mounted so screen readers announce the message when it appears. */}
+      <p role="status" className="sr-only">
+        {result && !result.ok ? result.message : null}
+      </p>
+    </form>
   );
 }
 

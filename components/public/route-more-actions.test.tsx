@@ -2,7 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 import React from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RouteMoreActions } from "./route-more-actions";
 import type { BetaVideoItem } from "./beta-video-grid";
@@ -108,6 +108,43 @@ describe("RouteMoreActions", () => {
     openDialog();
 
     expect(screen.getByRole("button", { name: "북마크" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("dispatches the save action when submitting the bookmark form for an unsaved route", async () => {
+    const saveAction = vi.fn().mockResolvedValue({ ok: true, message: "" });
+    const removeAction = vi.fn().mockResolvedValue({ ok: true, message: "" });
+    render(
+      <RouteMoreActions {...baseProps} saved={false} saveAction={saveAction} removeAction={removeAction} />
+    );
+
+    openDialog();
+    const form = screen.getByRole("button", { name: "북마크" }).closest("form") as HTMLFormElement;
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(saveAction).toHaveBeenCalledTimes(1);
+    });
+    expect(removeAction).not.toHaveBeenCalled();
+    const formData = saveAction.mock.calls[0][0] as FormData;
+    expect(formData.get("routeId")).toBe("route_1");
+    expect(formData.get("returnTo")).toBe("/t/topo_1?route=route_1");
+  });
+
+  it("dispatches the remove action when submitting the bookmark form for a saved route", async () => {
+    const saveAction = vi.fn().mockResolvedValue({ ok: true, message: "" });
+    const removeAction = vi.fn().mockResolvedValue({ ok: true, message: "" });
+    render(
+      <RouteMoreActions {...baseProps} saved={true} saveAction={saveAction} removeAction={removeAction} />
+    );
+
+    openDialog();
+    const form = screen.getByRole("button", { name: "북마크" }).closest("form") as HTMLFormElement;
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(removeAction).toHaveBeenCalledTimes(1);
+    });
+    expect(saveAction).not.toHaveBeenCalled();
   });
 
   it("renders mock rating stats", () => {
