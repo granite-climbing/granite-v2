@@ -40,6 +40,32 @@ describe("beta queries", () => {
       expect.stringContaining("INSERT INTO betas"),
       expect.arrayContaining(["beta_1", "route_1", "climber", "Climber", "instagram"])
     );
+    const [, defaultParams] = vi.mocked(queryD1).mock.calls[0];
+    expect(defaultParams).toContain(null); // user_id
+    expect(defaultParams).toContain("unclaimed");
+  });
+
+  it("inserts a manual beta owned by a user with claimed status", async () => {
+    vi.mocked(queryD1).mockResolvedValue([]);
+
+    await createManualBeta({
+      id: "beta_2",
+      routeId: "route_1",
+      userId: "user_1",
+      claimStatus: "claimed",
+      instagramId: "granite_user",
+      displayName: "그래나이트",
+      platform: "youtube",
+      mediaUrl: "https://youtu.be/abc",
+      permalinkUrl: "https://youtu.be/abc",
+      externalMediaId: "abc",
+      sentAt: "2026-07-09",
+    });
+
+    const [sql, params] = vi.mocked(queryD1).mock.calls[0];
+    expect(sql).toContain("INSERT INTO betas");
+    expect(params).toContain("user_1");
+    expect(params).toContain("claimed");
   });
 
   it("maps admin beta rows", async () => {

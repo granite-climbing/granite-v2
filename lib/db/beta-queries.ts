@@ -4,6 +4,8 @@ import type { BetaPlatform, BetaStatus, WebhookInboxStatus } from "./schema";
 export type CreateManualBetaInput = {
   id: string;
   routeId: string;
+  userId?: string | null;
+  claimStatus?: "unclaimed" | "claimed";
   instagramId: string;
   displayName: string;
   platform: BetaPlatform;
@@ -58,10 +60,11 @@ export async function createManualBeta(input: CreateManualBetaInput): Promise<vo
     `INSERT INTO betas (
        id, route_id, user_id, instagram_id, display_name, source, platform,
        media_url, permalink_url, external_media_id, thumbnail_url, sent_at, status, claim_status
-     ) VALUES (?, ?, NULL, ?, ?, 'manual', ?, ?, ?, ?, NULL, ?, 'pending', 'unclaimed')`,
+     ) VALUES (?, ?, ?, ?, ?, 'manual', ?, ?, ?, ?, NULL, ?, 'pending', ?)`,
     [
       input.id,
       input.routeId,
+      input.userId ?? null,
       input.instagramId,
       input.displayName,
       input.platform,
@@ -69,6 +72,7 @@ export async function createManualBeta(input: CreateManualBetaInput): Promise<vo
       input.permalinkUrl,
       input.externalMediaId,
       input.sentAt,
+      input.claimStatus ?? "unclaimed",
     ]
   );
 }
