@@ -31,7 +31,11 @@ const baseProps = {
     boulderName: "리틀핑거 바위"
   },
   caption: "[현충바위] 메인섹터 / 리틀핑거 바위 / Little Finger (V5)\n@granite.kr #리틀핑거바위 #LittleFinger",
-  betaVideos
+  betaVideos,
+  saved: false,
+  returnTo: "/t/topo_1?route=route_1",
+  saveAction: vi.fn(),
+  removeAction: vi.fn()
 };
 
 function openDialog() {
@@ -83,6 +87,27 @@ describe("RouteMoreActions", () => {
     expect(screen.getByRole("button", { name: "북마크" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "완등 기록" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "공유하기" })).toBeInTheDocument();
+  });
+
+  it("marks the bookmark button as not pressed when the route is unsaved", () => {
+    render(<RouteMoreActions {...baseProps} saved={false} />);
+
+    openDialog();
+
+    const bookmarkButton = screen.getByRole("button", { name: "북마크" });
+    expect(bookmarkButton).toHaveAttribute("aria-pressed", "false");
+
+    const form = bookmarkButton.closest("form") as HTMLFormElement;
+    expect(within(form).getByDisplayValue("route_1")).toHaveAttribute("name", "routeId");
+    expect(within(form).getByDisplayValue("/t/topo_1?route=route_1")).toHaveAttribute("name", "returnTo");
+  });
+
+  it("marks the bookmark button as pressed when the route is already saved", () => {
+    render(<RouteMoreActions {...baseProps} saved={true} />);
+
+    openDialog();
+
+    expect(screen.getByRole("button", { name: "북마크" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("renders mock rating stats", () => {

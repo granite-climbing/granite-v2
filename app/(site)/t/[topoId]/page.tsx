@@ -7,7 +7,6 @@ import { buildInstagramCaption } from "@/lib/beta/caption";
 import { getApprovedBetaVideosByRoute } from "@/lib/db/beta-queries";
 import { getPublishedAreas, parseHashtags } from "@/lib/db/queries";
 import { RouteMoreActions } from "@/components/public/route-more-actions";
-import { RouteSaveAction } from "@/components/public/route-save-action";
 import { removeRouteProjectAction, saveRouteProjectAction } from "@/lib/actions/project";
 import { USER_SESSION_COOKIE_NAME, verifyUserSessionToken } from "@/lib/auth/session";
 import { listFavoritedRouteIdsForUser } from "@/lib/db/project-queries";
@@ -70,7 +69,6 @@ export default async function TopoPage({ params, searchParams }: TopoPageProps) 
         selectedRoute={selectedRoute}
         betaVideosByRouteId={betaVideosByRouteId}
         areaName={areaName}
-        loggedIn={Boolean(session)}
         savedRouteIds={savedRouteIds}
       />
     </main>
@@ -108,14 +106,12 @@ function TopoRouteSheet({
   selectedRoute,
   betaVideosByRouteId,
   areaName,
-  loggedIn,
   savedRouteIds,
 }: {
   topo: TopoDetail;
   selectedRoute?: Route;
   betaVideosByRouteId: Map<string, Array<{ id: string; mediaUrl: string; thumbnailUrl: string | null; displayName: string }>>;
   areaName: string | null;
-  loggedIn: boolean;
   savedRouteIds: Set<string>;
 }) {
   return (
@@ -180,11 +176,7 @@ function TopoRouteSheet({
                   }}
                   caption={caption}
                   betaVideos={betaVideos}
-                />
-                <RouteSaveAction
-                  routeId={route.id}
                   saved={savedRouteIds.has(route.id)}
-                  loggedIn={loggedIn}
                   returnTo={`/t/${topo.id}?route=${route.id}`}
                   saveAction={saveRouteProjectAction}
                   removeAction={removeRouteProjectAction}
