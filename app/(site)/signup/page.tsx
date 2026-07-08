@@ -90,9 +90,10 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
 
           <section>
             <h2 className="text-[16px] font-medium text-white">Body</h2>
-            <div className="mt-2 grid grid-cols-2 gap-2">
+            <div className="mt-2 grid grid-cols-3 gap-2">
               <UnitInput name="heightCm" placeholder="키" />
               <UnitInput name="apeIndexCm" placeholder="암스팬" />
+              <UnitInput name="weightKg" placeholder="몸무게" unit="kg" />
             </div>
           </section>
 
@@ -116,7 +117,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   );
 }
 
-function UnitInput({ name, placeholder }: { name: string; placeholder: string }) {
+function UnitInput({ name, placeholder, unit = "cm" }: { name: string; placeholder: string; unit?: string }) {
   return (
     <label className="relative block">
       <input
@@ -128,7 +129,7 @@ function UnitInput({ name, placeholder }: { name: string; placeholder: string })
         placeholder={placeholder}
         className="h-12 w-full rounded-[7px] border-0 bg-[#3D3D3D] px-4 pr-10 text-[14px] font-medium text-white outline-none placeholder:text-[#8B8B8B] focus:ring-1 focus:ring-white"
       />
-      <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[14px] font-medium text-white">cm</span>
+      <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[14px] font-medium text-white">{unit}</span>
     </label>
   );
 }

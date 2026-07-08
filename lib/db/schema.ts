@@ -100,6 +100,7 @@ export type User = {
   gender: "male" | "female" | null;
   heightCm: number | null;
   apeIndexCm: number | null;
+  weightKg: number | null;
   topBoulderingGrade: string | null;
   topSportGrade: string | null;
   onboardingCompletedAt: string | null;

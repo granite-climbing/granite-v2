@@ -72,6 +72,7 @@ describe("completeSignupAction", () => {
       gender: "female",
       heightCm: 165,
       apeIndexCm: 168,
+      weightKg: null,
       topBoulderingGrade: "V5",
       topSportGrade: "5.12a"
     });

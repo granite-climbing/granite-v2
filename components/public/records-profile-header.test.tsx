@@ -5,20 +5,18 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { RecordsProfileHeader } from "./records-profile-header";
 
-const baseProps = {
+const baseProfile = {
   displayName: "granite_climber",
   instagramId: "granite.rocks",
   avatarUrl: null,
-  reachCm: 178,
+  armSpanCm: 178,
   heightCm: 182,
-  weightKg: 68,
-  totalSends: 126,
-  highestGrade: "V10"
+  weightKg: 68
 };
 
 describe("RecordsProfileHeader", () => {
   it("renders profile identity, body stats, and send summary", () => {
-    render(<RecordsProfileHeader {...baseProps} />);
+    render(<RecordsProfileHeader profile={baseProfile} totalSends={126} highestGrade="V10" />);
 
     expect(screen.getByRole("heading", { name: "기록" })).toBeInTheDocument();
     expect(screen.getByText("granite_climber")).toBeInTheDocument();
@@ -33,7 +31,13 @@ describe("RecordsProfileHeader", () => {
   });
 
   it("omits the Instagram handle and missing body stats", () => {
-    render(<RecordsProfileHeader {...baseProps} instagramId={null} weightKg={null} />);
+    render(
+      <RecordsProfileHeader
+        profile={{ ...baseProfile, instagramId: null, weightKg: null }}
+        totalSends={0}
+        highestGrade="-"
+      />
+    );
 
     expect(screen.queryByText(/^@/)).not.toBeInTheDocument();
     expect(screen.queryByText("68kg")).not.toBeInTheDocument();

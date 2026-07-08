@@ -1,18 +1,15 @@
+import type { UserRecordsProfile } from "@/lib/records/user-records-view";
+
 type RecordsProfileHeaderProps = {
-  displayName: string;
-  instagramId: string | null;
-  avatarUrl: string | null;
-  reachCm: number | null;
-  heightCm: number | null;
-  weightKg: number | null;
+  profile: UserRecordsProfile;
   totalSends: number;
   highestGrade: string;
 };
 
-function BodyStat({ icon, value }: { icon: "reach" | "height" | "weight"; value: string }) {
+function BodyStat({ icon, value }: { icon: "armSpan" | "height" | "weight"; value: string }) {
   return (
     <span className="flex items-center gap-1 text-[10px] font-normal leading-[14px] text-white">
-      {icon === "reach" ? (
+      {icon === "armSpan" ? (
         <svg aria-hidden viewBox="0 0 16 16" className="size-4 fill-none stroke-white" strokeWidth="1.2">
           <path d="M2 8h12M2 8l2-2M2 8l2 2M14 8l-2-2M14 8l-2 2" />
         </svg>
@@ -31,20 +28,12 @@ function BodyStat({ icon, value }: { icon: "reach" | "height" | "weight"; value:
   );
 }
 
-export function RecordsProfileHeader({
-  displayName,
-  instagramId,
-  avatarUrl,
-  reachCm,
-  heightCm,
-  weightKg,
-  totalSends,
-  highestGrade
-}: RecordsProfileHeaderProps) {
+export function RecordsProfileHeader({ profile, totalSends, highestGrade }: RecordsProfileHeaderProps) {
+  const { displayName, instagramId, avatarUrl } = profile;
   const bodyStats = [
-    reachCm !== null ? { icon: "reach" as const, value: `${reachCm}cm` } : null,
-    heightCm !== null ? { icon: "height" as const, value: `${heightCm}cm` } : null,
-    weightKg !== null ? { icon: "weight" as const, value: `${weightKg}kg` } : null
+    profile.armSpanCm != null ? { icon: "armSpan" as const, value: `${profile.armSpanCm}cm` } : null,
+    profile.heightCm != null ? { icon: "height" as const, value: `${profile.heightCm}cm` } : null,
+    profile.weightKg != null ? { icon: "weight" as const, value: `${profile.weightKg}kg` } : null
   ].filter((stat) => stat !== null);
 
   return (

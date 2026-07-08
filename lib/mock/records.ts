@@ -20,7 +20,6 @@ export type MockRecordVideo = {
 };
 
 export type MockRecordsModel = {
-  weightKg: number;
   totalSends: number;
   highestGrade: string;
   gradeBuckets: MockRecordGradeBucket[];
@@ -29,7 +28,6 @@ export type MockRecordsModel = {
 };
 
 export const MOCK_RECORDS_MODEL: MockRecordsModel = {
-  weightKg: 68,
   totalSends: 126,
   highestGrade: "V10",
   gradeBuckets: [

@@ -32,8 +32,8 @@ describe("records page source", () => {
     expect(source).toContain('redirect("/login?returnTo=/me/records")');
   });
 
-  it("renders the records dashboard sections from the mock model", () => {
-    expect(source).toContain("MOCK_RECORDS_MODEL");
+  it("renders the records dashboard sections from the records view model", () => {
+    expect(source).toContain("getUserRecordsView");
     expect(source).toContain("RecordsProfileHeader");
     expect(source).toContain("RecordsTabs");
     expect(source).toContain("RecordSendChart");
@@ -62,8 +62,9 @@ describe("RecordsPage", () => {
     displayName: "granite_climber",
     instagramId: "@Climber.One",
     avatarUrl: null,
-    heightCm: null,
-    apeIndexCm: null
+    heightCm: 182,
+    apeIndexCm: 178,
+    weightKg: 68
   };
 
   it("redirects visitors without a session cookie to login with a records return target", async () => {
@@ -111,12 +112,17 @@ describe("RecordsPage", () => {
     expect(JSON.stringify(page)).toContain('"active":"video"');
   });
 
-  it("passes the normalized Instagram handle to the profile header", async () => {
+  it("passes the user's settings to the profile header", async () => {
     stubSessionCookie(await createUserSessionToken({ userId: "user_records" }));
     findActiveUserByIdMock.mockResolvedValue(activeUser);
 
     const page = await RecordsPage({});
+    const rendered = JSON.stringify(page);
 
-    expect(JSON.stringify(page)).toContain('"instagramId":"climber.one"');
+    expect(rendered).toContain('"displayName":"granite_climber"');
+    expect(rendered).toContain('"instagramId":"climber.one"');
+    expect(rendered).toContain('"armSpanCm":178');
+    expect(rendered).toContain('"heightCm":182');
+    expect(rendered).toContain('"weightKg":68');
   });
 });
