@@ -135,6 +135,21 @@ export type RouteListItem = Route & {
   sectorSlug: string;
 };
 
+export type FavoriteTargetType = "route";
+
+export type Favorite = {
+  id: string;
+  userId: string;
+  targetType: FavoriteTargetType;
+  targetId: string;
+  createdAt: string;
+};
+
+export type SavedRouteListItem = RouteListItem & {
+  favoriteId: string;
+  savedAt: string;
+};
+
 export type BoulderDetail = Boulder & {
   hashtagsList: string[];
   topos: Array<Topo & { routes: Route[] }>;

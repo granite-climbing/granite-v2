@@ -107,7 +107,7 @@ Out of scope:
 **Files:**
 - Create: `migrations/0010_user_favorites.sql`
 
-- [ ] **Step 1: Create the migration**
+- [x] **Step 1: Create the migration**
 
 Create `migrations/0010_user_favorites.sql`:
 
@@ -134,7 +134,7 @@ CREATE INDEX IF NOT EXISTS idx_favorites_user_target
   ON favorites (user_id, target_type, target_id);
 ```
 
-- [ ] **Step 2: Validate migration order**
+- [x] **Step 2: Validate migration order**
 
 Run:
 
@@ -144,7 +144,7 @@ ls migrations
 
 Expected: `0010_user_favorites.sql` appears after `0009_user_auth.sql`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add migrations/0010_user_favorites.sql
@@ -158,7 +158,7 @@ git commit -m "feat: add user favorites migration"
 - Create: `lib/db/project-queries.ts`
 - Create: `lib/db/project-queries.test.ts`
 
-- [ ] **Step 1: Add schema types**
+- [x] **Step 1: Add schema types**
 
 Add to `lib/db/schema.ts` near user types:
 
@@ -179,7 +179,7 @@ export type SavedRouteListItem = RouteListItem & {
 };
 ```
 
-- [ ] **Step 2: Write query tests**
+- [x] **Step 2: Write query tests**
 
 Create `lib/db/project-queries.test.ts`:
 
@@ -304,7 +304,7 @@ describe("project queries", () => {
 });
 ```
 
-- [ ] **Step 3: Run the tests and verify they fail**
+- [x] **Step 3: Run the tests and verify they fail**
 
 Run:
 
@@ -314,7 +314,7 @@ pnpm test -- lib/db/project-queries.test.ts
 
 Expected: FAIL because `lib/db/project-queries.ts` does not exist.
 
-- [ ] **Step 4: Implement query functions**
+- [x] **Step 4: Implement query functions**
 
 Create `lib/db/project-queries.ts`:
 
@@ -437,7 +437,7 @@ export async function isRouteFavoritedByUser(userId: string, routeId: string): P
 }
 ```
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 Run:
 
@@ -447,7 +447,7 @@ pnpm test -- lib/db/project-queries.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/db/schema.ts lib/db/project-queries.ts lib/db/project-queries.test.ts
@@ -460,7 +460,7 @@ git commit -m "feat: add project favorites queries"
 - Create: `lib/actions/project.ts`
 - Create: `lib/actions/project.test.ts`
 
-- [ ] **Step 1: Write Server Action tests**
+- [x] **Step 1: Write Server Action tests**
 
 Create `lib/actions/project.test.ts`:
 
@@ -569,7 +569,7 @@ describe("project actions", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and verify they fail**
+- [x] **Step 2: Run the tests and verify they fail**
 
 Run:
 
@@ -579,7 +579,7 @@ pnpm test -- lib/actions/project.test.ts
 
 Expected: FAIL because `lib/actions/project.ts` does not exist.
 
-- [ ] **Step 3: Implement Server Actions**
+- [x] **Step 3: Implement Server Actions**
 
 Create `lib/actions/project.ts`:
 
@@ -650,7 +650,7 @@ export async function removeRouteProjectAction(formData: FormData): Promise<Proj
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run:
 
@@ -660,7 +660,7 @@ pnpm test -- lib/actions/project.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/project.ts lib/actions/project.test.ts
@@ -673,7 +673,7 @@ git commit -m "feat: add route project actions"
 - Create: `components/public/route-save-action.tsx`
 - Create: `components/public/route-save-action.test.tsx`
 
-- [ ] **Step 1: Write component tests**
+- [x] **Step 1: Write component tests**
 
 Create `components/public/route-save-action.test.tsx`:
 
@@ -736,7 +736,7 @@ describe("RouteSaveAction", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and verify they fail**
+- [x] **Step 2: Run the tests and verify they fail**
 
 Run:
 
@@ -746,7 +746,7 @@ pnpm test -- components/public/route-save-action.test.tsx
 
 Expected: FAIL because `components/public/route-save-action.tsx` does not exist.
 
-- [ ] **Step 3: Implement component**
+- [x] **Step 3: Implement component**
 
 Create `components/public/route-save-action.tsx`:
 
@@ -788,7 +788,7 @@ export function RouteSaveAction({
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run:
 
@@ -798,7 +798,7 @@ pnpm test -- components/public/route-save-action.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/public/route-save-action.tsx components/public/route-save-action.test.tsx
@@ -811,7 +811,7 @@ git commit -m "feat: add route save action"
 - Create: `components/public/project-route-card.tsx`
 - Create: `components/public/project-route-card.test.tsx`
 
-- [ ] **Step 1: Write component tests**
+- [x] **Step 1: Write component tests**
 
 Create `components/public/project-route-card.test.tsx`:
 
@@ -861,7 +861,7 @@ describe("ProjectRouteCard", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and verify they fail**
+- [x] **Step 2: Run the tests and verify they fail**
 
 Run:
 
@@ -871,7 +871,7 @@ pnpm test -- components/public/project-route-card.test.tsx
 
 Expected: FAIL because `components/public/project-route-card.tsx` does not exist.
 
-- [ ] **Step 3: Implement card**
+- [x] **Step 3: Implement card**
 
 Create `components/public/project-route-card.tsx`:
 
@@ -914,7 +914,7 @@ export function ProjectRouteCard({ route, removeAction }: ProjectRouteCardProps)
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run:
 
@@ -924,7 +924,7 @@ pnpm test -- components/public/project-route-card.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/public/project-route-card.tsx components/public/project-route-card.test.tsx
@@ -937,7 +937,7 @@ git commit -m "feat: add project route card"
 - Modify: `app/(site)/me/projects/page.tsx`
 - Create: `app/(site)/me/projects/page.test.ts`
 
-- [ ] **Step 1: Add source-level page test**
+- [x] **Step 1: Add source-level page test**
 
 Create `app/(site)/me/projects/page.test.ts`:
 
@@ -962,7 +962,7 @@ describe("projects page source", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and verify it fails**
+- [x] **Step 2: Run the test and verify it fails**
 
 Run:
 
@@ -972,7 +972,7 @@ pnpm test -- app/'(site)'/me/projects/page.test.ts
 
 Expected: FAIL because the current page is still scaffolded.
 
-- [ ] **Step 3: Implement protected projects page**
+- [x] **Step 3: Implement protected projects page**
 
 Replace `app/(site)/me/projects/page.tsx` with:
 
@@ -1026,7 +1026,7 @@ export default async function ProjectsPage() {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run:
 
@@ -1036,7 +1036,7 @@ pnpm test -- app/'(site)'/me/projects/page.test.ts components/public/project-rou
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/'(site)'/me/projects/page.tsx app/'(site)'/me/projects/page.test.ts
@@ -1051,7 +1051,7 @@ git commit -m "feat: implement projects page"
 - Modify if present: `components/public/route-more-sheet.tsx`
 - Test: existing Phase 7 route more tests or a new `app/(site)/t/[topoId]/page.test.tsx`
 
-- [ ] **Step 1: Inspect Phase 7 integration point**
+- [x] **Step 1: Inspect Phase 7 integration point**
 
 Run:
 
@@ -1063,7 +1063,7 @@ Expected:
 - If `RouteMoreActions` exists, inject `RouteSaveAction` into the More sheet.
 - If only `BetaRouteActions` exists, render `RouteSaveAction` alongside the current route action pill and move it into More after Phase 7 lands.
 
-- [ ] **Step 2: Add user session lookup to Topo page**
+- [x] **Step 2: Add user session lookup to Topo page**
 
 In `app/(site)/t/[topoId]/page.tsx`, add imports:
 
@@ -1107,7 +1107,7 @@ When rendering each selected route action, add:
 />
 ```
 
-- [ ] **Step 3: Prefer batch query if the page becomes noisy**
+- [x] **Step 3: Prefer batch query if the page becomes noisy**
 
 If the route loop grows beyond a few routes or test fixtures expose repeated calls as a problem, add this helper to `lib/db/project-queries.ts` and use it instead of per-route `isRouteFavoritedByUser` calls:
 
@@ -1133,7 +1133,7 @@ export async function listFavoritedRouteIdsForUser(userId: string, routeIds: str
 
 Also add a focused test in `lib/db/project-queries.test.ts` that asserts the `IN` query receives `[userId, "route", ...routeIds]`.
 
-- [ ] **Step 4: Run route UI tests**
+- [x] **Step 4: Run route UI tests**
 
 Run:
 
@@ -1143,7 +1143,7 @@ pnpm test -- components/public/route-save-action.test.tsx app/'(site)'/t/[topoId
 
 Expected: PASS. If `page.test.tsx` does not exist yet, create a source-level test that verifies `RouteSaveAction`, `saveRouteProjectAction`, and `isRouteFavoritedByUser` or `listFavoritedRouteIdsForUser` are imported by the Topo page.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/'(site)'/t/[topoId]/page.tsx components/public/route-more-actions.tsx components/public/route-more-sheet.tsx lib/db/project-queries.ts lib/db/project-queries.test.ts
@@ -1155,7 +1155,7 @@ git commit -m "feat: add route project save UI"
 **Files:**
 - All Phase 8 files
 
-- [ ] **Step 1: Run targeted tests**
+- [x] **Step 1: Run targeted tests**
 
 Run:
 
@@ -1165,7 +1165,7 @@ pnpm test -- lib/db/project-queries.test.ts lib/actions/project.test.ts componen
 
 Expected: PASS.
 
-- [ ] **Step 2: Run full test suite**
+- [x] **Step 2: Run full test suite**
 
 Run:
 
@@ -1175,7 +1175,7 @@ pnpm test
 
 Expected: PASS.
 
-- [ ] **Step 3: Run typecheck**
+- [x] **Step 3: Run typecheck**
 
 Run:
 
@@ -1185,7 +1185,7 @@ pnpm typecheck
 
 Expected: PASS.
 
-- [ ] **Step 4: Run production build**
+- [x] **Step 4: Run production build**
 
 Run:
 
@@ -1195,7 +1195,7 @@ pnpm build
 
 Expected: PASS.
 
-- [ ] **Step 5: Manual QA**
+- [x] **Step 5: Manual QA**
 
 Run:
 
@@ -1214,7 +1214,7 @@ Expected manual checks:
 - Re-saving the same Route does not create duplicates.
 - Anonymous Route save click redirects to login with the current Route URL in `returnTo`.
 
-- [ ] **Step 6: Final commit**
+- [x] **Step 6: Final commit**
 
 ```bash
 git status --short
@@ -1226,19 +1226,19 @@ git commit -m "feat: implement phase 8 projects"
 
 ## Release Gates
 
-- [ ] `favorites` migration exists and is roll-forward only.
-- [ ] `favorites` has a unique constraint on `user_id + target_type + target_id`.
-- [ ] Route favorite writes go through Server Actions.
-- [ ] Server Actions verify the user session from `granite_session`.
-- [ ] Server Actions validate that the Route and all ancestors are published before saving.
-- [ ] `/me/projects` is no longer scaffold text.
-- [ ] `/me/projects` is protected and redirects anonymous users to login.
-- [ ] Saved Route list includes route name, grade, crag, sector, and boulder context.
-- [ ] Saved Route list has a clear empty state.
-- [ ] Route detail save/remove UX works for logged-in users.
-- [ ] Anonymous save attempts redirect to login with `returnTo`.
-- [ ] Public content cache is not used for user-specific project data.
-- [ ] `pnpm test`, `pnpm typecheck`, and `pnpm build` pass.
+- [x] `favorites` migration exists and is roll-forward only.
+- [x] `favorites` has a unique constraint on `user_id + target_type + target_id`.
+- [x] Route favorite writes go through Server Actions.
+- [x] Server Actions verify the user session from `granite_session`.
+- [x] Server Actions validate that the Route and all ancestors are published before saving.
+- [x] `/me/projects` is no longer scaffold text.
+- [x] `/me/projects` is protected and redirects anonymous users to login.
+- [x] Saved Route list includes route name, grade, crag, sector, and boulder context.
+- [x] Saved Route list has a clear empty state.
+- [x] Route detail save/remove UX works for logged-in users.
+- [x] Anonymous save attempts redirect to login with `returnTo`.
+- [x] Public content cache is not used for user-specific project data.
+- [x] `pnpm test`, `pnpm typecheck`, and `pnpm build` pass.
 
 ## Follow-Up Decisions
 

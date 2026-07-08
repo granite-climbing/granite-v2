@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import React, { useActionState } from "react";
 import { submitManualBetaAction } from "@/lib/actions/beta";
 
 export function ManualBetaForm({

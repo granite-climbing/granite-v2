@@ -1,11 +1,15 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { findTopoById } from "@/lib/db/repository";
 import { TopoNavArrow } from "@/components/public/topo-nav";
 import { buildInstagramCaption } from "@/lib/beta/caption";
 import { getApprovedBetaVideosByRoute } from "@/lib/db/beta-queries";
-import { parseHashtags } from "@/lib/db/queries";
-import { BetaRouteActions } from "@/components/public/beta-route-actions";
+import { getPublishedAreas, parseHashtags } from "@/lib/db/queries";
+import { RouteMoreActions } from "@/components/public/route-more-actions";
+import { removeRouteProjectAction, saveRouteProjectAction } from "@/lib/actions/project";
+import { USER_SESSION_COOKIE_NAME, verifyUserSessionToken } from "@/lib/auth/session";
+import { listFavoritedRouteIdsForUser } from "@/lib/db/project-queries";
 import type { Route, TopoDetail } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
@@ -26,10 +30,22 @@ export default async function TopoPage({ params, searchParams }: TopoPageProps) 
   const selectedRoute = topo.routes.find((route) => route.id === resolvedSearchParams?.route);
   const imageUrl = selectedRoute?.lineImageUrl || topo.baseImageUrl;
 
-  const betaVideoEntries = await Promise.all(
-    topo.routes.map(async (route) => [route.id, await getApprovedBetaVideosByRoute(route.id)] as const)
-  );
+  const [betaVideoEntries, areas] = await Promise.all([
+    Promise.all(topo.routes.map(async (route) => [route.id, await getApprovedBetaVideosByRoute(route.id)] as const)),
+    getPublishedAreas()
+  ]);
   const betaVideosByRouteId = new Map(betaVideoEntries);
+  const areaName = areas.find((area) => area.id === topo.crag.areaId)?.name ?? null;
+
+  const cookieStore = await cookies();
+  const token = cookieStore.get(USER_SESSION_COOKIE_NAME)?.value;
+  const session = token ? await verifyUserSessionToken(token) : null;
+  const savedRouteIds = session
+    ? await listFavoritedRouteIdsForUser(
+        session.userId,
+        topo.routes.map((route) => route.id)
+      )
+    : new Set<string>();
 
   return (
     <main className="min-h-screen bg-white text-[#090909]">
@@ -40,25 +56,33 @@ export default async function TopoPage({ params, searchParams }: TopoPageProps) 
       >
         <Link
           href={`/c/${topo.crag.slug}?tab=route`}
-          className="absolute bottom-4 right-4 grid size-11 place-items-center rounded-full bg-[#2A2A2A] text-white"
-          aria-label="로드맵 보기"
+          className="absolute bottom-3 right-4 flex h-6 w-[88px] items-center justify-center rounded-full bg-[#2A2A2A]"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="none"
-            aria-hidden="true"
-            className="size-5"
-          >
-            <path
-              d="M14.9497 9.9497C16.7347 8.1648 17.3542 5.65558 16.8081 3.36796L19.303 2.2987C19.5569 2.18992 19.8508 2.30749 19.9596 2.56131C19.9862 2.62355 20 2.69056 20 2.75827V17L13 20L7 17L0.69696 19.7013C0.44314 19.8101 0.14921 19.6925 0.0404301 19.4387C0.0137501 19.3765 0 19.3094 0 19.2417V5L3.12892 3.65904C2.70023 5.86632 3.34067 8.2402 5.05025 9.9497L10 14.8995L14.9497 9.9497ZM13.5355 8.5355L10 12.0711L6.46447 8.5355C4.51184 6.58291 4.51184 3.41709 6.46447 1.46447C8.4171 -0.488158 11.5829 -0.488158 13.5355 1.46447C15.4882 3.41709 15.4882 6.58291 13.5355 8.5355Z"
-              fill="currentColor"
-            />
-          </svg>
+          <span className="flex items-center gap-1 text-[12px] font-medium leading-4 text-white">
+            <LocationIcon className="size-4" />
+            <span>Location</span>
+          </span>
         </Link>
       </section>
-      <TopoRouteSheet topo={topo} selectedRoute={selectedRoute} betaVideosByRouteId={betaVideosByRouteId} />
+      <TopoRouteSheet
+        topo={topo}
+        selectedRoute={selectedRoute}
+        betaVideosByRouteId={betaVideosByRouteId}
+        areaName={areaName}
+        savedRouteIds={savedRouteIds}
+      />
     </main>
+  );
+}
+
+function LocationIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" aria-hidden="true" className={className}>
+      <path
+        d="M11.2998 7.96647C12.4898 6.77653 12.9028 5.10372 12.5387 3.57864L14.202 2.8658C14.3713 2.79328 14.5672 2.87166 14.6397 3.04087C14.6575 3.08237 14.6667 3.12704 14.6667 3.17218V12.6667L10 14.6667L6 12.6667L1.79797 14.4675C1.62876 14.5401 1.43281 14.4617 1.36029 14.2925C1.3425 14.251 1.33333 14.2063 1.33333 14.1611V4.66667L3.41928 3.77269C3.13349 5.24421 3.56045 6.8268 4.70017 7.96647L8 11.2663L11.2998 7.96647ZM10.357 7.02367L8 9.38073L5.64298 7.02367C4.34123 5.72194 4.34123 3.61139 5.64298 2.30965C6.94473 1.00789 9.05527 1.00789 10.357 2.30965C11.6588 3.61139 11.6588 5.72194 10.357 7.02367Z"
+        fill="currentColor"
+      />
+    </svg>
   );
 }
 
@@ -81,10 +105,14 @@ function TopoRouteSheet({
   topo,
   selectedRoute,
   betaVideosByRouteId,
+  areaName,
+  savedRouteIds,
 }: {
   topo: TopoDetail;
   selectedRoute?: Route;
   betaVideosByRouteId: Map<string, Array<{ id: string; mediaUrl: string; thumbnailUrl: string | null; displayName: string }>>;
+  areaName: string | null;
+  savedRouteIds: Set<string>;
 }) {
   return (
     <section className="bg-white px-4 pb-10 pt-2">
@@ -132,7 +160,27 @@ function TopoRouteSheet({
               </Link>
               <span className="flex flex-col items-end gap-2">
                 <span className="text-[18px] font-medium leading-6 text-[#2A2A2A]">{route.grade}</span>
-                <BetaRouteActions routeId={route.id} caption={caption} betaVideos={betaVideos} />
+                <RouteMoreActions
+                  route={{
+                    id: route.id,
+                    name: route.name,
+                    grade: route.grade,
+                    fa: route.fa,
+                    description: route.description
+                  }}
+                  breadcrumb={{
+                    areaName,
+                    cragName: topo.crag.name,
+                    sectorName: topo.sector.name,
+                    boulderName: topo.boulder.name
+                  }}
+                  caption={caption}
+                  betaVideos={betaVideos}
+                  saved={savedRouteIds.has(route.id)}
+                  returnTo={`/t/${topo.id}?route=${route.id}`}
+                  saveAction={saveRouteProjectAction}
+                  removeAction={removeRouteProjectAction}
+                />
               </span>
             </div>
           );

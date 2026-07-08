@@ -1,3 +1,5 @@
+import React from "react";
+
 export type BetaVideoItem = {
   id: string;
   mediaUrl: string;
