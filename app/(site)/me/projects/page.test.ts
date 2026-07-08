@@ -10,9 +10,9 @@ describe("projects page source", () => {
     expect(source).toContain('redirect("/login?returnTo=/me/projects")');
   });
 
-  it("loads saved routes and renders project route cards", () => {
+  it("loads saved routes and renders the project routes view", () => {
     expect(source).toContain("listSavedRoutesForUser");
-    expect(source).toContain("ProjectRouteCard");
+    expect(source).toContain("ProjectRoutesView");
     expect(source).toContain("removeRouteProjectAction");
   });
 });

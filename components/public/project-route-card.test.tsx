@@ -35,12 +35,12 @@ describe("ProjectRouteCard", () => {
   it("renders saved route context", () => {
     render(<ProjectRouteCard route={route} removeAction={removeAction} />);
 
-    expect(screen.getByRole("link", { name: "Little Finger V5" })).toHaveAttribute(
-      "href",
-      "/t/topo_1?route=route_1"
-    );
-    expect(screen.getByText("현충바위 · 메인 섹터 · 리틀핑거 바위")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "프로젝트에서 제거" })).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: /Little Finger/ });
+    expect(link).toHaveAttribute("href", "/t/topo_1?route=route_1");
+    expect(screen.getByText("V5 · 현충바위")).toBeInTheDocument();
+
+    const removeButton = screen.getByRole("button", { name: "프로젝트에서 제거" });
+    expect(removeButton).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByDisplayValue("route_1")).toHaveAttribute("name", "routeId");
   });
 });
