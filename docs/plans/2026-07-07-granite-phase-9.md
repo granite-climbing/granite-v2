@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **구현 노트 (2026-07-09):** 본 플랜의 Task 1-9는 모두 수행되어 PR #8로 머지되었다. 머지 과정에서 Figma 최신안(56-1299/56-1399)에 맞춰 화면이 재구성되었다: 요약 그리드/가로 분포/썸네일 리스트/연결 가능한 기록 섹션은 다크 프로필 헤더 + 나의 영상/나의 기록 탭 + 완등 차트 + 최근 기록 + 세부 분석 placeholder로 대체되었고, 기록 추가가 없는 동안 화면 데이터는 mock(`lib/records/user-records-view.ts`)이다. 본 플랜에서 구현한 read model(`lib/db/record-queries.ts`)과 인증 보호는 그대로 유지되며 Phase 10에서 실데이터 연결에 사용된다.
+
 **Goal:** Turn the scaffolded Records tab into a logged-in, read-only record dashboard that shows the user's approved Beta records, grade distribution, recent records, and clearly separated claim candidates.
 
 **Architecture:** Keep Phase 9 query-only from the user's perspective: no record creation, no claim mutation, and no account ownership verification. Build a user-specific read model in `lib/db/record-queries.ts` from existing `betas`, `routes`, `topos`, `boulders`, `sectors`, `crags`, and `users` data; protect `/me/records` with the existing `granite_session` cookie. Render the dashboard through focused server-safe components, with any future interactions left disabled or routed to Phase 10.
@@ -111,7 +113,7 @@ Out of scope:
 **Files:**
 - Modify: `lib/db/schema.ts`
 
-- [ ] **Step 1: Add record types**
+- [x] **Step 1: Add record types**
 
 Add these types after the `Beta` type in `lib/db/schema.ts`:
 
@@ -157,7 +159,7 @@ export type UserRecordsModel = {
 };
 ```
 
-- [ ] **Step 2: Run typecheck**
+- [x] **Step 2: Run typecheck**
 
 Run:
 
@@ -167,7 +169,7 @@ pnpm typecheck
 
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add lib/db/schema.ts
@@ -180,7 +182,7 @@ git commit -m "feat: add user record read model types"
 - Create: `lib/db/record-queries.ts`
 - Create: `lib/db/record-queries.test.ts`
 
-- [ ] **Step 1: Write query tests**
+- [x] **Step 1: Write query tests**
 
 Create `lib/db/record-queries.test.ts`:
 
@@ -345,7 +347,7 @@ describe("record queries", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and verify they fail**
+- [x] **Step 2: Run the tests and verify they fail**
 
 Run:
 
@@ -355,7 +357,7 @@ pnpm test -- lib/db/record-queries.test.ts
 
 Expected: FAIL because `lib/db/record-queries.ts` does not exist.
 
-- [ ] **Step 3: Implement record queries**
+- [x] **Step 3: Implement record queries**
 
 Create `lib/db/record-queries.ts`:
 
@@ -492,7 +494,7 @@ export function buildUserRecordsModel(input: {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run:
 
@@ -502,7 +504,7 @@ pnpm test -- lib/db/record-queries.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/db/record-queries.ts lib/db/record-queries.test.ts
@@ -515,7 +517,7 @@ git commit -m "feat: add user record queries"
 - Create: `components/public/record-summary.tsx`
 - Create: `components/public/record-summary.test.tsx`
 
-- [ ] **Step 1: Write component tests**
+- [x] **Step 1: Write component tests**
 
 Create `components/public/record-summary.test.tsx`:
 
@@ -551,7 +553,7 @@ describe("RecordSummary", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and verify they fail**
+- [x] **Step 2: Run the tests and verify they fail**
 
 Run:
 
@@ -561,7 +563,7 @@ pnpm test -- components/public/record-summary.test.tsx
 
 Expected: FAIL because `components/public/record-summary.tsx` does not exist.
 
-- [ ] **Step 3: Implement component**
+- [x] **Step 3: Implement component**
 
 Create `components/public/record-summary.tsx`:
 
@@ -604,7 +606,7 @@ export function RecordSummary({ summary }: { summary: UserRecordsModel["summary"
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run:
 
@@ -614,7 +616,7 @@ pnpm test -- components/public/record-summary.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/public/record-summary.tsx components/public/record-summary.test.tsx
@@ -627,7 +629,7 @@ git commit -m "feat: add record summary"
 - Create: `components/public/record-grade-distribution.tsx`
 - Create: `components/public/record-grade-distribution.test.tsx`
 
-- [ ] **Step 1: Write component tests**
+- [x] **Step 1: Write component tests**
 
 Create `components/public/record-grade-distribution.test.tsx`:
 
@@ -662,7 +664,7 @@ describe("RecordGradeDistribution", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and verify they fail**
+- [x] **Step 2: Run the tests and verify they fail**
 
 Run:
 
@@ -672,7 +674,7 @@ pnpm test -- components/public/record-grade-distribution.test.tsx
 
 Expected: FAIL because `components/public/record-grade-distribution.tsx` does not exist.
 
-- [ ] **Step 3: Implement component**
+- [x] **Step 3: Implement component**
 
 Create `components/public/record-grade-distribution.tsx`:
 
@@ -708,7 +710,7 @@ export function RecordGradeDistribution({ buckets }: { buckets: UserRecordGradeB
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run:
 
@@ -718,7 +720,7 @@ pnpm test -- components/public/record-grade-distribution.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/public/record-grade-distribution.tsx components/public/record-grade-distribution.test.tsx
@@ -731,7 +733,7 @@ git commit -m "feat: add record grade distribution"
 - Create: `components/public/record-list.tsx`
 - Create: `components/public/record-list.test.tsx`
 
-- [ ] **Step 1: Write component tests**
+- [x] **Step 1: Write component tests**
 
 Create `components/public/record-list.test.tsx`:
 
@@ -781,7 +783,7 @@ describe("RecordList", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and verify they fail**
+- [x] **Step 2: Run the tests and verify they fail**
 
 Run:
 
@@ -791,7 +793,7 @@ pnpm test -- components/public/record-list.test.tsx
 
 Expected: FAIL because `components/public/record-list.tsx` does not exist.
 
-- [ ] **Step 3: Implement component**
+- [x] **Step 3: Implement component**
 
 Create `components/public/record-list.tsx`:
 
@@ -865,7 +867,7 @@ export function RecordList({ records }: { records: UserRecordListItem[] }) {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run:
 
@@ -875,7 +877,7 @@ pnpm test -- components/public/record-list.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/public/record-list.tsx components/public/record-list.test.tsx
@@ -888,7 +890,7 @@ git commit -m "feat: add record list"
 - Create: `components/public/record-claim-candidates.tsx`
 - Create: `components/public/record-claim-candidates.test.tsx`
 
-- [ ] **Step 1: Write component tests**
+- [x] **Step 1: Write component tests**
 
 Create `components/public/record-claim-candidates.test.tsx`:
 
@@ -941,7 +943,7 @@ describe("RecordClaimCandidates", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and verify they fail**
+- [x] **Step 2: Run the tests and verify they fail**
 
 Run:
 
@@ -951,7 +953,7 @@ pnpm test -- components/public/record-claim-candidates.test.tsx
 
 Expected: FAIL because `components/public/record-claim-candidates.tsx` does not exist.
 
-- [ ] **Step 3: Implement component**
+- [x] **Step 3: Implement component**
 
 Create `components/public/record-claim-candidates.tsx`:
 
@@ -1001,7 +1003,7 @@ export function RecordClaimCandidates({
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run:
 
@@ -1011,7 +1013,7 @@ pnpm test -- components/public/record-claim-candidates.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/public/record-claim-candidates.tsx components/public/record-claim-candidates.test.tsx
@@ -1024,7 +1026,7 @@ git commit -m "feat: add record claim candidates"
 - Modify: `app/(site)/me/records/page.tsx`
 - Create: `app/(site)/me/records/page.test.ts`
 
-- [ ] **Step 1: Add source-level page test**
+- [x] **Step 1: Add source-level page test**
 
 Create `app/(site)/me/records/page.test.ts`:
 
@@ -1053,7 +1055,7 @@ describe("records page source", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and verify it fails**
+- [x] **Step 2: Run the test and verify it fails**
 
 Run:
 
@@ -1063,7 +1065,7 @@ pnpm test -- app/'(site)'/me/records/page.test.ts
 
 Expected: FAIL because the current page is still scaffolded.
 
-- [ ] **Step 3: Implement protected records page**
+- [x] **Step 3: Implement protected records page**
 
 Replace `app/(site)/me/records/page.tsx` with:
 
@@ -1130,7 +1132,7 @@ export default async function RecordsPage() {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run:
 
@@ -1140,7 +1142,7 @@ pnpm test -- app/'(site)'/me/records/page.test.ts components/public/record-summa
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/'(site)'/me/records/page.tsx app/'(site)'/me/records/page.test.ts
@@ -1152,7 +1154,7 @@ git commit -m "feat: implement records page"
 **Files:**
 - Modify: `docs/ROADMAP.md`
 
-- [ ] **Step 1: Add Phase 9 plan link**
+- [x] **Step 1: Add Phase 9 plan link**
 
 In `docs/ROADMAP.md`, under Phase 9 Figma links, add:
 
@@ -1162,7 +1164,7 @@ In `docs/ROADMAP.md`, under Phase 9 Figma links, add:
 - [Phase 9 Plan](plans/2026-07-07-granite-phase-9.md)
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add docs/ROADMAP.md docs/plans/2026-07-07-granite-phase-9.md
@@ -1174,7 +1176,7 @@ git commit -m "docs: add phase 9 plan"
 **Files:**
 - All Phase 9 files
 
-- [ ] **Step 1: Run targeted tests**
+- [x] **Step 1: Run targeted tests**
 
 Run:
 
@@ -1184,7 +1186,7 @@ pnpm test -- lib/db/record-queries.test.ts components/public/record-summary.test
 
 Expected: PASS.
 
-- [ ] **Step 2: Run full test suite**
+- [x] **Step 2: Run full test suite**
 
 Run:
 
@@ -1194,7 +1196,7 @@ pnpm test
 
 Expected: PASS.
 
-- [ ] **Step 3: Run typecheck**
+- [x] **Step 3: Run typecheck**
 
 Run:
 
@@ -1204,7 +1206,7 @@ pnpm typecheck
 
 Expected: PASS.
 
-- [ ] **Step 4: Run production build**
+- [x] **Step 4: Run production build**
 
 Run:
 
@@ -1214,7 +1216,7 @@ pnpm build
 
 Expected: PASS.
 
-- [ ] **Step 5: Manual QA**
+- [x] **Step 5: Manual QA**
 
 Run:
 
@@ -1234,7 +1236,7 @@ Expected manual checks:
 - Approved unclaimed Instagram Betas matching `users.instagram_id` appear only in "연결 가능한 기록".
 - Claim candidate buttons are disabled and do not mutate data.
 
-- [ ] **Step 6: Final commit**
+- [x] **Step 6: Final commit**
 
 ```bash
 git status --short
@@ -1246,17 +1248,17 @@ git commit -m "feat: implement phase 9 records"
 
 ## Release Gates
 
-- [ ] `/me/records` is no longer scaffold text.
-- [ ] `/me/records` is protected and redirects anonymous users to login.
-- [ ] User-specific records reads live outside public cached read models.
-- [ ] Owned records query returns only `user_id = currentUser.id`, `status = 'approved'`, non-deleted Betas on fully published Route ancestry.
-- [ ] Claim candidate query returns only approved, unclaimed, Instagram Betas matching the normalized logged-in user's Instagram ID.
-- [ ] No Phase 9 UI performs claim, create, edit, delete, or verification mutation.
-- [ ] Empty state, populated state, and no-Instagram state are all implemented.
-- [ ] Grade distribution and summary stats are derived from owned approved records only.
-- [ ] Hidden, removed, pending, deleted, and unpublished-ancestor Betas are excluded.
-- [ ] Records privacy toggle remains disabled or clearly non-persistent until public profile policy is defined.
-- [ ] `pnpm test`, `pnpm typecheck`, and `pnpm build` pass.
+- [x] `/me/records` is no longer scaffold text.
+- [x] `/me/records` is protected and redirects anonymous users to login.
+- [x] User-specific records reads live outside public cached read models.
+- [x] Owned records query returns only `user_id = currentUser.id`, `status = 'approved'`, non-deleted Betas on fully published Route ancestry.
+- [x] Claim candidate query returns only approved, unclaimed, Instagram Betas matching the normalized logged-in user's Instagram ID.
+- [x] No Phase 9 UI performs claim, create, edit, delete, or verification mutation.
+- [x] Empty state, populated state, and no-Instagram state are all implemented.
+- [x] Grade distribution and summary stats are derived from owned approved records only.
+- [x] Hidden, removed, pending, deleted, and unpublished-ancestor Betas are excluded.
+- [x] Records privacy toggle remains disabled or clearly non-persistent until public profile policy is defined.
+- [x] `pnpm test`, `pnpm typecheck`, and `pnpm build` pass.
 
 ## Follow-Up Decisions
 

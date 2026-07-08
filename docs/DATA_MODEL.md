@@ -218,6 +218,7 @@ Phase 6 user identity and social login provider mapping.
 | `gender` | `TEXT` | no | Signup onboarding value: `male` or `female` |
 | `height_cm` | `INTEGER` | no | Signup onboarding height in centimeters |
 | `ape_index_cm` | `INTEGER` | no | Signup onboarding arm span in centimeters |
+| `weight_kg` | `INTEGER` | no | Signup onboarding weight in kilograms (`migrations/0011_user_weight.sql`, Phase 9) |
 | `top_bouldering_grade` | `TEXT` | no | Signup onboarding redpoint bouldering grade |
 | `top_sport_grade` | `TEXT` | no | Signup onboarding Yosemite sport grade |
 | `onboarding_completed_at` | `TEXT` | no | Timestamp set after first-time OAuth signup profile completion |

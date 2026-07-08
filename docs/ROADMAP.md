@@ -2,10 +2,10 @@
 
 > 작성일: 2026-05-13
 > 갱신일: 2026-07-09
-> 상태: Phase 8 프로젝트 탭/Favorites 완료, Phase 9-10 UX 계획 반영
+> 상태: Phase 9 기록 탭 완료, Phase 10 UX 계획 반영
 > 기준 문서: [docs/PRD.md](PRD.md), [docs/ARCHITECTURE.md](ARCHITECTURE.md), [docs/decisions/](decisions/README.md)
 
-Granite v2는 Phase 8까지 구현을 진행했다. Phase 6의 실제 완료 범위는 로그인/회원가입/세션/마이 계정관리이며, 기존 Phase 6에 포함되어 있던 Claims, 기록 관리의 본 구현은 후속 Phase로 분리한다.
+Granite v2는 Phase 9까지 구현을 진행했다. Phase 6의 실제 완료 범위는 로그인/회원가입/세션/마이 계정관리이며, 기존 Phase 6에 포함되어 있던 Claims, 기록 관리의 본 구현은 후속 Phase로 분리한다.
 
 최근 커밋과 코드 기준으로 확인한 핵심 근거는 다음과 같다.
 
@@ -13,7 +13,7 @@ Granite v2는 Phase 8까지 구현을 진행했다. Phase 6의 실제 완료 범
 - Phase 6는 `phase6-social-login-main` 병합과 `feat(auth)`, `fix(auth)` 계열 커밋을 통해 OAuth, pending signup, 사용자 세션, WebView/native handoff, `/me` 계정 화면이 반영되었다.
 - Phase 7은 PR #7(`claude/epic-liskov-88b42b` 병합, merge commit `59399cd`)을 통해 Topo 루트 행의 Beta→More 전환, Figma 기준 More 상세 바텀시트, Location 플로팅 필이 반영되었다. 시트 내 별점/통계/댓글은 Records/Claims 백엔드 이전이라 mock 데이터(`TODO(phase-8)` 표기)이며, 헤더의 북마크/완등기록/공유 아이콘은 시각적 placeholder다.
 - Phase 8은 PR #9(`claude/practical-kilby-a01592` 병합, merge commit `5f34198`)를 통해 `migrations/0010_user_favorites.sql`의 `favorites` 테이블(Route 전용 CHECK, `user_id+target_type+target_id` unique), Route 저장/해제 Server Action(`lib/actions/project.ts`), 사용자 전용 쿼리 경계(`lib/db/project-queries.ts`), Figma 기준 `/me/projects` 본 화면(검색·최신순/Grade/Crag 정렬 칩·북마크 카드), More 시트 헤더 북마크의 실 저장 토글 연결이 반영되었다. 시트 헤더의 완등기록/공유 아이콘과 별점/통계/댓글 mock은 여전히 Phase 9+ 범위다.
-- `/me/records`는 현재 안내용 scaffold 화면이며, 기록 데이터 조회/클레임 로직은 아직 후속 작업이다.
+- Phase 9는 PR #8(`claude/nervous-panini-b66354` 병합, merge commit `a0fd7d0`)을 통해 Figma 기준 `/me/records` 본 화면(다크 프로필 헤더, 나의 영상/나의 기록 탭, 완등 차트, 최근 기록, 세부 분석 placeholder)이 반영되었다. 프로필 헤더는 사용자 설정값(닉네임/인스타/암스팬/키/몸무게, `migrations/0011_user_weight.sql`)을 사용하고, 기록 데이터는 기록 추가가 없는 동안 mock(`lib/records/user-records-view.ts`)이며 Phase 10에서 read model(`lib/db/record-queries.ts`, 테스트 포함 구현 완료)로 교체한다.
 
 ---
 
@@ -29,7 +29,7 @@ Granite v2는 Phase 8까지 구현을 진행했다. Phase 6의 실제 완료 범
 | Phase 6 | 완료 | 로그인/회원가입/계정관리 기반 | OAuth 4종, 세션, signup, `/me`, app handoff 구현 |
 | Phase 7 | 완료 | Route 상세 최신 UX 반영 | Location 워딩, Beta->More, More 상세 정보 반영 |
 | Phase 8 | 완료 | 프로젝트 탭 본 구현 | favorites 스키마, Route 저장/해제, `/me/projects` 검색·정렬 UX 구현 |
-| Phase 9 | 예정 | 기록 탭 본 구현 | 기록 홈/목록/분석성 UI 구현 |
+| Phase 9 | 완료 | 기록 탭 본 구현 | 프로필 헤더, 영상/기록 탭, 완등 차트/최근 기록 UI 구현 |
 | Phase 10 | 예정 | 기록 추가 UI | 기록 추가 진입, 루트 검색, 미디어 입력 플로우 구현 |
 
 각 Phase는 독립 배포 가능해야 한다. 다음 Phase는 직전 Phase의 사용자 경험을 깨지 않고, 미완성 기능은 명시적인 scaffold 또는 coming soon 상태로 유지한다.
@@ -346,7 +346,9 @@ Phase 6는 기존 명칭의 `Login / Favorites / Claims` 전체가 아니라, �
 
 ---
 
-## Phase 9 — Records Tab
+## Phase 9 — Records Tab (완료)
+
+> 반영: PR #8 (`claude/nervous-panini-b66354` 병합, merge commit `a0fd7d0`). `/me/records`가 Figma(56-1299/56-1399) 기준 본 화면으로 전환되었다. 세션 보호 + 사용자 설정값 기반 프로필 헤더, 나의 영상/나의 기록 탭, V0-V12+ 완등 차트, 최근 기록, 세부 분석 placeholder로 구성된다. 기록 추가가 불가능한 현재는 기록 데이터를 mock으로 렌더링하며(`lib/records/user-records-view.ts` 단일 진입점), approved Beta 기반 read model(`lib/db/record-queries.ts`)은 Phase 10 교체용으로 구현·테스트 완료 상태다. unclaimed Beta claim 연결 UI와 기록 공개 토글은 정책 확정 전까지 보류로 결정했다.
 
 ### 목적
 
@@ -381,11 +383,11 @@ Phase 6는 기존 명칭의 `Login / Favorites / Claims` 전체가 아니라, �
 
 ### 출시 게이트
 
-- [ ] `/me/records`가 scaffold가 아닌 실제 기록 화면으로 동작
-- [ ] 사용자 본인 기록만 조회되거나, claim 전 unclaimed 기록은 명확히 분리 표시
-- [ ] 빈 상태와 데이터 있는 상태가 Figma 기준으로 모두 구현
-- [ ] 공개/비공개 정책이 문서와 UI에서 일치
-- [ ] `pnpm test`, `pnpm typecheck`, `pnpm build` 통과
+- [x] `/me/records`가 scaffold가 아닌 실제 기록 화면으로 동작 (프로필 헤더 + 탭 + 완등 차트/최근 기록)
+- [x] 사용자 본인 기록만 조회되거나, claim 전 unclaimed 기록은 명확히 분리 표시 (read model 쿼리로 구현 완료, 화면 연결은 mock 데이터 대체 후 Phase 10에서 전환)
+- [x] 빈 상태와 데이터 있는 상태가 Figma 기준으로 모두 구현
+- [x] 공개/비공개 정책이 문서와 UI에서 일치 (공개 토글은 정책 확정 전까지 비활성 유지)
+- [x] `pnpm test`, `pnpm typecheck`, `pnpm build` 통과
 
 ---
 
