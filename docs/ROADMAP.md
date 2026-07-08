@@ -1,19 +1,19 @@
 # Granite v2 — Roadmap
 
 > 작성일: 2026-05-13
-> 갱신일: 2026-07-08
-> 상태: Phase 7 Route 상세 UX 완료, Phase 8-10 UX 계획 반영
+> 갱신일: 2026-07-09
+> 상태: Phase 8 프로젝트 탭/Favorites 완료, Phase 9-10 UX 계획 반영
 > 기준 문서: [docs/PRD.md](PRD.md), [docs/ARCHITECTURE.md](ARCHITECTURE.md), [docs/decisions/](decisions/README.md)
 
-Granite v2는 Phase 7까지 구현을 진행했다. Phase 6의 실제 완료 범위는 로그인/회원가입/세션/마이 계정관리이며, 기존 Phase 6에 포함되어 있던 Favorites, Claims, 기록 관리의 본 구현은 후속 Phase로 분리한다.
+Granite v2는 Phase 8까지 구현을 진행했다. Phase 6의 실제 완료 범위는 로그인/회원가입/세션/마이 계정관리이며, 기존 Phase 6에 포함되어 있던 Claims, 기록 관리의 본 구현은 후속 Phase로 분리한다.
 
 최근 커밋과 코드 기준으로 확인한 핵심 근거는 다음과 같다.
 
 - Phase 5는 `phase5-implementation` 병합과 후속 webhook/beta 보강 커밋을 통해 Beta/Instagram 수집, 수동 제출, 관리자 모더레이션, operational event 보강이 반영되었다.
 - Phase 6는 `phase6-social-login-main` 병합과 `feat(auth)`, `fix(auth)` 계열 커밋을 통해 OAuth, pending signup, 사용자 세션, WebView/native handoff, `/me` 계정 화면이 반영되었다.
 - Phase 7은 PR #7(`claude/epic-liskov-88b42b` 병합, merge commit `59399cd`)을 통해 Topo 루트 행의 Beta→More 전환, Figma 기준 More 상세 바텀시트, Location 플로팅 필이 반영되었다. 시트 내 별점/통계/댓글은 Records/Claims 백엔드 이전이라 mock 데이터(`TODO(phase-8)` 표기)이며, 헤더의 북마크/완등기록/공유 아이콘은 시각적 placeholder다.
-- `migrations/0009_user_auth.sql`에는 `users`, `user_oauth_identities`만 추가되어 있다. `favorites` 테이블은 아직 없으므로 프로젝트/Favorites는 완료 범위가 아니다.
-- `/me/projects`, `/me/records`는 현재 안내용 scaffold 화면이며, Route 저장/기록 데이터 조회/클레임 로직은 아직 후속 작업이다.
+- Phase 8은 PR #9(`claude/practical-kilby-a01592` 병합, merge commit `5f34198`)를 통해 `migrations/0010_user_favorites.sql`의 `favorites` 테이블(Route 전용 CHECK, `user_id+target_type+target_id` unique), Route 저장/해제 Server Action(`lib/actions/project.ts`), 사용자 전용 쿼리 경계(`lib/db/project-queries.ts`), Figma 기준 `/me/projects` 본 화면(검색·최신순/Grade/Crag 정렬 칩·북마크 카드), More 시트 헤더 북마크의 실 저장 토글 연결이 반영되었다. 시트 헤더의 완등기록/공유 아이콘과 별점/통계/댓글 mock은 여전히 Phase 9+ 범위다.
+- `/me/records`는 현재 안내용 scaffold 화면이며, 기록 데이터 조회/클레임 로직은 아직 후속 작업이다.
 
 ---
 
@@ -28,7 +28,7 @@ Granite v2는 Phase 7까지 구현을 진행했다. Phase 6의 실제 완료 범
 | Phase 5 | 완료 | Instagram/수동 베타 수집과 검수 | 웹훅/인박스/베타 모더레이션 구현 |
 | Phase 6 | 완료 | 로그인/회원가입/계정관리 기반 | OAuth 4종, 세션, signup, `/me`, app handoff 구현 |
 | Phase 7 | 완료 | Route 상세 최신 UX 반영 | Location 워딩, Beta->More, More 상세 정보 반영 |
-| Phase 8 | 예정 | 프로젝트 탭 본 구현 | 하단 프로젝트 탭과 Route 저장 UX 구현 |
+| Phase 8 | 완료 | 프로젝트 탭 본 구현 | favorites 스키마, Route 저장/해제, `/me/projects` 검색·정렬 UX 구현 |
 | Phase 9 | 예정 | 기록 탭 본 구현 | 기록 홈/목록/분석성 UI 구현 |
 | Phase 10 | 예정 | 기록 추가 UI | 기록 추가 진입, 루트 검색, 미디어 입력 플로우 구현 |
 
@@ -295,7 +295,9 @@ Phase 6는 기존 명칭의 `Login / Favorites / Claims` 전체가 아니라, �
 
 ---
 
-## Phase 8 — Project Tab / Favorites
+## Phase 8 — Project Tab / Favorites (완료)
+
+> 반영: PR #9 (`claude/practical-kilby-a01592` 병합, merge commit `5f34198`). More 시트 헤더 북마크가 실제 저장 토글로 동작하며, `/me/projects`는 Figma 기준 검색·정렬(최신순/Grade/Crag)·북마크 카드 UI로 구현되었다. 프로젝트 공개 토글은 공개 프로필 정책 확정 전까지 비활성 유지로 결정했다.
 
 ### 목적
 
@@ -336,11 +338,11 @@ Phase 6는 기존 명칭의 `Login / Favorites / Claims` 전체가 아니라, �
 
 ### 출시 게이트
 
-- [ ] 로그인 사용자가 Route를 저장/해제할 수 있음
-- [ ] 중복 저장이 DB unique constraint로 방지됨
-- [ ] `/me/projects`가 저장 Route를 최신순 또는 Figma 기준 순서로 표시
-- [ ] 비로그인 사용자는 저장 시 로그인으로 유도됨
-- [ ] `pnpm test`, `pnpm typecheck`, `pnpm build` 통과
+- [x] 로그인 사용자가 Route를 저장/해제할 수 있음 (More 시트 북마크 토글)
+- [x] 중복 저장이 DB unique constraint로 방지됨 (`INSERT OR IGNORE` + unique)
+- [x] `/me/projects`가 저장 Route를 최신순 또는 Figma 기준 순서로 표시 (최신순/Grade/Crag 정렬 칩 + 검색)
+- [x] 비로그인 사용자는 저장 시 로그인으로 유도됨 (`/login?returnTo=<route-url>`)
+- [x] `pnpm test`, `pnpm typecheck`, `pnpm build` 통과
 
 ---
 

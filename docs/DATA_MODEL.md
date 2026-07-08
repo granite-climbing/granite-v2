@@ -247,9 +247,17 @@ Constraint: `UNIQUE(provider, provider_uid)`.
 
 ### `favorites`
 
-Phase 6 saved projects follow after social login.
+Phase 8 saved projects (`migrations/0010_user_favorites.sql`).
 
-- `favorites`: unique `user_id + target_type + target_id`; `target_type` is `crag`, `sector`, `boulder`, or `route`.
+| Column | Type | Required | Notes |
+|---|---:|:---:|---|
+| `id` | `TEXT` | yes | `fav_<uuid>` |
+| `user_id` | `TEXT` | yes | FK → `users.id`, `ON DELETE CASCADE` |
+| `target_type` | `TEXT` | yes | `CHECK (target_type IN ('route'))` — 다른 타입은 후속 migration으로 확장 |
+| `target_id` | `TEXT` | yes | FK 없음(polymorphic); Server Action에서 published Route로 검증 |
+| `created_at` | `TEXT` | yes | DB timestamp |
+
+Constraints/indexes: `UNIQUE(user_id, target_type, target_id)`(중복 저장 방지, 자동 인덱스), `idx_favorites_user_created_at (user_id, created_at DESC)`(최신순 리스트), `idx_favorites_target (target_type, target_id)`(역조회 대비).
 
 ### `betas`
 
