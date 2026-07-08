@@ -12,6 +12,7 @@ const baseUser: User = {
   gender: "female",
   heightCm: 170,
   apeIndexCm: 172,
+  weightKg: null,
   topBoulderingGrade: "V5",
   topSportGrade: null,
   onboardingCompletedAt: "2026-06-04 00:00:00",

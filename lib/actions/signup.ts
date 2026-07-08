@@ -32,6 +32,7 @@ const signupSchema = z.object({
   gender: z.enum(["male", "female"]),
   heightCm: optionalNumberSchema,
   apeIndexCm: optionalNumberSchema,
+  weightKg: optionalNumberSchema,
   topBoulderingGrade: optionalTextSchema,
   topSportGrade: optionalTextSchema
 });
@@ -64,6 +65,7 @@ export async function completeSignupAction(formData: FormData): Promise<void> {
     gender: parsed.data.gender,
     heightCm: parsed.data.heightCm,
     apeIndexCm: parsed.data.apeIndexCm,
+    weightKg: parsed.data.weightKg,
     topBoulderingGrade: parsed.data.topBoulderingGrade,
     topSportGrade: parsed.data.topSportGrade
   });

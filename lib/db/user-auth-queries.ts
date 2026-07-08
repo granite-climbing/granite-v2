@@ -13,6 +13,7 @@ export type CompletedSignupInput = {
   gender: "male" | "female";
   heightCm: number | null;
   apeIndexCm: number | null;
+  weightKg: number | null;
   topBoulderingGrade: string | null;
   topSportGrade: string | null;
 };
@@ -27,6 +28,7 @@ type UserSqlRow = {
   gender: "male" | "female" | null;
   heightCm: number | null;
   apeIndexCm: number | null;
+  weightKg: number | null;
   topBoulderingGrade: string | null;
   topSportGrade: string | null;
   onboardingCompletedAt: string | null;
@@ -61,6 +63,7 @@ export async function findActiveUserById(id: string): Promise<User | null> {
        gender,
        height_cm AS heightCm,
        ape_index_cm AS apeIndexCm,
+       weight_kg AS weightKg,
        top_bouldering_grade AS topBoulderingGrade,
        top_sport_grade AS topSportGrade,
        onboarding_completed_at AS onboardingCompletedAt,
@@ -108,6 +111,7 @@ export async function findUserByOAuthIdentity(
        u.gender,
        u.height_cm AS heightCm,
        u.ape_index_cm AS apeIndexCm,
+       u.weight_kg AS weightKg,
        u.top_bouldering_grade AS topBoulderingGrade,
        u.top_sport_grade AS topSportGrade,
        u.onboarding_completed_at AS onboardingCompletedAt,
@@ -143,6 +147,7 @@ export async function ensureUserForOAuthProfile(profile: OAuthProfile): Promise<
     gender: null,
     heightCm: null,
     apeIndexCm: null,
+    weightKg: null,
     topBoulderingGrade: null,
     topSportGrade: null,
     onboardingCompletedAt: now,
@@ -194,6 +199,7 @@ export async function createUserForCompletedSignup(input: CompletedSignupInput):
     gender: input.gender,
     heightCm: input.heightCm,
     apeIndexCm: input.apeIndexCm,
+    weightKg: input.weightKg,
     topBoulderingGrade: input.topBoulderingGrade,
     topSportGrade: input.topSportGrade,
     onboardingCompletedAt: now,
@@ -205,9 +211,9 @@ export async function createUserForCompletedSignup(input: CompletedSignupInput):
 
   await executeD1(
     `INSERT INTO users
-       (id, display_name, email, avatar_url, instagram_id, gender, height_cm, ape_index_cm,
+       (id, display_name, email, avatar_url, instagram_id, gender, height_cm, ape_index_cm, weight_kg,
         top_bouldering_grade, top_sport_grade, onboarding_completed_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       user.id,
       user.displayName,
@@ -217,6 +223,7 @@ export async function createUserForCompletedSignup(input: CompletedSignupInput):
       user.gender,
       user.heightCm,
       user.apeIndexCm,
+      user.weightKg,
       user.topBoulderingGrade,
       user.topSportGrade,
       user.onboardingCompletedAt

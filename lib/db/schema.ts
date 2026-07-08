@@ -100,6 +100,7 @@ export type User = {
   gender: "male" | "female" | null;
   heightCm: number | null;
   apeIndexCm: number | null;
+  weightKg: number | null;
   topBoulderingGrade: string | null;
   topSportGrade: string | null;
   onboardingCompletedAt: string | null;
@@ -243,6 +244,46 @@ export type Beta = {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+};
+
+export type UserRecordListItem = {
+  betaId: string;
+  routeId: string;
+  topoId: string;
+  routeName: string;
+  routeGrade: string;
+  routeGradeNum: number;
+  boulderName: string;
+  sectorName: string;
+  cragName: string;
+  platform: BetaPlatform;
+  mediaUrl: string;
+  thumbnailUrl: string | null;
+  sentAt: string;
+  displayName: string;
+};
+
+export type UserRecordClaimCandidate = UserRecordListItem & {
+  instagramId: string;
+  claimStatus: BetaClaimStatus;
+};
+
+export type UserRecordGradeBucket = {
+  grade: string;
+  gradeNum: number;
+  count: number;
+};
+
+export type UserRecordsModel = {
+  records: UserRecordListItem[];
+  claimCandidates: UserRecordClaimCandidate[];
+  gradeBuckets: UserRecordGradeBucket[];
+  summary: {
+    totalRecords: number;
+    highestGrade: string;
+    latestSentAt: string | null;
+    claimCandidateCount: number;
+  };
 };
 
 export type WebhookInbox = {
