@@ -1,5 +1,7 @@
 # Granite Phase 7 Route Detail UX Update Implementation Plan
 
+> **상태: 완료 (2026-07-08).** PR #7 (merge commit `59399cd`)로 main에 병합. 계획 이후 사용자 피드백으로 신규 Figma 파일(`S17kNjk70YnH4LALrAwTmO`) 기준 보정이 추가됨: More 시트를 루트선택_상세(1401:4518) 레이아웃으로 재설계(브레드크럼/뒤로가기/beta 필 → BetaVideoSheet 재사용), Location 플로팅 필(1400:3895), More 필 60×24(1400:3057), 헤더 북마크·완등기록·공유 placeholder 아이콘, mock 별점/통계/댓글(`TODO(phase-8)`).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Update the Route detail experience so the Topo route row uses the new Figma-driven `More` action, shows route detail information with `Location` wording, and preserves the existing Beta video and manual submission paths.
@@ -86,7 +88,7 @@ Out of scope:
 **Files:**
 - Create: `components/public/route-more-actions.test.tsx`
 
-- [ ] **Step 1: Write the failing component test**
+- [x] **Step 1: Write the failing component test**
 
 Create `components/public/route-more-actions.test.tsx`:
 
@@ -158,7 +160,7 @@ describe("RouteMoreActions", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and verify it fails**
+- [x] **Step 2: Run the test and verify it fails**
 
 Run:
 
@@ -168,7 +170,7 @@ pnpm test -- components/public/route-more-actions.test.tsx
 
 Expected: FAIL because `components/public/route-more-actions.tsx` does not exist.
 
-- [ ] **Step 3: Commit the failing test**
+- [x] **Step 3: Commit the failing test**
 
 ```bash
 git add components/public/route-more-actions.test.tsx
@@ -184,7 +186,7 @@ git commit -m "test: add route more action coverage"
 - Create: `components/public/route-more-sheet.tsx`
 - Test: `components/public/route-more-actions.test.tsx`
 
-- [ ] **Step 1: Add the More action wrapper**
+- [x] **Step 1: Add the More action wrapper**
 
 Create `components/public/route-more-actions.tsx`:
 
@@ -214,7 +216,7 @@ export function RouteMoreActions(props: RouteMoreActionsProps) {
 }
 ```
 
-- [ ] **Step 2: Add the More sheet**
+- [x] **Step 2: Add the More sheet**
 
 Create `components/public/route-more-sheet.tsx`:
 
@@ -349,7 +351,7 @@ function RouteDetailRow({ label, value }: { label: string; value: string }) {
 }
 ```
 
-- [ ] **Step 3: Run the component test**
+- [x] **Step 3: Run the component test**
 
 Run:
 
@@ -359,7 +361,7 @@ pnpm test -- components/public/route-more-actions.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add components/public/route-more-actions.tsx components/public/route-more-sheet.tsx components/public/route-more-actions.test.tsx
@@ -374,7 +376,7 @@ git commit -m "feat: add route more sheet"
 - Modify: `app/(site)/t/[topoId]/page.tsx`
 - Create: `app/(site)/t/[topoId]/page.test.tsx`
 
-- [ ] **Step 1: Add a source-level regression test**
+- [x] **Step 1: Add a source-level regression test**
 
 Create `app/(site)/t/[topoId]/page.test.tsx`:
 
@@ -397,7 +399,7 @@ describe("Topo route detail page Phase 7 wiring", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and verify it fails**
+- [x] **Step 2: Run the test and verify it fails**
 
 Run:
 
@@ -407,7 +409,7 @@ pnpm test -- 'app/(site)/t/[topoId]/page.test.tsx'
 
 Expected: FAIL because the page still imports `BetaRouteActions`.
 
-- [ ] **Step 3: Replace the import**
+- [x] **Step 3: Replace the import**
 
 In `app/(site)/t/[topoId]/page.tsx`, replace:
 
@@ -421,7 +423,7 @@ with:
 import { RouteMoreActions } from "@/components/public/route-more-actions";
 ```
 
-- [ ] **Step 4: Replace the route action usage**
+- [x] **Step 4: Replace the route action usage**
 
 Inside `TopoRouteSheet`, replace:
 
@@ -447,7 +449,7 @@ with:
 />
 ```
 
-- [ ] **Step 5: Run the wiring test**
+- [x] **Step 5: Run the wiring test**
 
 Run:
 
@@ -457,7 +459,7 @@ pnpm test -- 'app/(site)/t/[topoId]/page.test.tsx'
 
 Expected: PASS.
 
-- [ ] **Step 6: Run the route More component test**
+- [x] **Step 6: Run the route More component test**
 
 Run:
 
@@ -467,7 +469,7 @@ pnpm test -- components/public/route-more-actions.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add 'app/(site)/t/[topoId]/page.tsx' 'app/(site)/t/[topoId]/page.test.tsx'
@@ -482,7 +484,7 @@ git commit -m "feat: wire route more actions into topo detail"
 - Optional delete: `components/public/beta-route-actions.tsx`
 - Modify if deleted: no page files should import it
 
-- [ ] **Step 1: Check remaining imports**
+- [x] **Step 1: Check remaining imports**
 
 Run:
 
@@ -492,7 +494,7 @@ rg -n "BetaRouteActions|beta-route-actions" app components lib
 
 Expected after Task 3: no output.
 
-- [ ] **Step 2: Delete the old component if there are no remaining imports**
+- [x] **Step 2: Delete the old component if there are no remaining imports**
 
 Run:
 
@@ -502,7 +504,7 @@ git rm components/public/beta-route-actions.tsx
 
 Expected: file removed from git index.
 
-- [ ] **Step 3: Run focused tests**
+- [x] **Step 3: Run focused tests**
 
 Run:
 
@@ -512,7 +514,7 @@ pnpm test -- components/public/route-more-actions.test.tsx 'app/(site)/t/[topoId
 
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add components/public/route-more-actions.tsx components/public/route-more-sheet.tsx
@@ -528,7 +530,7 @@ If `git rm` already staged the deletion, the `git add` command keeps the final c
 **Files:**
 - No planned source changes unless verification reveals a concrete layout defect.
 
-- [ ] **Step 1: Run unit tests**
+- [x] **Step 1: Run unit tests**
 
 Run:
 
@@ -538,7 +540,7 @@ pnpm test -- components/public/route-more-actions.test.tsx 'app/(site)/t/[topoId
 
 Expected: PASS.
 
-- [ ] **Step 2: Run typecheck**
+- [x] **Step 2: Run typecheck**
 
 Run:
 
@@ -548,7 +550,7 @@ pnpm typecheck
 
 Expected: exit code 0.
 
-- [ ] **Step 3: Run full test suite**
+- [x] **Step 3: Run full test suite**
 
 Run:
 
@@ -558,7 +560,7 @@ pnpm test
 
 Expected: exit code 0.
 
-- [ ] **Step 4: Run build**
+- [x] **Step 4: Run build**
 
 Run:
 
@@ -568,7 +570,7 @@ pnpm build
 
 Expected: exit code 0.
 
-- [ ] **Step 5: Browser smoke check**
+- [x] **Step 5: Browser smoke check**
 
 Start the app:
 
@@ -595,7 +597,7 @@ Verify:
 - Closing the sheet restores page scroll.
 - The page remains within the mobile max width and has no horizontal overflow.
 
-- [ ] **Step 6: Commit verification-only adjustments if needed**
+- [x] **Step 6: Commit verification-only adjustments if needed**
 
 If visual QA requires CSS-only adjustments, commit them with:
 

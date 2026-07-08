@@ -1,16 +1,17 @@
 # Granite v2 — Roadmap
 
 > 작성일: 2026-05-13
-> 갱신일: 2026-07-07
-> 상태: Phase 6 로그인/계정관리 완료 후 Phase 7-10 UX 계획 반영
+> 갱신일: 2026-07-08
+> 상태: Phase 7 Route 상세 UX 완료, Phase 8-10 UX 계획 반영
 > 기준 문서: [docs/PRD.md](PRD.md), [docs/ARCHITECTURE.md](ARCHITECTURE.md), [docs/decisions/](decisions/README.md)
 
-Granite v2는 Phase 6까지 구현을 진행했다. 단, Phase 6의 실제 완료 범위는 로그인/회원가입/세션/마이 계정관리이며, 기존 Phase 6에 포함되어 있던 Favorites, Claims, 기록 관리의 본 구현은 후속 Phase로 분리한다.
+Granite v2는 Phase 7까지 구현을 진행했다. Phase 6의 실제 완료 범위는 로그인/회원가입/세션/마이 계정관리이며, 기존 Phase 6에 포함되어 있던 Favorites, Claims, 기록 관리의 본 구현은 후속 Phase로 분리한다.
 
 최근 커밋과 코드 기준으로 확인한 핵심 근거는 다음과 같다.
 
 - Phase 5는 `phase5-implementation` 병합과 후속 webhook/beta 보강 커밋을 통해 Beta/Instagram 수집, 수동 제출, 관리자 모더레이션, operational event 보강이 반영되었다.
 - Phase 6는 `phase6-social-login-main` 병합과 `feat(auth)`, `fix(auth)` 계열 커밋을 통해 OAuth, pending signup, 사용자 세션, WebView/native handoff, `/me` 계정 화면이 반영되었다.
+- Phase 7은 PR #7(`claude/epic-liskov-88b42b` 병합, merge commit `59399cd`)을 통해 Topo 루트 행의 Beta→More 전환, Figma 기준 More 상세 바텀시트, Location 플로팅 필이 반영되었다. 시트 내 별점/통계/댓글은 Records/Claims 백엔드 이전이라 mock 데이터(`TODO(phase-8)` 표기)이며, 헤더의 북마크/완등기록/공유 아이콘은 시각적 placeholder다.
 - `migrations/0009_user_auth.sql`에는 `users`, `user_oauth_identities`만 추가되어 있다. `favorites` 테이블은 아직 없으므로 프로젝트/Favorites는 완료 범위가 아니다.
 - `/me/projects`, `/me/records`는 현재 안내용 scaffold 화면이며, Route 저장/기록 데이터 조회/클레임 로직은 아직 후속 작업이다.
 
@@ -26,7 +27,7 @@ Granite v2는 Phase 6까지 구현을 진행했다. 단, Phase 6의 실제 완�
 | Phase 4 | 완료 | Phase 3 기반 public/admin UX 보정 | 홈/Area/Crag/Route/Topo/Admin polish 반영 |
 | Phase 5 | 완료 | Instagram/수동 베타 수집과 검수 | 웹훅/인박스/베타 모더레이션 구현 |
 | Phase 6 | 완료 | 로그인/회원가입/계정관리 기반 | OAuth 4종, 세션, signup, `/me`, app handoff 구현 |
-| Phase 7 | 예정 | Route 상세 최신 UX 반영 | Location 워딩, Beta->More, More 상세 정보 반영 |
+| Phase 7 | 완료 | Route 상세 최신 UX 반영 | Location 워딩, Beta->More, More 상세 정보 반영 |
 | Phase 8 | 예정 | 프로젝트 탭 본 구현 | 하단 프로젝트 탭과 Route 저장 UX 구현 |
 | Phase 9 | 예정 | 기록 탭 본 구현 | 기록 홈/목록/분석성 UI 구현 |
 | Phase 10 | 예정 | 기록 추가 UI | 기록 추가 진입, 루트 검색, 미디어 입력 플로우 구현 |
@@ -237,9 +238,27 @@ Phase 6는 기존 명칭의 `Login / Favorites / Claims` 전체가 아니라, �
 
 ## Phase 7 — Route Detail UX Update
 
+> 2026-07-08 완료. PR #7 (merge commit `59399cd`).
+
 ### 목적
 
 업데이트된 Route 상세 Figma를 반영한다. 기존 Route/Topo 상세의 Beta 중심 액션을 More 기반 정보 구조로 바꾸고, Location 워딩과 상세 정보 표시를 정돈한다.
+
+### 완료 범위
+
+- Topo 루트 행의 `beta` 필을 `More` 필(60×24)로 교체. `RouteMoreActions`/`RouteMoreSheet` 신설, 구 `beta-route-actions.tsx` 삭제.
+- More 클릭 시 Figma 루트선택_상세 기준 바텀시트: 뒤로가기 헤더, 브레드크럼(`Area > Crag > Sector > Boulder`, Area는 `getPublishedAreas()`로 조회), 루트명/등급 행, FA·설명(값 없으면 미노출), 우측 `beta` 필.
+- `beta` 필은 기존 `BetaVideoSheet`를 재사용해 승인 Beta 그리드, 캡션 복사/Instagram 열기, 수동 Beta 업로드 경로를 그대로 유지.
+- 토포 이미지 우하단 플로팅 버튼을 `Location` 필(88×24, 로드맵 아이콘 + 흰색 텍스트)로 교체. 전역 `a { color: inherit }` 규칙이 anchor에서 Tailwind 색상 유틸리티를 무효화하는 문제를 span 래퍼로 우회.
+- 접근성/동작 보강: dialog role/aria-modal/focus 이동, Escape 계층 dismissal(수동 폼 → Beta 시트 → 상세 시트, capture/bubble + `defaultPrevented` 조합), 클립보드 실패 시에도 Instagram 열기 유지.
+- 시트 헤더 북마크/완등기록/공유 아이콘(시각적 placeholder, 기능은 Phase 8+), 별점/통계 카드/Ascents comment 섹션(mock 데이터, `TODO(phase-8)` 표기)으로 Figma 레이아웃 선반영.
+- `/r/[routeId]` → `/t/[topoId]?route=` 리다이렉트 동작 유지. 컴포넌트 테스트 13개 + 페이지 회귀 테스트 3개 추가(전체 494개 통과).
+
+### 후속(Phase 8+ 이관)
+
+- 시트 내 별점/통계/댓글 mock을 실제 Records/Claims 데이터로 교체.
+- 헤더 북마크(Favorites)/완등기록(Records)/공유 기능 연결.
+- 미사용 상태로 유지 중인 참조: 없음 (`beta-video-sheet.tsx`는 beta 필 진입점으로 재사용됨).
 
 ### Figma
 
@@ -268,11 +287,11 @@ Phase 6는 기존 명칭의 `Login / Favorites / Claims` 전체가 아니라, �
 
 ### 출시 게이트
 
-- [ ] Route 상세에서 Location 워딩이 Figma 기준으로 노출
-- [ ] Beta 액션명이 More로 변경되고 기존 사용자 흐름이 끊기지 않음
-- [ ] More 상세 정보가 모바일 max-width 레이아웃에서 overflow 없이 표시
-- [ ] 기존 approved Beta video 노출 경로가 유지되거나 명확한 새 위치로 이동
-- [ ] `pnpm test`, `pnpm typecheck`, `pnpm build` 통과
+- [x] Route 상세에서 Location 워딩이 Figma 기준으로 노출
+- [x] Beta 액션명이 More로 변경되고 기존 사용자 흐름이 끊기지 않음
+- [x] More 상세 정보가 모바일 max-width 레이아웃에서 overflow 없이 표시
+- [x] 기존 approved Beta video 노출 경로가 유지되거나 명확한 새 위치로 이동 (More 시트 내 beta 필 → BetaVideoSheet)
+- [x] `pnpm test`, `pnpm typecheck`, `pnpm build` 통과
 
 ---
 
