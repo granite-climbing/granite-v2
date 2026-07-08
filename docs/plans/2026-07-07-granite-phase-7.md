@@ -91,6 +91,9 @@ Out of scope:
 Create `components/public/route-more-actions.test.tsx`:
 
 ```tsx
+// @vitest-environment jsdom
+
+import "@testing-library/jest-dom/vitest";
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
@@ -150,7 +153,7 @@ describe("RouteMoreActions", () => {
     fireEvent.click(screen.getByRole("button", { name: "More" }));
     fireEvent.click(screen.getByRole("button", { name: "베타 영상 올리기" }));
 
-    expect(screen.getByText("Instagram 또는 YouTube 링크")).toBeInTheDocument();
+    expect(screen.getByText("영상 URL")).toBeInTheDocument();
   });
 });
 ```

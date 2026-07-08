@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ManualBetaForm } from "./manual-beta-form";
 import { BetaVideoGrid, type BetaVideoItem } from "./beta-video-grid";
 
@@ -26,13 +26,37 @@ export function BetaVideoSheet({
     };
   }, []);
 
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && !event.defaultPrevented) {
+        event.preventDefault();
+        // Escape dismisses only the topmost layer: the manual beta form
+        // first (keeping this sheet underneath), then this sheet itself.
+        if (showManualForm) {
+          setShowManualForm(false);
+        } else {
+          onClose();
+        }
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown, { capture: true });
+    };
+  }, [onClose, showManualForm]);
+
   const instagramHref = useMemo(
     () => `https://www.instagram.com/?caption=${encodeURIComponent(caption)}`,
     [caption]
   );
 
   async function copyAndOpenInstagram() {
-    await navigator.clipboard.writeText(caption);
+    try {
+      await navigator.clipboard.writeText(caption);
+    } catch {
+      // Best-effort copy: opening Instagram is the primary action, so we
+      // continue even if the clipboard write is unavailable or rejected.
+    }
     window.open(instagramHref, "_blank", "noopener,noreferrer");
   }
 
