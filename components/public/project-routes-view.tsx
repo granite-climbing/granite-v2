@@ -36,16 +36,11 @@ export function ProjectRoutesView({ routes, removeAction }: ProjectRoutesViewPro
       <header className="bg-[#121212] px-4 pb-4 pt-4 text-white">
         <div className="flex h-8 items-center justify-between">
           <h1 className="text-[20px] font-bold leading-7">프로젝트</h1>
-          <div className="flex items-center gap-3">
-            <button type="button" aria-label="설정" className="size-6">
-              <GearIcon className="size-6" />
-            </button>
-            <button type="button" aria-label="메뉴 열기" className="flex size-6 flex-col justify-center gap-[4px]">
-              <span className="h-[2px] w-6 rounded-full bg-white" />
-              <span className="h-[2px] w-6 rounded-full bg-white" />
-              <span className="h-[2px] w-6 rounded-full bg-white" />
-            </button>
-          </div>
+          <button type="button" aria-label="메뉴 열기" className="flex size-6 flex-col justify-center gap-[4px]">
+            <span className="h-[2px] w-6 rounded-full bg-white" />
+            <span className="h-[2px] w-6 rounded-full bg-white" />
+            <span className="h-[2px] w-6 rounded-full bg-white" />
+          </button>
         </div>
         <div className="relative mt-4">
           <label>
@@ -174,19 +169,6 @@ function groupRoutes(routes: SavedRouteListItem[], sortMode: SortMode): RouteGro
   return [...order]
     .sort((a, b) => a.localeCompare(b, "ko"))
     .map((cragName) => ({ label: cragName, routes: byCrag.get(cragName)! }));
-}
-
-function GearIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
-      <path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7Z" stroke="currentColor" strokeWidth="1.6" />
-      <path
-        d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V19a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H4a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H10a1.65 1.65 0 0 0 1-1.51V4a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V10a1.65 1.65 0 0 0 1.51 1H20a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
-    </svg>
-  );
 }
 
 function SearchIcon({ className }: { className?: string }) {
