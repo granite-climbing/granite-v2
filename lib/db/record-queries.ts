@@ -1,5 +1,12 @@
 import { queryD1 } from "./d1-http";
-import type { UserRecordClaimCandidate, UserRecordGradeBucket, UserRecordListItem, UserRecordsModel } from "./schema";
+import type {
+  RouteSearchRowForRecord,
+  UserRecordClaimCandidate,
+  UserRecordGradeBucket,
+  UserRecordListItem,
+  UserRecordWithRoute,
+  UserRecordsModel
+} from "./schema";
 
 type PartialRecordForBucket = Pick<UserRecordListItem, "routeGrade" | "routeGradeNum">;
 
@@ -82,6 +89,125 @@ export async function getApprovedClaimCandidateRecordsByInstagramId(
        ${PUBLISHED_ROUTE_FILTER}
      ORDER BY be.sent_at DESC, be.created_at DESC`,
     [instagramId]
+  );
+}
+
+export type InsertUserRecordInput = {
+  id: string;
+  userId: string;
+  routeId: string;
+  betaId: string | null;
+  sentAt: string;
+  rating: number | null;
+};
+
+export async function insertUserRecord(input: InsertUserRecordInput): Promise<void> {
+  await queryD1(
+    `INSERT INTO user_records (id, user_id, route_id, beta_id, sent_at, rating)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [input.id, input.userId, input.routeId, input.betaId, input.sentAt, input.rating]
+  );
+}
+
+const USER_RECORD_ROUTE_JOIN = `
+  JOIN routes r ON r.id = ur.route_id
+  JOIN topos t ON t.id = r.topo_id
+  JOIN boulders b ON b.id = t.boulder_id
+  JOIN sectors s ON s.id = b.sector_id
+  JOIN crags c ON c.id = s.crag_id
+  JOIN areas a ON a.id = c.area_id
+`;
+
+export async function getUserRecordsByUserId(userId: string): Promise<UserRecordWithRoute[]> {
+  return queryD1<UserRecordWithRoute>(
+    `SELECT
+       ur.id AS recordId,
+       r.id AS routeId,
+       r.topo_id AS topoId,
+       r.name AS routeName,
+       r.grade AS routeGrade,
+       r.grade_num AS routeGradeNum,
+       b.name AS boulderName,
+       s.name AS sectorName,
+       c.name AS cragName,
+       ur.sent_at AS sentAt,
+       ur.rating AS rating
+     FROM user_records ur
+     ${USER_RECORD_ROUTE_JOIN}
+     WHERE ur.user_id = ?
+       AND ur.deleted_at IS NULL
+       ${PUBLISHED_ROUTE_FILTER}
+     ORDER BY ur.sent_at DESC, ur.created_at DESC`,
+    [userId]
+  );
+}
+
+function escapeLikeTerm(term: string): string {
+  return term.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+const ROUTE_SEARCH_LIMIT = 20;
+
+export async function searchPublishedRoutesForRecord(term: string): Promise<RouteSearchRowForRecord[]> {
+  const trimmed = term.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  return queryD1<RouteSearchRowForRecord>(
+    `SELECT
+       r.id AS routeId,
+       r.name AS routeName,
+       r.grade AS routeGrade,
+       b.name AS boulderName,
+       s.name AS sectorName,
+       c.name AS cragName,
+       b.hashtags AS boulderHashtags
+     FROM routes r
+     JOIN topos t ON t.id = r.topo_id
+     JOIN boulders b ON b.id = t.boulder_id
+     JOIN sectors s ON s.id = b.sector_id
+     JOIN crags c ON c.id = s.crag_id
+     JOIN areas a ON a.id = c.area_id
+     WHERE r.name LIKE ? ESCAPE '\\'
+       ${PUBLISHED_ROUTE_FILTER}
+     ORDER BY r.name COLLATE NOCASE ASC
+     LIMIT ${ROUTE_SEARCH_LIMIT}`,
+    [`%${escapeLikeTerm(trimmed)}%`]
+  );
+}
+
+const CHART_GRADE_MAX = 12;
+
+export function buildFixedGradeBuckets(records: Array<{ routeGradeNum: number }>): UserRecordGradeBucket[] {
+  const counts = new Array<number>(CHART_GRADE_MAX + 1).fill(0);
+  for (const record of records) {
+    const index = Math.min(Math.max(record.routeGradeNum, 0), CHART_GRADE_MAX);
+    counts[index] += 1;
+  }
+
+  return counts.map((count, index) => ({
+    grade: index === CHART_GRADE_MAX ? "V12+" : `V${index}`,
+    gradeNum: index,
+    count
+  }));
+}
+
+export async function getOwnBetaVideosByUserId(
+  userId: string
+): Promise<Array<{ id: string; thumbnailUrl: string | null; title: string }>> {
+  return queryD1(
+    `SELECT
+       be.id AS id,
+       be.thumbnail_url AS thumbnailUrl,
+       r.name AS title
+     FROM betas be
+     JOIN routes r ON r.id = be.route_id
+     WHERE be.user_id = ?
+       AND be.status IN ('pending', 'approved')
+       AND be.deleted_at IS NULL
+     ORDER BY be.sent_at DESC, be.created_at DESC`,
+    [userId]
   );
 }
 

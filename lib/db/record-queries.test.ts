@@ -1,9 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  buildFixedGradeBuckets,
   buildUserRecordsModel,
   getApprovedClaimCandidateRecordsByInstagramId,
   getApprovedRecordsByUserId,
-  getRecordGradeBuckets
+  getOwnBetaVideosByUserId,
+  getRecordGradeBuckets,
+  getUserRecordsByUserId,
+  insertUserRecord,
+  searchPublishedRoutesForRecord
 } from "./record-queries";
 
 const queryD1Mock = vi.hoisted(() => vi.fn());
@@ -213,5 +218,93 @@ describe("record queries", () => {
 
     expect(model.summary.highestGrade).toBe("V8");
     expect(model.summary.latestSentAt).toBe("2026-07-03T00:00:00.000Z");
+  });
+
+  it("inserts a user record", async () => {
+    queryD1Mock.mockResolvedValueOnce([]);
+
+    await insertUserRecord({
+      id: "rec_1",
+      userId: "user_1",
+      routeId: "route_1",
+      betaId: null,
+      sentAt: "2026-07-09",
+      rating: 4
+    });
+
+    const [sql, params] = queryD1Mock.mock.calls[0];
+    expect(sql).toContain("INSERT INTO user_records");
+    expect(params).toEqual(["rec_1", "user_1", "route_1", null, "2026-07-09", 4]);
+  });
+
+  it("loads user records with published route context", async () => {
+    queryD1Mock.mockResolvedValueOnce([
+      {
+        recordId: "rec_1",
+        routeId: "route_1",
+        topoId: "topo_1",
+        routeName: "Honey No.6",
+        routeGrade: "V6",
+        routeGradeNum: 6,
+        boulderName: "허니 볼더",
+        sectorName: "허니1",
+        cragName: "안양예술공원",
+        sentAt: "2026-07-09",
+        rating: 4
+      }
+    ]);
+
+    const records = await getUserRecordsByUserId("user_1");
+
+    const [sql, params] = queryD1Mock.mock.calls[0];
+    expect(sql).toContain("FROM user_records ur");
+    expect(sql).toContain("ur.user_id = ?");
+    expect(sql).toContain("ur.deleted_at IS NULL");
+    expect(sql).toContain("r.is_published = 1");
+    expect(params).toEqual(["user_1"]);
+    expect(records[0]).toMatchObject({ recordId: "rec_1", routeGrade: "V6" });
+  });
+
+  it("searches published routes by escaped LIKE term", async () => {
+    queryD1Mock.mockResolvedValueOnce([]);
+
+    await searchPublishedRoutesForRecord("honey_50%");
+
+    const [sql, params] = queryD1Mock.mock.calls[0];
+    expect(sql).toContain("r.name LIKE ? ESCAPE");
+    expect(params[0]).toBe("%honey\\_50\\%%");
+  });
+
+  it("returns no results for a blank search term without querying", async () => {
+    const results = await searchPublishedRoutesForRecord("   ");
+
+    expect(results).toEqual([]);
+    expect(queryD1Mock).not.toHaveBeenCalled();
+  });
+
+  it("builds fixed V0-V12+ chart buckets", () => {
+    const buckets = buildFixedGradeBuckets([
+      { routeGradeNum: 0 },
+      { routeGradeNum: 5 },
+      { routeGradeNum: 5 },
+      { routeGradeNum: 13 }
+    ]);
+
+    expect(buckets).toHaveLength(13);
+    expect(buckets[0]).toEqual({ grade: "V0", gradeNum: 0, count: 1 });
+    expect(buckets[5]).toEqual({ grade: "V5", gradeNum: 5, count: 2 });
+    expect(buckets[12]).toEqual({ grade: "V12+", gradeNum: 12, count: 1 });
+  });
+
+  it("loads own beta videos including pending", async () => {
+    queryD1Mock.mockResolvedValueOnce([{ id: "beta_1", thumbnailUrl: null, title: "Honey No.6" }]);
+
+    const videos = await getOwnBetaVideosByUserId("user_1");
+
+    const [sql, params] = queryD1Mock.mock.calls[0];
+    expect(sql).toContain("be.user_id = ?");
+    expect(sql).toContain("be.status IN ('pending', 'approved')");
+    expect(params).toEqual(["user_1"]);
+    expect(videos[0].title).toBe("Honey No.6");
   });
 });

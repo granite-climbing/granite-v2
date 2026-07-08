@@ -286,6 +286,30 @@ export type UserRecordsModel = {
   };
 };
 
+export type UserRecordWithRoute = {
+  recordId: string;
+  routeId: string;
+  topoId: string;
+  routeName: string;
+  routeGrade: string;
+  routeGradeNum: number;
+  boulderName: string;
+  sectorName: string;
+  cragName: string;
+  sentAt: string;
+  rating: number | null;
+};
+
+export type RouteSearchRowForRecord = {
+  routeId: string;
+  routeName: string;
+  routeGrade: string;
+  boulderName: string;
+  sectorName: string;
+  cragName: string;
+  boulderHashtags: string; // JSON string; parse with parseHashtags
+};
+
 export type WebhookInbox = {
   id: string;
   provider: "instagram";
