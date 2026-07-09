@@ -12,6 +12,8 @@ const redirectMock = vi.hoisted(() =>
   })
 );
 const findActiveUserByIdMock = vi.hoisted(() => vi.fn());
+const getUserRecordsMock = vi.hoisted(() => vi.fn(async () => []));
+const getOwnVideosMock = vi.hoisted(() => vi.fn(async () => []));
 
 vi.mock("next/headers", () => ({
   cookies: cookiesMock
@@ -23,6 +25,12 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/db/user-auth-queries", () => ({
   findActiveUserById: findActiveUserByIdMock
+}));
+
+vi.mock("@/lib/db/record-queries", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/db/record-queries")>()),
+  getUserRecordsByUserId: getUserRecordsMock,
+  getOwnBetaVideosByUserId: getOwnVideosMock
 }));
 
 describe("records page source", () => {

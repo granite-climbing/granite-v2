@@ -1,6 +1,6 @@
-import type { MockRecentRecord } from "@/lib/mock/records";
+import type { RecentRecordItem } from "@/lib/records/user-records-view";
 
-export function RecordList({ records }: { records: MockRecentRecord[] }) {
+export function RecordList({ records }: { records: RecentRecordItem[] }) {
   return (
     <section className="px-4">
       <div className="flex items-center justify-between">

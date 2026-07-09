@@ -1,6 +1,6 @@
-import type { MockRecordVideo } from "@/lib/mock/records";
+import type { RecordVideoItem } from "@/lib/records/user-records-view";
 
-export function RecordVideoGrid({ videos }: { videos: MockRecordVideo[] }) {
+export function RecordVideoGrid({ videos }: { videos: RecordVideoItem[] }) {
   if (videos.length === 0) {
     return (
       <p className="px-4 py-10 text-center text-[13px] font-medium leading-5 text-[#7A7A7A]">

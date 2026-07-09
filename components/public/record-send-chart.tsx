@@ -1,4 +1,4 @@
-import type { MockRecordGradeBucket } from "@/lib/mock/records";
+import type { RecordGradeBucket } from "@/lib/records/user-records-view";
 
 const MAX_BAR_HEIGHT = 56;
 const MIN_BAR_HEIGHT = 2;
@@ -13,7 +13,7 @@ function barColor(count: number, maxCount: number): string {
   return `rgb(${shade}, ${shade}, ${shade})`;
 }
 
-export function RecordSendChart({ buckets }: { buckets: MockRecordGradeBucket[] }) {
+export function RecordSendChart({ buckets }: { buckets: RecordGradeBucket[] }) {
   const maxCount = Math.max(...buckets.map((bucket) => bucket.count), 0);
 
   return (
