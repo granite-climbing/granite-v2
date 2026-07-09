@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { executeD1, pingD1, queryD1, queryD1First } from "./d1-http";
+import {
+  batchD1,
+  executeD1,
+  pingD1,
+  queryD1,
+  queryD1First,
+  type D1Query,
+} from "./d1-http";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -266,6 +273,110 @@ describe("executeD1", () => {
     await expect(
       executeD1("INSERT INTO areas (id) VALUES (?)", ["x"])
     ).rejects.toThrow("D1 query failed: constraint failed");
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe("batchD1", () => {
+  beforeEach(() => setEnv());
+  afterEach(() => {
+    clearEnv();
+    vi.unstubAllGlobals();
+  });
+
+  function makeBatchEnvelope(resultSets: unknown[][]) {
+    return {
+      success: true,
+      errors: [] as { message: string }[],
+      result: resultSets.map((rows) => ({ results: rows })),
+    };
+  }
+
+  function q<T>(
+    sql: string,
+    params: unknown[],
+    map: (rows: unknown[]) => T
+  ): D1Query<T> {
+    return { sql, params, map };
+  }
+
+  it("sends all statements in one request with the { batch: [...] } body", async () => {
+    const fetchMock = mockFetch(makeBatchEnvelope([[], []]));
+
+    await batchD1([
+      q("SELECT * FROM crags WHERE id = ?", ["crag-1"], (rows) => rows),
+      q("SELECT * FROM sectors WHERE crag_id = ?", ["crag-1"], (rows) => rows),
+    ]);
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url, init] = fetchMock.mock.calls[0] as [
+      string,
+      RequestInit & { headers: Record<string, string>; body: string }
+    ];
+
+    expect(url).toBe("https://api.cloudflare.com/d1/db-123/query");
+    expect(init.method).toBe("POST");
+    expect(init.headers["Authorization"]).toBe("Bearer test-token");
+
+    const parsed = JSON.parse(init.body);
+    expect(parsed.batch).toEqual([
+      { sql: "SELECT * FROM crags WHERE id = ?", params: ["crag-1"] },
+      { sql: "SELECT * FROM sectors WHERE crag_id = ?", params: ["crag-1"] },
+    ]);
+  });
+
+  it("maps each result set through its own descriptor, in order", async () => {
+    mockFetch(
+      makeBatchEnvelope([
+        [{ id: "crag-1" }],
+        [{ id: "s-1" }, { id: "s-2" }],
+      ])
+    );
+
+    const [crag, sectorCount] = await batchD1([
+      q("SELECT ...", [], (rows) => (rows as { id: string }[])[0] ?? null),
+      q("SELECT ...", [], (rows) => rows.length),
+    ]);
+
+    expect(crag).toEqual({ id: "crag-1" });
+    expect(sectorCount).toBe(2);
+  });
+
+  it("returns [] without any HTTP request for an empty batch", async () => {
+    const fetchMock = mockFetch(makeBatchEnvelope([]));
+
+    const result = await batchD1([]);
+
+    expect(result).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("throws when the result count does not match the statement count", async () => {
+    mockFetch(makeBatchEnvelope([[]]));
+
+    await expect(
+      batchD1([
+        q("SELECT 1", [], (rows) => rows),
+        q("SELECT 2", [], (rows) => rows),
+      ])
+    ).rejects.toThrow("expected 2 results, got 1");
+  });
+
+  it("throws normalized errors on an error envelope", async () => {
+    mockFetch(makeErrorEnvelope(["no such table: nope"]));
+
+    await expect(
+      batchD1([q("SELECT * FROM nope", [], (rows) => rows)])
+    ).rejects.toThrow("D1 batch failed: no such table: nope");
+  });
+
+  it("throws on non-ok HTTP status", async () => {
+    mockFetch(makeErrorEnvelope(["unauthorized"]), 403);
+
+    await expect(
+      batchD1([q("SELECT 1", [], (rows) => rows)])
+    ).rejects.toThrow("unauthorized");
   });
 });
 

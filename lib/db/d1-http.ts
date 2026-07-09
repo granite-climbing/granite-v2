@@ -179,3 +179,88 @@ export async function executeD1Meta(
   const { meta } = await executeQueryWithMeta<unknown>(sql, params ?? []);
   return { changes: meta.changes ?? 0 };
 }
+
+// ---------------------------------------------------------------------------
+// Batch API
+// ---------------------------------------------------------------------------
+
+/**
+ * A self-contained query descriptor: SQL + params + a mapper from the raw
+ * result rows to the final value. Lets callers compose several logical
+ * queries into a single D1 HTTP request via `batchD1`.
+ */
+export interface D1Query<T> {
+  sql: string;
+  params: unknown[];
+  map: (rows: unknown[]) => T;
+}
+
+type D1BatchResults<Q extends readonly D1Query<unknown>[]> = {
+  [K in keyof Q]: Q[K] extends D1Query<infer R> ? R : never;
+};
+
+/**
+ * Execute several queries in ONE HTTP round trip using the D1 REST API
+ * batch body (`{ batch: [{ sql, params }, ...] }`). The response carries one
+ * result entry per statement, in order; each entry is passed through the
+ * corresponding descriptor's `map`.
+ */
+export async function batchD1<const Q extends readonly D1Query<unknown>[]>(
+  queries: Q
+): Promise<D1BatchResults<Q>> {
+  if (queries.length === 0) {
+    return [] as unknown as D1BatchResults<Q>;
+  }
+
+  const { url, token, databaseId } = getEnvVars();
+  const endpoint = buildEndpoint(url, databaseId);
+
+  const response = await globalThis.fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      batch: queries.map((q) => ({ sql: q.sql, params: q.params })),
+    }),
+  });
+
+  if (!response.ok) {
+    let errorDetail = "";
+    try {
+      const body = (await response.json()) as Partial<D1Envelope<unknown>>;
+      if (Array.isArray(body.errors) && body.errors.length > 0) {
+        errorDetail = body.errors.map((e) => e.message).join("; ");
+      }
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(
+      errorDetail
+        ? `D1 batch failed (${response.status}): ${errorDetail}`
+        : `D1 batch failed with HTTP ${response.status}`
+    );
+  }
+
+  const body = (await response.json()) as D1Envelope<unknown>;
+
+  if (!body.success) {
+    const errorDetail =
+      Array.isArray(body.errors) && body.errors.length > 0
+        ? body.errors.map((e) => e.message).join("; ")
+        : "unknown error";
+    throw new Error(`D1 batch failed: ${errorDetail}`);
+  }
+
+  const entries = body.result ?? [];
+  if (entries.length !== queries.length) {
+    throw new Error(
+      `D1 batch failed: expected ${queries.length} results, got ${entries.length}`
+    );
+  }
+
+  return queries.map((q, i) =>
+    q.map(entries[i]?.results ?? [])
+  ) as D1BatchResults<Q>;
+}

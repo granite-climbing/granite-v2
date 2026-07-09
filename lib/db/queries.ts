@@ -13,10 +13,15 @@
  *    `getBoulderTopos` (ordered by sort_order) rather than in SQL, to
  *    keep queries simple and composable.
  *  - Per-crag / per-area stats are computed by the repository using
- *    `getCragStats(cragId)`. This file exposes `getCragStats` as a helper.
+ *    `getAllCragStats` (one grouped query for every crag).
+ *
+ * Batching: functions used by the repository's cached loaders also expose a
+ * `xxxQuery()` descriptor builder (see `D1Query` in d1-http.ts) so several
+ * logical queries can share ONE D1 HTTP round trip via `batchD1`. The plain
+ * async function and its descriptor always share the same SQL and mapper.
  */
 
-import { queryD1, queryD1First } from "./d1-http";
+import { queryD1, queryD1First, type D1Query } from "./d1-http";
 import type {
   Announcement,
   Area,
@@ -208,6 +213,11 @@ export function formatGradeRange(
   return `V${minGrade}-V${maxGrade}`;
 }
 
+/** Run a single descriptor over its own HTTP request (non-batched path). */
+async function runQuery<T>(q: D1Query<T>): Promise<T> {
+  return q.map(await queryD1<unknown>(q.sql, q.params));
+}
+
 // ---------------------------------------------------------------------------
 // 1. Stats
 // ---------------------------------------------------------------------------
@@ -219,9 +229,9 @@ export function formatGradeRange(
  * - routes: parent topo published (topo has no is_published gate in the
  *   ancestor chain beyond boulder→sector→crag→area)
  */
-export async function getStats(): Promise<Stats> {
-  const row = await queryD1First<StatsRow>(
-    `SELECT
+export function statsQuery(): D1Query<Stats> {
+  return {
+    sql: `SELECT
        (SELECT COUNT(*)
         FROM crags c
         JOIN areas a ON a.id = c.area_id
@@ -258,10 +268,15 @@ export async function getStats(): Promise<Stats> {
           AND r.deleted_at IS NULL AND t.deleted_at IS NULL
           AND b.deleted_at IS NULL AND s.deleted_at IS NULL
           AND c.deleted_at IS NULL AND a.deleted_at IS NULL
-       ) AS routes`
-  );
+       ) AS routes`,
+    params: [],
+    map: (rows) =>
+      (rows as StatsRow[])[0] ?? { crags: 0, sectors: 0, boulders: 0, routes: 0 },
+  };
+}
 
-  return row ?? { crags: 0, sectors: 0, boulders: 0, routes: 0 };
+export async function getStats(): Promise<Stats> {
+  return runQuery(statsQuery());
 }
 
 // ---------------------------------------------------------------------------
@@ -269,9 +284,9 @@ export async function getStats(): Promise<Stats> {
 // ---------------------------------------------------------------------------
 
 /** Published areas ordered by sort_order, then id. */
-export async function getPublishedAreas(): Promise<Area[]> {
-  const rows = await queryD1<AreaRow>(
-    `SELECT
+export function publishedAreasQuery(): D1Query<Area[]> {
+  return {
+    sql: `SELECT
        id,
        name,
        name_en        AS nameEn,
@@ -282,9 +297,14 @@ export async function getPublishedAreas(): Promise<Area[]> {
      FROM areas
      WHERE is_published = 1
        AND deleted_at IS NULL
-     ORDER BY sort_order, id`
-  );
-  return rows.map(mapArea);
+     ORDER BY sort_order, id`,
+    params: [],
+    map: (rows) => (rows as AreaRow[]).map(mapArea),
+  };
+}
+
+export async function getPublishedAreas(): Promise<Area[]> {
+  return runQuery(publishedAreasQuery());
 }
 
 /**
@@ -292,9 +312,9 @@ export async function getPublishedAreas(): Promise<Area[]> {
  * and non-soft-deleted. Returns a flat list ordered by sort_order ASC, then
  * name ASC. Used by the home page all-Crags slider.
  */
-export async function getAllPublishedCrags(): Promise<Crag[]> {
-  const rows = await queryD1<CragRow>(
-    `SELECT
+export function allPublishedCragsQuery(): D1Query<Crag[]> {
+  return {
+    sql: `SELECT
        c.id,
        c.area_id        AS areaId,
        c.name,
@@ -313,9 +333,14 @@ export async function getAllPublishedCrags(): Promise<Crag[]> {
        AND a.is_published = 1
        AND c.deleted_at IS NULL
        AND a.deleted_at IS NULL
-     ORDER BY c.sort_order ASC, c.name ASC`
-  );
-  return rows.map(mapCrag);
+     ORDER BY c.sort_order ASC, c.name ASC`,
+    params: [],
+    map: (rows) => (rows as CragRow[]).map(mapCrag),
+  };
+}
+
+export async function getAllPublishedCrags(): Promise<Crag[]> {
+  return runQuery(allPublishedCragsQuery());
 }
 
 /**
@@ -323,9 +348,9 @@ export async function getAllPublishedCrags(): Promise<Crag[]> {
  * Used by the repository's Area detail loader (`loadAreaBySlug`) and by
  * `loadAllRouteItems`. The home model uses `getAllPublishedCrags` instead.
  */
-export async function getCragsByAreaId(areaId: string): Promise<Crag[]> {
-  const rows = await queryD1<CragRow>(
-    `SELECT
+export function cragsByAreaIdQuery(areaId: string): D1Query<Crag[]> {
+  return {
+    sql: `SELECT
        c.id,
        c.area_id        AS areaId,
        c.name,
@@ -346,9 +371,13 @@ export async function getCragsByAreaId(areaId: string): Promise<Crag[]> {
        AND c.deleted_at IS NULL
        AND a.deleted_at IS NULL
      ORDER BY c.sort_order, c.id`,
-    [areaId]
-  );
-  return rows.map(mapCrag);
+    params: [areaId],
+    map: (rows) => (rows as CragRow[]).map(mapCrag),
+  };
+}
+
+export async function getCragsByAreaId(areaId: string): Promise<Crag[]> {
+  return runQuery(cragsByAreaIdQuery(areaId));
 }
 
 /**
@@ -356,15 +385,11 @@ export async function getCragsByAreaId(areaId: string): Promise<Crag[]> {
  * Returns sector/boulder/route counts. Used by the repository to build
  * per-crag stats in HomeModel and CragDetail.
  */
-export async function getCragStats(
+export function cragStatsQuery(
   cragId: string
-): Promise<Omit<Stats, "crags">> {
-  const row = await queryD1First<{
-    sectors: number;
-    boulders: number;
-    routes: number;
-  }>(
-    `SELECT
+): D1Query<Omit<Stats, "crags">> {
+  return {
+    sql: `SELECT
        (SELECT COUNT(*)
         FROM sectors s
         WHERE s.crag_id = ? AND s.is_published = 1
@@ -391,18 +416,84 @@ export async function getCragStats(
           AND t.deleted_at IS NULL
           AND r.deleted_at IS NULL
        ) AS routes`,
-    [cragId, cragId, cragId]
-  );
-  return row ?? { sectors: 0, boulders: 0, routes: 0 };
+    params: [cragId, cragId, cragId],
+    map: (rows) =>
+      (rows as Omit<Stats, "crags">[])[0] ?? {
+        sectors: 0,
+        boulders: 0,
+        routes: 0,
+      },
+  };
+}
+
+export async function getCragStats(
+  cragId: string
+): Promise<Omit<Stats, "crags">> {
+  return runQuery(cragStatsQuery(cragId));
+}
+
+/**
+ * Published-ancestor-aware stats for EVERY published crag in ONE query
+ * (optionally scoped to an area). Same per-crag semantics as `getCragStats`,
+ * but avoids one HTTP round trip per crag on the home and area pages.
+ */
+export function allCragStatsQuery(
+  areaId?: string
+): D1Query<Array<{ cragId: string } & Omit<Stats, "crags">>> {
+  return {
+    sql: `SELECT
+       c.id AS cragId,
+       (SELECT COUNT(*)
+        FROM sectors s
+        WHERE s.crag_id = c.id AND s.is_published = 1
+          AND s.deleted_at IS NULL
+       ) AS sectors,
+       (SELECT COUNT(*)
+        FROM boulders b
+        JOIN sectors s ON s.id = b.sector_id
+        WHERE s.crag_id = c.id AND s.is_published = 1 AND b.is_published = 1
+          AND s.deleted_at IS NULL AND b.deleted_at IS NULL
+       ) AS boulders,
+       (SELECT COUNT(*)
+        FROM routes r
+        JOIN topos t ON t.id = r.topo_id
+        JOIN boulders b ON b.id = t.boulder_id
+        JOIN sectors s ON s.id = b.sector_id
+        WHERE s.crag_id = c.id
+          AND s.is_published = 1
+          AND b.is_published = 1
+          AND t.is_published = 1
+          AND r.is_published = 1
+          AND s.deleted_at IS NULL
+          AND b.deleted_at IS NULL
+          AND t.deleted_at IS NULL
+          AND r.deleted_at IS NULL
+       ) AS routes
+     FROM crags c
+     JOIN areas a ON a.id = c.area_id
+     WHERE c.is_published = 1
+       AND a.is_published = 1
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL
+       ${areaId !== undefined ? "AND c.area_id = ?" : ""}`,
+    params: areaId !== undefined ? [areaId] : [],
+    map: (rows) => rows as Array<{ cragId: string } & Omit<Stats, "crags">>,
+  };
+}
+
+export async function getAllCragStats(
+  areaId?: string
+): Promise<Array<{ cragId: string } & Omit<Stats, "crags">>> {
+  return runQuery(allCragStatsQuery(areaId));
 }
 
 // ---------------------------------------------------------------------------
 // 3. Announcements
 // ---------------------------------------------------------------------------
 
-export async function getPublishedAnnouncements(): Promise<Announcement[]> {
-  const rows = await queryD1<AnnouncementRow>(
-    `SELECT
+export function publishedAnnouncementsQuery(): D1Query<Announcement[]> {
+  return {
+    sql: `SELECT
        id,
        title,
        body,
@@ -415,18 +506,23 @@ export async function getPublishedAnnouncements(): Promise<Announcement[]> {
      FROM announcements
      WHERE is_published = 1
        AND deleted_at IS NULL
-     ORDER BY sort_order, id`
-  );
-  return rows.map(mapAnnouncement);
+     ORDER BY sort_order, id`,
+    params: [],
+    map: (rows) => (rows as AnnouncementRow[]).map(mapAnnouncement),
+  };
+}
+
+export async function getPublishedAnnouncements(): Promise<Announcement[]> {
+  return runQuery(publishedAnnouncementsQuery());
 }
 
 // ---------------------------------------------------------------------------
 // 4. Crag by slug
 // ---------------------------------------------------------------------------
 
-export async function getCragBySlug(slug: string): Promise<Crag | null> {
-  const row = await queryD1First<CragRow>(
-    `SELECT
+export function cragBySlugQuery(slug: string): D1Query<Crag | null> {
+  return {
+    sql: `SELECT
        c.id,
        c.area_id        AS areaId,
        c.name,
@@ -446,18 +542,25 @@ export async function getCragBySlug(slug: string): Promise<Crag | null> {
        AND a.is_published = 1
        AND c.deleted_at IS NULL
        AND a.deleted_at IS NULL`,
-    [slug]
-  );
-  return row ? mapCrag(row) : null;
+    params: [slug],
+    map: (rows) => {
+      const row = (rows as CragRow[])[0];
+      return row ? mapCrag(row) : null;
+    },
+  };
+}
+
+export async function getCragBySlug(slug: string): Promise<Crag | null> {
+  return runQuery(cragBySlugQuery(slug));
 }
 
 // ---------------------------------------------------------------------------
 // 5. Sectors for a crag
 // ---------------------------------------------------------------------------
 
-export async function getCragSectors(cragId: string): Promise<Sector[]> {
-  const rows = await queryD1<SectorRow>(
-    `SELECT
+export function cragSectorsQuery(cragId: string): D1Query<Sector[]> {
+  return {
+    sql: `SELECT
        s.id,
        s.crag_id        AS cragId,
        s.name,
@@ -481,9 +584,13 @@ export async function getCragSectors(cragId: string): Promise<Sector[]> {
        AND c.deleted_at IS NULL
        AND a.deleted_at IS NULL
      ORDER BY s.sort_order, s.id`,
-    [cragId]
-  );
-  return rows.map(mapSector);
+    params: [cragId],
+    map: (rows) => (rows as SectorRow[]).map(mapSector),
+  };
+}
+
+export async function getCragSectors(cragId: string): Promise<Sector[]> {
+  return runQuery(cragSectorsQuery(cragId));
 }
 
 // ---------------------------------------------------------------------------
@@ -498,10 +605,10 @@ export async function getCragSectors(cragId: string): Promise<Sector[]> {
  * hashtagsList is parsed in TS via `parseHashtags`.
  * Pass sectorId to scope to a single sector.
  */
-export async function getCragBouldersWithStats(
+export function cragBouldersWithStatsQuery(
   cragId: string,
   sectorId?: string
-): Promise<
+): D1Query<
   Array<
     Boulder & {
       routeCount: number;
@@ -547,25 +654,41 @@ export async function getCragBouldersWithStats(
   const params: unknown[] =
     sectorId !== undefined ? [cragId, sectorId] : [cragId];
 
-  const rows = await queryD1<BoulderWithStatsRow>(sql, params);
+  return {
+    sql,
+    params,
+    map: (rows) =>
+      (rows as BoulderWithStatsRow[]).map((row) => ({
+        ...mapBoulder(row),
+        routeCount: row.routeCount,
+        gradeRange: formatGradeRange(row.minGrade, row.maxGrade),
+        hashtagsList: parseHashtags(row.hashtags),
+      })),
+  };
+}
 
-  return rows.map((row) => ({
-    ...mapBoulder(row),
-    routeCount: row.routeCount,
-    gradeRange: formatGradeRange(row.minGrade, row.maxGrade),
-    hashtagsList: parseHashtags(row.hashtags),
-  }));
+export async function getCragBouldersWithStats(
+  cragId: string,
+  sectorId?: string
+): Promise<
+  Array<
+    Boulder & {
+      routeCount: number;
+      gradeRange: string;
+      hashtagsList: string[];
+    }
+  >
+> {
+  return runQuery(cragBouldersWithStatsQuery(cragId, sectorId));
 }
 
 // ---------------------------------------------------------------------------
 // 7. Routes for a crag (with hierarchy names)
 // ---------------------------------------------------------------------------
 
-export async function getCragRoutes(
-  cragId: string
-): Promise<RouteListItem[]> {
-  const rows = await queryD1<RouteListItemRow>(
-    `SELECT
+export function cragRoutesQuery(cragId: string): D1Query<RouteListItem[]> {
+  return {
+    sql: `SELECT
        r.id,
        r.topo_id          AS topoId,
        r.name,
@@ -603,21 +726,81 @@ export async function getCragRoutes(
        AND c.deleted_at IS NULL
        AND a.deleted_at IS NULL
      ORDER BY r.sort_order, r.id`,
-    [cragId]
-  );
-  return rows.map(mapRouteListItem);
+    params: [cragId],
+    map: (rows) => (rows as RouteListItemRow[]).map(mapRouteListItem),
+  };
+}
+
+export async function getCragRoutes(
+  cragId: string
+): Promise<RouteListItem[]> {
+  return runQuery(cragRoutesQuery(cragId));
+}
+
+/**
+ * ALL published routes across every published crag/area, in ONE query.
+ * Replaces the loadAllRouteItems double loop (areas × crags requests).
+ * Ordered by crag, then route sort_order — callers that need a different
+ * ordering should sort in TS.
+ */
+export function allRouteItemsQuery(): D1Query<RouteListItem[]> {
+  return {
+    sql: `SELECT
+       r.id,
+       r.topo_id          AS topoId,
+       r.name,
+       r.slug,
+       r.grade,
+       r.grade_num        AS gradeNum,
+       r.fa,
+       r.description,
+       r.line_image_url   AS lineImageUrl,
+       r.is_published     AS isPublished,
+       r.sort_order       AS sortOrder,
+       b.id               AS boulderId,
+       b.name             AS boulderName,
+       s.name             AS sectorName,
+       c.name             AS cragName,
+       c.slug             AS cragSlug,
+       s.slug             AS sectorSlug
+     FROM routes r
+     JOIN topos t ON t.id = r.topo_id
+     JOIN boulders b ON b.id = t.boulder_id
+     JOIN sectors s ON s.id = b.sector_id
+     JOIN crags c ON c.id = s.crag_id
+     JOIN areas a ON a.id = c.area_id
+     WHERE r.is_published = 1
+       AND t.is_published = 1
+       AND b.is_published = 1
+       AND s.is_published = 1
+       AND c.is_published = 1
+       AND a.is_published = 1
+       AND r.deleted_at IS NULL
+       AND t.deleted_at IS NULL
+       AND b.deleted_at IS NULL
+       AND s.deleted_at IS NULL
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL
+     ORDER BY a.sort_order, a.id, c.sort_order, c.id, r.sort_order, r.id`,
+    params: [],
+    map: (rows) => (rows as RouteListItemRow[]).map(mapRouteListItem),
+  };
+}
+
+export async function getAllRouteItemsFlat(): Promise<RouteListItem[]> {
+  return runQuery(allRouteItemsQuery());
 }
 
 // ---------------------------------------------------------------------------
 // 8. Sector by slug + sector-scoped data
 // ---------------------------------------------------------------------------
 
-export async function getSectorBySlug(
+export function sectorBySlugQuery(
   cragSlug: string,
   sectorSlug: string
-): Promise<Sector | null> {
-  const row = await queryD1First<SectorRow>(
-    `SELECT
+): D1Query<Sector | null> {
+  return {
+    sql: `SELECT
        s.id,
        s.crag_id        AS cragId,
        s.name,
@@ -641,20 +824,28 @@ export async function getSectorBySlug(
        AND s.deleted_at IS NULL
        AND c.deleted_at IS NULL
        AND a.deleted_at IS NULL`,
-    [cragSlug, sectorSlug]
-  );
-  return row ? mapSector(row) : null;
+    params: [cragSlug, sectorSlug],
+    map: (rows) => {
+      const row = (rows as SectorRow[])[0];
+      return row ? mapSector(row) : null;
+    },
+  };
+}
+
+export async function getSectorBySlug(
+  cragSlug: string,
+  sectorSlug: string
+): Promise<Sector | null> {
+  return runQuery(sectorBySlugQuery(cragSlug, sectorSlug));
 }
 
 /**
  * Published routes for a single sector (with hierarchy names).
  * Reuses the same join chain; scopes by sector id.
  */
-export async function getSectorRoutes(
-  sectorId: string
-): Promise<RouteListItem[]> {
-  const rows = await queryD1<RouteListItemRow>(
-    `SELECT
+export function sectorRoutesQuery(sectorId: string): D1Query<RouteListItem[]> {
+  return {
+    sql: `SELECT
        r.id,
        r.topo_id          AS topoId,
        r.name,
@@ -692,18 +883,24 @@ export async function getSectorRoutes(
        AND c.deleted_at IS NULL
        AND a.deleted_at IS NULL
      ORDER BY r.sort_order, r.id`,
-    [sectorId]
-  );
-  return rows.map(mapRouteListItem);
+    params: [sectorId],
+    map: (rows) => (rows as RouteListItemRow[]).map(mapRouteListItem),
+  };
+}
+
+export async function getSectorRoutes(
+  sectorId: string
+): Promise<RouteListItem[]> {
+  return runQuery(sectorRoutesQuery(sectorId));
 }
 
 // ---------------------------------------------------------------------------
 // 9. Boulder by id + topos + topo routes
 // ---------------------------------------------------------------------------
 
-export async function getBoulderById(id: string): Promise<Boulder | null> {
-  const row = await queryD1First<BoulderRow>(
-    `SELECT
+export function boulderByIdQuery(id: string): D1Query<Boulder | null> {
+  return {
+    sql: `SELECT
        b.id,
        b.sector_id        AS sectorId,
        b.name,
@@ -727,18 +924,25 @@ export async function getBoulderById(id: string): Promise<Boulder | null> {
        AND s.deleted_at IS NULL
        AND c.deleted_at IS NULL
        AND a.deleted_at IS NULL`,
-    [id]
-  );
-  return row ? mapBoulder(row) : null;
+    params: [id],
+    map: (rows) => {
+      const row = (rows as BoulderRow[])[0];
+      return row ? mapBoulder(row) : null;
+    },
+  };
+}
+
+export async function getBoulderById(id: string): Promise<Boulder | null> {
+  return runQuery(boulderByIdQuery(id));
 }
 
 /**
  * Published topos for a boulder, ordered by sort_order then id.
  * The repository uses this list to compute topoIndex and topoCount.
  */
-export async function getBoulderTopos(boulderId: string): Promise<Topo[]> {
-  const rows = await queryD1<TopoRow>(
-    `SELECT
+export function boulderToposQuery(boulderId: string): D1Query<Topo[]> {
+  return {
+    sql: `SELECT
        id,
        boulder_id      AS boulderId,
        name,
@@ -750,15 +954,19 @@ export async function getBoulderTopos(boulderId: string): Promise<Topo[]> {
        AND is_published = 1
        AND deleted_at IS NULL
      ORDER BY sort_order, id`,
-    [boulderId]
-  );
-  return rows.map(mapTopo);
+    params: [boulderId],
+    map: (rows) => (rows as TopoRow[]).map(mapTopo),
+  };
+}
+
+export async function getBoulderTopos(boulderId: string): Promise<Topo[]> {
+  return runQuery(boulderToposQuery(boulderId));
 }
 
 /** Published routes for a topo, ordered by sort_order then id. */
-export async function getTopoRoutes(topoId: string): Promise<Route[]> {
-  const rows = await queryD1<RouteRow>(
-    `SELECT
+export function topoRoutesQuery(topoId: string): D1Query<Route[]> {
+  return {
+    sql: `SELECT
        id,
        topo_id          AS topoId,
        name,
@@ -775,9 +983,50 @@ export async function getTopoRoutes(topoId: string): Promise<Route[]> {
        AND is_published = 1
        AND deleted_at IS NULL
      ORDER BY sort_order, id`,
-    [topoId]
-  );
-  return rows.map(mapRoute);
+    params: [topoId],
+    map: (rows) => (rows as RouteRow[]).map(mapRoute),
+  };
+}
+
+export async function getTopoRoutes(topoId: string): Promise<Route[]> {
+  return runQuery(topoRoutesQuery(topoId));
+}
+
+/**
+ * Published routes for EVERY published topo of a boulder, in ONE query.
+ * Ordered by topo (sort_order, id) then route (sort_order, id), so grouping
+ * rows by `topoId` preserves the per-topo route order of `getTopoRoutes`.
+ * Avoids one HTTP round trip per topo on the boulder detail page.
+ */
+export function boulderTopoRoutesQuery(boulderId: string): D1Query<Route[]> {
+  return {
+    sql: `SELECT
+       r.id,
+       r.topo_id          AS topoId,
+       r.name,
+       r.slug,
+       r.grade,
+       r.grade_num        AS gradeNum,
+       r.fa,
+       r.description,
+       r.line_image_url   AS lineImageUrl,
+       r.is_published     AS isPublished,
+       r.sort_order       AS sortOrder
+     FROM routes r
+     JOIN topos t ON t.id = r.topo_id
+     WHERE t.boulder_id = ?
+       AND t.is_published = 1
+       AND r.is_published = 1
+       AND t.deleted_at IS NULL
+       AND r.deleted_at IS NULL
+     ORDER BY t.sort_order, t.id, r.sort_order, r.id`,
+    params: [boulderId],
+    map: (rows) => (rows as RouteRow[]).map(mapRoute),
+  };
+}
+
+export async function getBoulderTopoRoutes(boulderId: string): Promise<Route[]> {
+  return runQuery(boulderTopoRoutesQuery(boulderId));
 }
 
 // ---------------------------------------------------------------------------
@@ -993,9 +1242,9 @@ export async function getAreaBySlug(slug: string): Promise<Area | null> {
  * Returns crag/sector/boulder/route counts where the full ancestor chain is
  * published and non-soft-deleted.
  */
-export async function getAreaStats(areaId: string): Promise<Stats> {
-  const row = await queryD1First<StatsRow>(
-    `SELECT
+export function areaStatsQuery(areaId: string): D1Query<Stats> {
+  return {
+    sql: `SELECT
        (SELECT COUNT(*)
         FROM crags c
         WHERE c.area_id = ?
@@ -1029,9 +1278,14 @@ export async function getAreaStats(areaId: string): Promise<Stats> {
           AND r.deleted_at IS NULL AND t.deleted_at IS NULL
           AND b.deleted_at IS NULL AND s.deleted_at IS NULL AND c.deleted_at IS NULL
        ) AS routes`,
-    [areaId, areaId, areaId, areaId]
-  );
-  return row ?? { crags: 0, sectors: 0, boulders: 0, routes: 0 };
+    params: [areaId, areaId, areaId, areaId],
+    map: (rows) =>
+      (rows as StatsRow[])[0] ?? { crags: 0, sectors: 0, boulders: 0, routes: 0 },
+  };
+}
+
+export async function getAreaStats(areaId: string): Promise<Stats> {
+  return runQuery(areaStatsQuery(areaId));
 }
 
 // Grade band definitions — ordered V0-V2, V3-V5, V6-V8, V9-V11, V12+.
@@ -1055,9 +1309,9 @@ interface GradeBandCountRow {
  * All five bands are always returned (count = 0 when no routes in that range).
  * Topos filtered by t.is_published = 1 AND t.deleted_at IS NULL.
  */
-export async function getAreaGradeDistribution(
+export function areaGradeDistributionQuery(
   areaId: string
-): Promise<GradeBand[]> {
+): D1Query<GradeBand[]> {
   // Build a CASE expression that maps grade_num to the band's min boundary so
   // we can GROUP BY band without string interpolation.
   // SQLite's CASE is safe here — the values (0, 3, 6, 9, 12) are constants, not user input.
@@ -1070,8 +1324,8 @@ export async function getAreaGradeDistribution(
     ELSE NULL
   END`;
 
-  const rows = await queryD1<GradeBandCountRow>(
-    `SELECT
+  return {
+    sql: `SELECT
        ${caseExpr} AS min,
        COUNT(*) AS count
      FROM routes r
@@ -1092,21 +1346,28 @@ export async function getAreaGradeDistribution(
        AND c.deleted_at IS NULL
      GROUP BY min
      HAVING min IS NOT NULL`,
-    [areaId]
-  );
+    params: [areaId],
+    map: (rows) => {
+      // Build a lookup from band-min → count, then map to ordered output.
+      const countByMin = new Map<number, number>();
+      for (const row of rows as GradeBandCountRow[]) {
+        countByMin.set(row.min, row.count);
+      }
 
-  // Build a lookup from band-min → count, then map to ordered output.
-  const countByMin = new Map<number, number>();
-  for (const row of rows) {
-    countByMin.set(row.min, row.count);
-  }
+      return GRADE_BANDS.map((b) => ({
+        band: b.band,
+        min: b.min,
+        max: b.max,
+        count: countByMin.get(b.min) ?? 0,
+      }));
+    },
+  };
+}
 
-  return GRADE_BANDS.map((b) => ({
-    band: b.band,
-    min: b.min,
-    max: b.max,
-    count: countByMin.get(b.min) ?? 0,
-  }));
+export async function getAreaGradeDistribution(
+  areaId: string
+): Promise<GradeBand[]> {
+  return runQuery(areaGradeDistributionQuery(areaId));
 }
 
 /**
@@ -1114,11 +1375,11 @@ export async function getAreaGradeDistribution(
  * Returns `cragId -> { gradeNum -> count }` rows; callers bucket into V-grade
  * labels using `lib/grade-histogram.ts`.
  */
-export async function getAllCragGradeCounts(): Promise<
+export function allCragGradeCountsQuery(): D1Query<
   Array<{ cragId: string; gradeNum: number; count: number }>
 > {
-  return queryD1<{ cragId: string; gradeNum: number; count: number }>(
-    `SELECT s.crag_id AS cragId, r.grade_num AS gradeNum, COUNT(*) AS count
+  return {
+    sql: `SELECT s.crag_id AS cragId, r.grade_num AS gradeNum, COUNT(*) AS count
        FROM routes r
        JOIN topos t ON t.id = r.topo_id
        JOIN boulders b ON b.id = t.boulder_id
@@ -1134,8 +1395,17 @@ export async function getAllCragGradeCounts(): Promise<
         AND b.deleted_at IS NULL
         AND s.deleted_at IS NULL
         AND c.deleted_at IS NULL
-      GROUP BY s.crag_id, r.grade_num`
-  );
+      GROUP BY s.crag_id, r.grade_num`,
+    params: [],
+    map: (rows) =>
+      rows as Array<{ cragId: string; gradeNum: number; count: number }>,
+  };
+}
+
+export async function getAllCragGradeCounts(): Promise<
+  Array<{ cragId: string; gradeNum: number; count: number }>
+> {
+  return runQuery(allCragGradeCountsQuery());
 }
 
 // ---------------------------------------------------------------------------
@@ -1147,9 +1417,11 @@ export async function getAllCragGradeCounts(): Promise<
  * Used by the Area overview map. Excludes Crags without lat/lng (they'd render at (0,0)).
  * Ancestor published check: area must also be published and non-soft-deleted.
  */
-export async function getAreaCragsWithCoords(areaId: string): Promise<CragLocation[]> {
-  const rows = await queryD1<CragLocation>(
-    `SELECT c.id, c.slug, c.name, c.lat AS lat, c.lng AS lng
+export function areaCragsWithCoordsQuery(
+  areaId: string
+): D1Query<CragLocation[]> {
+  return {
+    sql: `SELECT c.id, c.slug, c.name, c.lat AS lat, c.lng AS lng
        FROM crags c
        JOIN areas a ON a.id = c.area_id
       WHERE c.area_id = ?
@@ -1157,9 +1429,13 @@ export async function getAreaCragsWithCoords(areaId: string): Promise<CragLocati
         AND a.is_published = 1 AND a.deleted_at IS NULL
         AND c.lat IS NOT NULL AND c.lng IS NOT NULL
       ORDER BY c.sort_order ASC, c.id ASC`,
-    [areaId]
-  );
-  return rows;
+    params: [areaId],
+    map: (rows) => rows as CragLocation[],
+  };
+}
+
+export async function getAreaCragsWithCoords(areaId: string): Promise<CragLocation[]> {
+  return runQuery(areaCragsWithCoordsQuery(areaId));
 }
 
 // ---------------------------------------------------------------------------

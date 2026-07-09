@@ -36,6 +36,9 @@ import {
   getAreaStats,
   getAreaGradeDistribution,
   getAreaCragsWithCoords,
+  getAllCragStats,
+  getBoulderTopoRoutes,
+  getAllRouteItemsFlat,
 } from "./queries";
 
 // ---------------------------------------------------------------------------
@@ -95,20 +98,22 @@ describe("parseHashtags", () => {
 // ---------------------------------------------------------------------------
 
 describe("getStats", () => {
-  it("calls queryD1First with no params and returns counts", async () => {
-    mockQueryD1First.mockResolvedValueOnce({
-      crags: 3,
-      sectors: 7,
-      boulders: 12,
-      routes: 45,
-    });
+  it("calls queryD1 with no params and returns counts", async () => {
+    mockQueryD1.mockResolvedValueOnce([
+      {
+        crags: 3,
+        sectors: 7,
+        boulders: 12,
+        routes: 45,
+      },
+    ]);
 
     const stats = await getStats();
 
-    expect(mockQueryD1First).toHaveBeenCalledOnce();
-    const [sql, params] = mockQueryD1First.mock.calls[0] as [string, unknown];
-    // should be a single scalar SELECT — no params
-    expect(params).toBeUndefined();
+    expect(mockQueryD1).toHaveBeenCalledOnce();
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown];
+    // should be a single scalar SELECT — no bound params
+    expect(params).toEqual([]);
     expect(sql).toMatch(/SELECT/i);
     expect(sql).toMatch(/crags/);
     expect(sql).toMatch(/sectors/);
@@ -122,8 +127,8 @@ describe("getStats", () => {
     expect(stats).toEqual({ crags: 3, sectors: 7, boulders: 12, routes: 45 });
   });
 
-  it("returns zero stats when query returns null", async () => {
-    mockQueryD1First.mockResolvedValueOnce(null);
+  it("returns zero stats when query returns no rows", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
     const stats = await getStats();
     expect(stats).toEqual({ crags: 0, sectors: 0, boulders: 0, routes: 0 });
   });
@@ -178,7 +183,7 @@ describe("getPublishedAreas", () => {
 
     const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown];
     // No dynamic params needed for a simple published filter
-    expect(params).toBeUndefined();
+    expect(params).toEqual([]);
     expect(sql).toMatch(/FROM areas/);
     expect(sql).toMatch(/is_published = 1/);
     expect(sql).toMatch(/ORDER BY/);
@@ -266,7 +271,7 @@ describe("getAllPublishedCrags", () => {
 
     const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown];
     // No dynamic params — the WHERE uses only literal constants
-    expect(params).toBeUndefined();
+    expect(params).toEqual([]);
     expect(sql).toMatch(/FROM crags c/);
     expect(sql).toMatch(/JOIN areas a/);
     expect(sql).toMatch(/c\.is_published = 1/);
@@ -334,21 +339,62 @@ describe("getAllPublishedCrags", () => {
 
 describe("getCragStats", () => {
   it("passes cragId three times (once per subquery)", async () => {
-    mockQueryD1First.mockResolvedValueOnce({
-      sectors: 2,
-      boulders: 5,
-      routes: 18,
-    });
+    mockQueryD1.mockResolvedValueOnce([
+      {
+        sectors: 2,
+        boulders: 5,
+        routes: 18,
+      },
+    ]);
 
     const stats = await getCragStats("crag-xyz");
 
-    const [sql, params] = mockQueryD1First.mock.calls[0] as [string, unknown[]];
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
     expect(params).toEqual(["crag-xyz", "crag-xyz", "crag-xyz"]);
     expect(sql).toMatch(/\?/);
     expect(sql).not.toContain("crag-xyz");
     expect(stats).toEqual({ sectors: 2, boulders: 5, routes: 18 });
     // soft-delete: all subqueries must exclude deleted rows
     expect(sql).toMatch(/deleted_at IS NULL/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getAllCragStats — one grouped query instead of one per crag
+// ---------------------------------------------------------------------------
+
+describe("getAllCragStats", () => {
+  it("returns per-crag stats rows from a single query with no params", async () => {
+    mockQueryD1.mockResolvedValueOnce([
+      { cragId: "crag-1", sectors: 2, boulders: 5, routes: 18 },
+      { cragId: "crag-2", sectors: 1, boulders: 3, routes: 7 },
+    ]);
+
+    const rows = await getAllCragStats();
+
+    expect(mockQueryD1).toHaveBeenCalledOnce();
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(params).toEqual([]);
+    expect(sql).toMatch(/c\.id AS cragId/);
+    expect(sql).toMatch(/FROM crags c/);
+    expect(sql).toMatch(/JOIN areas a/);
+    // same published/soft-delete semantics as getCragStats subqueries
+    expect(sql).toMatch(/s\.crag_id = c\.id/);
+    expect(sql).toMatch(/deleted_at IS NULL/);
+    expect(rows).toEqual([
+      { cragId: "crag-1", sectors: 2, boulders: 5, routes: 18 },
+      { cragId: "crag-2", sectors: 1, boulders: 3, routes: 7 },
+    ]);
+  });
+
+  it("scopes to an area with a bound param when areaId is given", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAllCragStats("area-9");
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(params).toEqual(["area-9"]);
+    expect(sql).toMatch(/c\.area_id = \?/);
+    expect(sql).not.toContain("area-9");
   });
 });
 
@@ -394,11 +440,11 @@ describe("getPublishedAnnouncements", () => {
 
 describe("getCragBySlug", () => {
   it("passes slug as param and returns null when not found", async () => {
-    mockQueryD1First.mockResolvedValueOnce(null);
+    mockQueryD1.mockResolvedValueOnce([]);
 
     const result = await getCragBySlug("nonexistent");
 
-    const [sql, params] = mockQueryD1First.mock.calls[0] as [string, unknown[]];
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
     expect(params).toEqual(["nonexistent"]);
     expect(sql).toMatch(/\?/);
     expect(sql).not.toContain("nonexistent");
@@ -408,20 +454,22 @@ describe("getCragBySlug", () => {
   });
 
   it("returns Crag with boolean isPublished when found", async () => {
-    mockQueryD1First.mockResolvedValueOnce({
-      id: "crag-1",
-      areaId: "area-1",
-      name: "북한산",
-      nameEn: null,
-      slug: "bukhansan",
-      lat: null,
-      lng: null,
-      description: "",
-      season: "",
-      coverImageUrl: "",
-      isPublished: 1,
-      sortOrder: 0,
-    });
+    mockQueryD1.mockResolvedValueOnce([
+      {
+        id: "crag-1",
+        areaId: "area-1",
+        name: "북한산",
+        nameEn: null,
+        slug: "bukhansan",
+        lat: null,
+        lng: null,
+        description: "",
+        season: "",
+        coverImageUrl: "",
+        isPublished: 1,
+        sortOrder: 0,
+      },
+    ]);
 
     const crag = await getCragBySlug("bukhansan");
     expect(crag).not.toBeNull();
@@ -628,10 +676,10 @@ describe("getCragRoutes", () => {
 
 describe("getSectorBySlug", () => {
   it("passes cragSlug and sectorSlug as bound params", async () => {
-    mockQueryD1First.mockResolvedValueOnce(null);
+    mockQueryD1.mockResolvedValueOnce([]);
     await getSectorBySlug("crag-a", "sector-b");
 
-    const [sql, params] = mockQueryD1First.mock.calls[0] as [string, unknown[]];
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
     expect(params).toEqual(["crag-a", "sector-b"]);
     expect(sql).not.toContain("crag-a");
     expect(sql).not.toContain("sector-b");
@@ -650,10 +698,10 @@ describe("getSectorBySlug", () => {
 
 describe("getBoulderById", () => {
   it("SQL checks published ancestors", async () => {
-    mockQueryD1First.mockResolvedValueOnce(null);
+    mockQueryD1.mockResolvedValueOnce([]);
     await getBoulderById("boulder-1");
 
-    const [sql] = mockQueryD1First.mock.calls[0] as [string, unknown[]];
+    const [sql] = mockQueryD1.mock.calls[0] as [string, unknown[]];
     expect(sql).toMatch(/JOIN sectors/);
     expect(sql).toMatch(/JOIN crags/);
     expect(sql).toMatch(/JOIN areas/);
@@ -718,6 +766,109 @@ describe("getTopoRoutes", () => {
     expect(sql).toMatch(/topo_id = \?/);
     // soft-delete: routes must exclude deleted rows
     expect(sql).toMatch(/deleted_at IS NULL/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getBoulderTopoRoutes — all topos of a boulder in one query
+// ---------------------------------------------------------------------------
+
+describe("getBoulderTopoRoutes", () => {
+  it("passes boulderId, joins topos, orders by topo then route", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getBoulderTopoRoutes("boulder-1");
+
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(params).toEqual(["boulder-1"]);
+    expect(sql).toMatch(/FROM routes r/);
+    expect(sql).toMatch(/JOIN topos t/);
+    expect(sql).toMatch(/t\.boulder_id = \?/);
+    expect(sql).toMatch(/t\.is_published = 1/);
+    expect(sql).toMatch(/r\.is_published = 1/);
+    expect(sql).toMatch(/ORDER BY t\.sort_order, t\.id, r\.sort_order, r\.id/);
+    expect(sql).toMatch(/t\.deleted_at IS NULL/);
+    expect(sql).toMatch(/r\.deleted_at IS NULL/);
+  });
+
+  it("maps rows to Route with boolean isPublished and topoId retained", async () => {
+    mockQueryD1.mockResolvedValueOnce([
+      {
+        id: "r-1",
+        topoId: "t-1",
+        name: "루트",
+        slug: "route",
+        grade: "V3",
+        gradeNum: 3,
+        fa: "",
+        description: "",
+        lineImageUrl: "",
+        isPublished: 1,
+        sortOrder: 0,
+      },
+    ]);
+
+    const routes = await getBoulderTopoRoutes("boulder-1");
+    expect(routes[0]!.isPublished).toBe(true);
+    expect(routes[0]!.topoId).toBe("t-1");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getAllRouteItemsFlat — single query replaces areas × crags loop
+// ---------------------------------------------------------------------------
+
+describe("getAllRouteItemsFlat", () => {
+  it("selects hierarchy names in one query with no params", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
+    await getAllRouteItemsFlat();
+
+    expect(mockQueryD1).toHaveBeenCalledOnce();
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
+    expect(params).toEqual([]);
+    expect(sql).toMatch(/FROM routes r/);
+    expect(sql).toMatch(/JOIN topos t/);
+    expect(sql).toMatch(/JOIN boulders b/);
+    expect(sql).toMatch(/JOIN sectors s/);
+    expect(sql).toMatch(/JOIN crags c/);
+    expect(sql).toMatch(/JOIN areas a/);
+    // ordered like the old loop: areas → crags → routes by sort_order
+    expect(sql).toMatch(
+      /ORDER BY a\.sort_order, a\.id, c\.sort_order, c\.id, r\.sort_order, r\.id/
+    );
+    // full published + soft-delete chain
+    expect(sql).toMatch(/r\.is_published = 1/);
+    expect(sql).toMatch(/a\.is_published = 1/);
+    expect(sql).toMatch(/r\.deleted_at IS NULL/);
+    expect(sql).toMatch(/a\.deleted_at IS NULL/);
+  });
+
+  it("maps rows to RouteListItem", async () => {
+    mockQueryD1.mockResolvedValueOnce([
+      {
+        id: "r-1",
+        topoId: "t-1",
+        name: "루트",
+        slug: "route",
+        grade: "V7",
+        gradeNum: 7,
+        fa: "",
+        description: "",
+        lineImageUrl: "",
+        isPublished: 1,
+        sortOrder: 0,
+        boulderId: "b-1",
+        boulderName: "바위",
+        sectorName: "섹터",
+        cragName: "암장",
+        cragSlug: "amjang",
+        sectorSlug: "sector-a",
+      },
+    ]);
+
+    const items = await getAllRouteItemsFlat();
+    expect(items).toHaveLength(1);
+    expect(items[0]!.isPublished).toBe(true);
+    expect(items[0]!.cragSlug).toBe("amjang");
   });
 });
 
@@ -926,16 +1077,18 @@ describe("getAreaBySlug", () => {
 
 describe("getAreaStats", () => {
   it("passes areaId as four bound params", async () => {
-    mockQueryD1First.mockResolvedValueOnce({
-      crags: 2,
-      sectors: 5,
-      boulders: 10,
-      routes: 30,
-    });
+    mockQueryD1.mockResolvedValueOnce([
+      {
+        crags: 2,
+        sectors: 5,
+        boulders: 10,
+        routes: 30,
+      },
+    ]);
 
     const stats = await getAreaStats("area-abc");
 
-    const [sql, params] = mockQueryD1First.mock.calls[0] as [string, unknown[]];
+    const [sql, params] = mockQueryD1.mock.calls[0] as [string, unknown[]];
     expect(params).toEqual(["area-abc", "area-abc", "area-abc", "area-abc"]);
     expect(sql).toMatch(/\?/);
     expect(sql).not.toContain("area-abc");
@@ -943,17 +1096,19 @@ describe("getAreaStats", () => {
     expect(sql).toMatch(/deleted_at IS NULL/);
   });
 
-  it("returns zero stats when query returns null", async () => {
-    mockQueryD1First.mockResolvedValueOnce(null);
+  it("returns zero stats when query returns no rows", async () => {
+    mockQueryD1.mockResolvedValueOnce([]);
     const stats = await getAreaStats("area-empty");
     expect(stats).toEqual({ crags: 0, sectors: 0, boulders: 0, routes: 0 });
   });
 
   it("SQL uses ancestor chain (sectors JOIN crags, boulders JOIN sectors JOIN crags, routes JOIN topos)", async () => {
-    mockQueryD1First.mockResolvedValueOnce({ crags: 0, sectors: 0, boulders: 0, routes: 0 });
+    mockQueryD1.mockResolvedValueOnce([
+      { crags: 0, sectors: 0, boulders: 0, routes: 0 },
+    ]);
     await getAreaStats("area-1");
 
-    const [sql] = mockQueryD1First.mock.calls[0] as [string, unknown];
+    const [sql] = mockQueryD1.mock.calls[0] as [string, unknown];
     expect(sql).toMatch(/FROM crags c/);
     expect(sql).toMatch(/FROM sectors s/);
     expect(sql).toMatch(/FROM boulders b/);

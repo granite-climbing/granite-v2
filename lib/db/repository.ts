@@ -1,36 +1,41 @@
 import { unstable_cache } from "next/cache";
 import {
-  getBoulderById,
-  getBoulderTopos,
-  getCragBySlug,
-  getCragBouldersWithStats,
-  getCragRoutes,
-  getCragSectors,
-  getCragStats,
-  getAllPublishedCrags,
-  getPublishedAreas,
-  getPublishedAnnouncements,
-  getCragsByAreaId,
+  allCragGradeCountsQuery,
+  allCragStatsQuery,
+  allPublishedCragsQuery,
+  areaCragsWithCoordsQuery,
+  areaGradeDistributionQuery,
+  areaStatsQuery,
+  boulderByIdQuery,
+  boulderTopoRoutesQuery,
+  boulderToposQuery,
+  cragBouldersWithStatsQuery,
+  cragBySlugQuery,
+  cragRoutesQuery,
+  cragSectorsQuery,
+  cragStatsQuery,
+  cragsByAreaIdQuery,
+  getAllRouteItemsFlat,
   getAreaBySlug,
-  getAreaStats,
-  getAreaGradeDistribution,
-  getAllCragGradeCounts,
-  getAreaCragsWithCoords,
+  getCragBySlug,
   getRouteById,
-  getSectorBySlug,
-  getSectorRoutes,
-  getStats,
   getTopoById,
-  getTopoRoutes,
   parseHashtags,
+  publishedAnnouncementsQuery,
+  publishedAreasQuery,
+  sectorBySlugQuery,
+  sectorRoutesQuery,
+  statsQuery,
+  topoRoutesQuery,
 } from "./queries";
-import { queryD1First } from "./d1-http";
+import { batchD1, queryD1First } from "./d1-http";
 import type {
   AreaDetail,
   BoulderDetail,
   CragDetail,
   GradeBand,
   HomeModel,
+  Route,
   RouteListItem,
   SectorDetail,
   Stats,
@@ -38,8 +43,9 @@ import type {
 } from "./schema";
 import { GRADE_BUCKET_COUNT } from "../grade-histogram";
 
-async function loadCragGradeCountsByCragId(): Promise<Map<string, number[]>> {
-  const rows = await getAllCragGradeCounts();
+function buildCragGradeCountsByCragId(
+  rows: Array<{ cragId: string; gradeNum: number; count: number }>
+): Map<string, number[]> {
   const map = new Map<string, number[]>();
   for (const row of rows) {
     const n = Math.floor(row.gradeNum);
@@ -57,6 +63,16 @@ async function loadCragGradeCountsByCragId(): Promise<Map<string, number[]>> {
 
 function emptyGradeCounts(): number[] {
   return Array.from({ length: GRADE_BUCKET_COUNT }, () => 0);
+}
+
+function buildCragStatsById(
+  rows: Array<{ cragId: string } & Omit<Stats, "crags">>
+): Map<string, Omit<Stats, "crags">> {
+  const map = new Map<string, Omit<Stats, "crags">>();
+  for (const { cragId, ...stats } of rows) {
+    map.set(cragId, stats);
+  }
+  return map;
 }
 
 // Re-export so that page components can `import type { AreaDetail } from "@/lib/db/repository"`
@@ -77,32 +93,36 @@ export function parseBoulderHashtags(hashtagsJson: string): string[] {
 
 // ---------------------------------------------------------------------------
 // Private load helpers (un-cached, used by the cache wrappers below)
+//
+// Each logical query is a D1Query descriptor so a whole "wave" of independent
+// queries shares ONE D1 HTTP round trip via batchD1 (the HTTP API costs
+// 150-400ms per request — see ADR 0003 and the 2026-07-09 batching spec).
 // ---------------------------------------------------------------------------
 
 async function loadAreaBySlug(slug: string): Promise<AreaDetail | null> {
   const area = await getAreaBySlug(slug);
   if (!area) return null;
 
-  const [stats, gradeDistribution, areaCrags, cragLocations, cragGradeCountsByCragId] =
-    await Promise.all([
-      getAreaStats(area.id),
-      getAreaGradeDistribution(area.id),
-      getCragsByAreaId(area.id),
-      getAreaCragsWithCoords(area.id),
-      loadCragGradeCountsByCragId(),
+  const [stats, gradeDistribution, areaCrags, cragLocations, gradeCountRows, cragStatsRows] =
+    await batchD1([
+      areaStatsQuery(area.id),
+      areaGradeDistributionQuery(area.id),
+      cragsByAreaIdQuery(area.id),
+      areaCragsWithCoordsQuery(area.id),
+      allCragGradeCountsQuery(),
+      allCragStatsQuery(area.id),
     ]);
 
-  const cragStats = await Promise.all(
-    areaCrags.map((crag) => getCragStats(crag.id))
-  );
+  const cragGradeCountsByCragId = buildCragGradeCountsByCragId(gradeCountRows);
+  const cragStatsById = buildCragStatsById(cragStatsRows);
 
   return {
     ...area,
     stats,
     gradeDistribution,
-    crags: areaCrags.map((crag, i) => ({
+    crags: areaCrags.map((crag) => ({
       ...crag,
-      stats: cragStats[i] ?? { sectors: 0, boulders: 0, routes: 0 },
+      stats: cragStatsById.get(crag.id) ?? { sectors: 0, boulders: 0, routes: 0 },
       gradeCounts: cragGradeCountsByCragId.get(crag.id) ?? emptyGradeCounts(),
     })),
     cragLocations,
@@ -110,27 +130,21 @@ async function loadAreaBySlug(slug: string): Promise<AreaDetail | null> {
 }
 
 async function loadHomeModel(): Promise<HomeModel> {
-  const [totals, areas, allCragsFlat, announcements, cragGradeCountsByCragId] =
-    await Promise.all([
-      getStats(),
-      getPublishedAreas(),
-      getAllPublishedCrags(),
-      getPublishedAnnouncements(),
-      loadCragGradeCountsByCragId(),
+  const [totals, areas, allCragsFlat, announcements, gradeCountRows, cragStatsRows] =
+    await batchD1([
+      statsQuery(),
+      publishedAreasQuery(),
+      allPublishedCragsQuery(),
+      publishedAnnouncementsQuery(),
+      allCragGradeCountsQuery(),
+      allCragStatsQuery(),
     ]);
 
-  // Build per-area stats by grouping the flat crag list (avoids N queries to
-  // getCragsByAreaId — we already have all crags from getAllPublishedCrags).
-  // We still need getCragStats for sector/boulder/route counts per crag.
-  const allCragStats = await Promise.all(
-    allCragsFlat.map((crag) => getCragStats(crag.id))
-  );
+  const cragGradeCountsByCragId = buildCragGradeCountsByCragId(gradeCountRows);
 
-  // Map cragId → stats for fast lookup when aggregating per-area totals.
-  const cragStatsById = new Map<string, Omit<Stats, "crags">>();
-  allCragsFlat.forEach((crag, i) => {
-    cragStatsById.set(crag.id, allCragStats[i] ?? { sectors: 0, boulders: 0, routes: 0 });
-  });
+  // Per-area stats come from grouping the flat crag list (we already have all
+  // crags) joined with the one-query per-crag stats from allCragStatsQuery.
+  const cragStatsById = buildCragStatsById(cragStatsRows);
 
   // Group crags by areaId to compute per-area aggregate stats.
   const cragsByAreaId = new Map<string, typeof allCragsFlat>();
@@ -170,11 +184,11 @@ async function loadCragBySlug(slug: string): Promise<CragDetail | null> {
   const crag = await getCragBySlug(slug);
   if (!crag) return null;
 
-  const [sectors, boulders, routes, stats] = await Promise.all([
-    getCragSectors(crag.id),
-    getCragBouldersWithStats(crag.id),
-    getCragRoutes(crag.id),
-    getCragStats(crag.id),
+  const [sectors, boulders, routes, stats] = await batchD1([
+    cragSectorsQuery(crag.id),
+    cragBouldersWithStatsQuery(crag.id),
+    cragRoutesQuery(crag.id),
+    cragStatsQuery(crag.id),
   ]);
 
   return {
@@ -191,16 +205,16 @@ async function loadSectorBySlug(
   cragSlug: string,
   sectorSlug: string
 ): Promise<SectorDetail | null> {
-  const [crag, sector] = await Promise.all([
-    getCragBySlug(cragSlug),
-    getSectorBySlug(cragSlug, sectorSlug),
+  const [crag, sector] = await batchD1([
+    cragBySlugQuery(cragSlug),
+    sectorBySlugQuery(cragSlug, sectorSlug),
   ]);
 
   if (!crag || !sector) return null;
 
-  const [boulders, routes] = await Promise.all([
-    getCragBouldersWithStats(sector.cragId, sector.id),
-    getSectorRoutes(sector.id),
+  const [boulders, routes] = await batchD1([
+    cragBouldersWithStatsQuery(sector.cragId, sector.id),
+    sectorRoutesQuery(sector.id),
   ]);
 
   return {
@@ -218,16 +232,26 @@ async function loadSectorBySlug(
 }
 
 async function loadBoulderById(id: string): Promise<BoulderDetail | null> {
-  const boulder = await getBoulderById(id);
+  const [boulder, topoList, boulderRoutes] = await batchD1([
+    boulderByIdQuery(id),
+    boulderToposQuery(id),
+    boulderTopoRoutesQuery(id),
+  ]);
   if (!boulder) return null;
 
-  const topoList = await getBoulderTopos(id);
-  const toposWithRoutes = await Promise.all(
-    topoList.map(async (topo) => ({
-      ...topo,
-      routes: await getTopoRoutes(topo.id),
-    }))
-  );
+  // boulderTopoRoutesQuery is ordered by topo then route sort_order, so
+  // grouping preserves each topo's route order.
+  const routesByTopoId = new Map<string, Route[]>();
+  for (const route of boulderRoutes) {
+    const list = routesByTopoId.get(route.topoId) ?? [];
+    list.push(route);
+    routesByTopoId.set(route.topoId, list);
+  }
+
+  const toposWithRoutes = topoList.map((topo) => ({
+    ...topo,
+    routes: routesByTopoId.get(topo.id) ?? [],
+  }));
 
   return {
     ...boulder,
@@ -242,9 +266,9 @@ async function loadTopoById(id: string): Promise<TopoDetail | null> {
 
   const { boulder, sector, crag, ...topo } = topoWithCtx;
 
-  const [boulderTopos, routes] = await Promise.all([
-    getBoulderTopos(boulder.id),
-    getTopoRoutes(id),
+  const [boulderTopos, routes] = await batchD1([
+    boulderToposQuery(boulder.id),
+    topoRoutesQuery(id),
   ]);
 
   const currentIdx = boulderTopos.findIndex((t) => t.id === id);
@@ -271,15 +295,7 @@ async function loadRouteById(id: string): Promise<RouteListItem | null> {
 }
 
 async function loadAllRouteItems(): Promise<RouteListItem[]> {
-  const areas = await getPublishedAreas();
-  const cragArrays = await Promise.all(
-    areas.map((area) => getCragsByAreaId(area.id))
-  );
-  const allCrags = cragArrays.flat();
-  const routeArrays = await Promise.all(
-    allCrags.map((crag) => getCragRoutes(crag.id))
-  );
-  return routeArrays.flat();
+  return getAllRouteItemsFlat();
 }
 
 // ---------------------------------------------------------------------------

@@ -10,40 +10,51 @@ vi.mock("next/cache", () => ({
 }));
 
 // ---------------------------------------------------------------------------
+// Mock ./d1-http — batchD1 executes each descriptor's map over empty rows.
+// The mocked query builders below return stubs whose map ignores the rows and
+// returns the fixture directly, so this faithfully simulates one batched
+// round trip. Defined as a plain function (not vi.fn) so resetAllMocks
+// doesn't wipe the implementation.
+// ---------------------------------------------------------------------------
+vi.mock("./d1-http", () => ({
+  batchD1: (
+    descriptors: ReadonlyArray<{ map: (rows: unknown[]) => unknown }>
+  ) => Promise.resolve(descriptors.map((d) => d.map([]))),
+  queryD1First: vi.fn(),
+}));
+
+// ---------------------------------------------------------------------------
 // Mock ./queries with small deterministic fixtures
 // ---------------------------------------------------------------------------
 vi.mock("./queries", () => ({
-  // Stats
-  getStats: vi.fn(),
-  // Areas / crags
-  getPublishedAreas: vi.fn(),
-  getAllPublishedCrags: vi.fn(),
-  getCragsByAreaId: vi.fn(),
-  getCragStats: vi.fn(),
-  // Area detail
+  // Descriptor builders (batched via batchD1)
+  statsQuery: vi.fn(),
+  publishedAreasQuery: vi.fn(),
+  allPublishedCragsQuery: vi.fn(),
+  publishedAnnouncementsQuery: vi.fn(),
+  allCragGradeCountsQuery: vi.fn(),
+  allCragStatsQuery: vi.fn(),
+  cragsByAreaIdQuery: vi.fn(),
+  areaStatsQuery: vi.fn(),
+  areaGradeDistributionQuery: vi.fn(),
+  areaCragsWithCoordsQuery: vi.fn(),
+  cragBySlugQuery: vi.fn(),
+  cragSectorsQuery: vi.fn(),
+  cragBouldersWithStatsQuery: vi.fn(),
+  cragRoutesQuery: vi.fn(),
+  cragStatsQuery: vi.fn(),
+  sectorBySlugQuery: vi.fn(),
+  sectorRoutesQuery: vi.fn(),
+  boulderByIdQuery: vi.fn(),
+  boulderToposQuery: vi.fn(),
+  boulderTopoRoutesQuery: vi.fn(),
+  topoRoutesQuery: vi.fn(),
+  // Plain async functions (single-query paths)
   getAreaBySlug: vi.fn(),
-  getAreaStats: vi.fn(),
-  getAreaGradeDistribution: vi.fn(),
-  getAllCragGradeCounts: vi.fn(),
-  getAreaCragsWithCoords: vi.fn(),
-  // Announcements
-  getPublishedAnnouncements: vi.fn(),
-  // Crag detail
   getCragBySlug: vi.fn(),
-  getCragSectors: vi.fn(),
-  getCragBouldersWithStats: vi.fn(),
-  getCragRoutes: vi.fn(),
-  // Sector detail
-  getSectorBySlug: vi.fn(),
-  getSectorRoutes: vi.fn(),
-  // Boulder detail
-  getBoulderById: vi.fn(),
-  getBoulderTopos: vi.fn(),
-  getTopoRoutes: vi.fn(),
-  // Topo detail
   getTopoById: vi.fn(),
-  // Route detail
   getRouteById: vi.fn(),
+  getAllRouteItemsFlat: vi.fn(),
   // Helpers
   parseHashtags: (raw: string): string[] => {
     try {
@@ -62,6 +73,12 @@ vi.mock("./queries", () => ({
 }));
 
 import * as queries from "./queries";
+
+// Builds a descriptor stub whose map returns `value` regardless of rows —
+// pairs with the batchD1 mock above.
+function stubQuery<T>(value: T) {
+  return { sql: "", params: [] as unknown[], map: () => value };
+}
 import {
   findAreaDetailBySlug,
   findBoulderById,
@@ -200,11 +217,38 @@ const ROUTE_LIST_ITEM_1: queries.RouteListItem = {
 import type { RouteListItem } from "./schema";
 
 // ---------------------------------------------------------------------------
-// Reset mocks between tests
+// Reset mocks between tests. Every descriptor builder gets a safe default so
+// batched loaders never hit an unmocked builder; tests override as needed.
 // ---------------------------------------------------------------------------
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(queries.getAllCragGradeCounts).mockResolvedValue([]);
+  vi.mocked(queries.statsQuery).mockReturnValue(
+    stubQuery({ crags: 0, sectors: 0, boulders: 0, routes: 0 })
+  );
+  vi.mocked(queries.publishedAreasQuery).mockReturnValue(stubQuery([]));
+  vi.mocked(queries.allPublishedCragsQuery).mockReturnValue(stubQuery([]));
+  vi.mocked(queries.publishedAnnouncementsQuery).mockReturnValue(stubQuery([]));
+  vi.mocked(queries.allCragGradeCountsQuery).mockReturnValue(stubQuery([]));
+  vi.mocked(queries.allCragStatsQuery).mockReturnValue(stubQuery([]));
+  vi.mocked(queries.cragsByAreaIdQuery).mockReturnValue(stubQuery([]));
+  vi.mocked(queries.areaStatsQuery).mockReturnValue(
+    stubQuery({ crags: 0, sectors: 0, boulders: 0, routes: 0 })
+  );
+  vi.mocked(queries.areaGradeDistributionQuery).mockReturnValue(stubQuery([]));
+  vi.mocked(queries.areaCragsWithCoordsQuery).mockReturnValue(stubQuery([]));
+  vi.mocked(queries.cragBySlugQuery).mockReturnValue(stubQuery(null));
+  vi.mocked(queries.cragSectorsQuery).mockReturnValue(stubQuery([]));
+  vi.mocked(queries.cragBouldersWithStatsQuery).mockReturnValue(stubQuery([]));
+  vi.mocked(queries.cragRoutesQuery).mockReturnValue(stubQuery([]));
+  vi.mocked(queries.cragStatsQuery).mockReturnValue(
+    stubQuery({ sectors: 0, boulders: 0, routes: 0 })
+  );
+  vi.mocked(queries.sectorBySlugQuery).mockReturnValue(stubQuery(null));
+  vi.mocked(queries.sectorRoutesQuery).mockReturnValue(stubQuery([]));
+  vi.mocked(queries.boulderByIdQuery).mockReturnValue(stubQuery(null));
+  vi.mocked(queries.boulderToposQuery).mockReturnValue(stubQuery([]));
+  vi.mocked(queries.boulderTopoRoutesQuery).mockReturnValue(stubQuery([]));
+  vi.mocked(queries.topoRoutesQuery).mockReturnValue(stubQuery([]));
 });
 
 // ---------------------------------------------------------------------------
@@ -212,18 +256,19 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 describe("getHomeModel", () => {
   it("composes totals, area stats, allCrags, and crag stats from mocked queries", async () => {
-    vi.mocked(queries.getStats).mockResolvedValue({
-      crags: 2,
-      sectors: 3,
-      boulders: 4,
-      routes: 7,
-    });
-    vi.mocked(queries.getPublishedAreas).mockResolvedValue([AREA_1]);
-    vi.mocked(queries.getAllPublishedCrags).mockResolvedValue([CRAG_1, CRAG_2]);
-    vi.mocked(queries.getCragStats)
-      .mockResolvedValueOnce({ sectors: 2, boulders: 3, routes: 5 }) // crag-1
-      .mockResolvedValueOnce({ sectors: 1, boulders: 1, routes: 2 }); // crag-2
-    vi.mocked(queries.getPublishedAnnouncements).mockResolvedValue([]);
+    vi.mocked(queries.statsQuery).mockReturnValue(
+      stubQuery({ crags: 2, sectors: 3, boulders: 4, routes: 7 })
+    );
+    vi.mocked(queries.publishedAreasQuery).mockReturnValue(stubQuery([AREA_1]));
+    vi.mocked(queries.allPublishedCragsQuery).mockReturnValue(
+      stubQuery([CRAG_1, CRAG_2])
+    );
+    vi.mocked(queries.allCragStatsQuery).mockReturnValue(
+      stubQuery([
+        { cragId: "crag-1", sectors: 2, boulders: 3, routes: 5 },
+        { cragId: "crag-2", sectors: 1, boulders: 1, routes: 2 },
+      ])
+    );
 
     const model = await getHomeModel();
 
@@ -252,11 +297,7 @@ describe("getHomeModel", () => {
   });
 
   it("returns empty areas/allCrags/announcements arrays when nothing is published", async () => {
-    vi.mocked(queries.getStats).mockResolvedValue({ crags: 0, sectors: 0, boulders: 0, routes: 0 });
-    vi.mocked(queries.getPublishedAreas).mockResolvedValue([]);
-    vi.mocked(queries.getAllPublishedCrags).mockResolvedValue([]);
-    vi.mocked(queries.getPublishedAnnouncements).mockResolvedValue([]);
-
+    // beforeEach defaults already stub every home query as empty
     const model = await getHomeModel();
     expect(model.areas).toHaveLength(0);
     expect(model.allCrags).toHaveLength(0);
@@ -270,12 +311,17 @@ describe("getHomeModel", () => {
       name: "영남권",
       slug: "yeongnam",
     };
-    vi.mocked(queries.getStats).mockResolvedValue({ crags: 1, sectors: 1, boulders: 1, routes: 1 });
+    vi.mocked(queries.statsQuery).mockReturnValue(
+      stubQuery({ crags: 1, sectors: 1, boulders: 1, routes: 1 })
+    );
     // Two areas, but allCrags only has CRAG_1 which belongs to area-1
-    vi.mocked(queries.getPublishedAreas).mockResolvedValue([AREA_1, AREA_2]);
-    vi.mocked(queries.getAllPublishedCrags).mockResolvedValue([CRAG_1]);
-    vi.mocked(queries.getCragStats).mockResolvedValue({ sectors: 2, boulders: 3, routes: 5 });
-    vi.mocked(queries.getPublishedAnnouncements).mockResolvedValue([]);
+    vi.mocked(queries.publishedAreasQuery).mockReturnValue(
+      stubQuery([AREA_1, AREA_2])
+    );
+    vi.mocked(queries.allPublishedCragsQuery).mockReturnValue(stubQuery([CRAG_1]));
+    vi.mocked(queries.allCragStatsQuery).mockReturnValue(
+      stubQuery([{ cragId: "crag-1", sectors: 2, boulders: 3, routes: 5 }])
+    );
 
     const model = await getHomeModel();
 
@@ -293,16 +339,11 @@ describe("getHomeModel", () => {
     expect(model.allCrags[0]!.slug).toBe("moraksan");
   });
 
-  it("uses getAllPublishedCrags (not getCragsByAreaId) for the flat crag list", async () => {
-    vi.mocked(queries.getStats).mockResolvedValue({ crags: 0, sectors: 0, boulders: 0, routes: 0 });
-    vi.mocked(queries.getPublishedAreas).mockResolvedValue([]);
-    vi.mocked(queries.getAllPublishedCrags).mockResolvedValue([]);
-    vi.mocked(queries.getPublishedAnnouncements).mockResolvedValue([]);
-
+  it("uses allPublishedCragsQuery (not cragsByAreaIdQuery) for the flat crag list", async () => {
     await getHomeModel();
 
-    expect(vi.mocked(queries.getAllPublishedCrags)).toHaveBeenCalledOnce();
-    expect(vi.mocked(queries.getCragsByAreaId)).not.toHaveBeenCalled();
+    expect(vi.mocked(queries.allPublishedCragsQuery)).toHaveBeenCalledOnce();
+    expect(vi.mocked(queries.cragsByAreaIdQuery)).not.toHaveBeenCalled();
   });
 });
 
@@ -319,10 +360,16 @@ describe("findCragBySlug", () => {
 
   it("returns populated CragDetail with tabs, stats, sectors, boulders, routes", async () => {
     vi.mocked(queries.getCragBySlug).mockResolvedValue(CRAG_1);
-    vi.mocked(queries.getCragSectors).mockResolvedValue([SECTOR_1]);
-    vi.mocked(queries.getCragBouldersWithStats).mockResolvedValue([BOULDER_WITH_STATS]);
-    vi.mocked(queries.getCragRoutes).mockResolvedValue([ROUTE_LIST_ITEM_1]);
-    vi.mocked(queries.getCragStats).mockResolvedValue({ sectors: 1, boulders: 1, routes: 2 });
+    vi.mocked(queries.cragSectorsQuery).mockReturnValue(stubQuery([SECTOR_1]));
+    vi.mocked(queries.cragBouldersWithStatsQuery).mockReturnValue(
+      stubQuery([BOULDER_WITH_STATS])
+    );
+    vi.mocked(queries.cragRoutesQuery).mockReturnValue(
+      stubQuery([ROUTE_LIST_ITEM_1])
+    );
+    vi.mocked(queries.cragStatsQuery).mockReturnValue(
+      stubQuery({ sectors: 1, boulders: 1, routes: 2 })
+    );
 
     const result = await findCragBySlug("moraksan");
 
@@ -341,26 +388,30 @@ describe("findCragBySlug", () => {
 // ---------------------------------------------------------------------------
 describe("findSectorBySlug", () => {
   it("returns null when crag is not found", async () => {
-    vi.mocked(queries.getCragBySlug).mockResolvedValue(null);
-    vi.mocked(queries.getSectorBySlug).mockResolvedValue(null);
+    vi.mocked(queries.cragBySlugQuery).mockReturnValue(stubQuery(null));
+    vi.mocked(queries.sectorBySlugQuery).mockReturnValue(stubQuery(null));
 
     const result = await findSectorBySlug("nonexistent", "gamja");
     expect(result).toBeNull();
   });
 
   it("returns null when sector is not found", async () => {
-    vi.mocked(queries.getCragBySlug).mockResolvedValue(CRAG_1);
-    vi.mocked(queries.getSectorBySlug).mockResolvedValue(null);
+    vi.mocked(queries.cragBySlugQuery).mockReturnValue(stubQuery(CRAG_1));
+    vi.mocked(queries.sectorBySlugQuery).mockReturnValue(stubQuery(null));
 
     const result = await findSectorBySlug("moraksan", "nonexistent");
     expect(result).toBeNull();
   });
 
   it("returns populated SectorDetail", async () => {
-    vi.mocked(queries.getCragBySlug).mockResolvedValue(CRAG_1);
-    vi.mocked(queries.getSectorBySlug).mockResolvedValue(SECTOR_1);
-    vi.mocked(queries.getCragBouldersWithStats).mockResolvedValue([BOULDER_WITH_STATS]);
-    vi.mocked(queries.getSectorRoutes).mockResolvedValue([ROUTE_LIST_ITEM_1]);
+    vi.mocked(queries.cragBySlugQuery).mockReturnValue(stubQuery(CRAG_1));
+    vi.mocked(queries.sectorBySlugQuery).mockReturnValue(stubQuery(SECTOR_1));
+    vi.mocked(queries.cragBouldersWithStatsQuery).mockReturnValue(
+      stubQuery([BOULDER_WITH_STATS])
+    );
+    vi.mocked(queries.sectorRoutesQuery).mockReturnValue(
+      stubQuery([ROUTE_LIST_ITEM_1])
+    );
 
     const result = await findSectorBySlug("moraksan", "gamja");
 
@@ -378,17 +429,20 @@ describe("findSectorBySlug", () => {
 // ---------------------------------------------------------------------------
 describe("findBoulderById", () => {
   it("returns null for unknown id", async () => {
-    vi.mocked(queries.getBoulderById).mockResolvedValue(null);
+    vi.mocked(queries.boulderByIdQuery).mockReturnValue(stubQuery(null));
 
     expect(await findBoulderById("missing")).toBeNull();
   });
 
   it("returns BoulderDetail with parsed hashtagsList and topos+routes", async () => {
-    vi.mocked(queries.getBoulderById).mockResolvedValue(BOULDER_1);
-    vi.mocked(queries.getBoulderTopos).mockResolvedValue([TOPO_1, TOPO_2]);
-    vi.mocked(queries.getTopoRoutes)
-      .mockResolvedValueOnce([ROUTE_1])  // topo-1
-      .mockResolvedValueOnce([]);         // topo-2
+    vi.mocked(queries.boulderByIdQuery).mockReturnValue(stubQuery(BOULDER_1));
+    vi.mocked(queries.boulderToposQuery).mockReturnValue(
+      stubQuery([TOPO_1, TOPO_2])
+    );
+    // one flat list; ROUTE_1 belongs to topo-1, topo-2 has no routes
+    vi.mocked(queries.boulderTopoRoutesQuery).mockReturnValue(
+      stubQuery([ROUTE_1])
+    );
 
     const result = await findBoulderById("boulder-1");
 
@@ -418,8 +472,10 @@ describe("findTopoById", () => {
       crag: CRAG_1,
     });
     // Two topos for the boulder, topo-2 is second
-    vi.mocked(queries.getBoulderTopos).mockResolvedValue([TOPO_1, TOPO_2]);
-    vi.mocked(queries.getTopoRoutes).mockResolvedValue([ROUTE_1]);
+    vi.mocked(queries.boulderToposQuery).mockReturnValue(
+      stubQuery([TOPO_1, TOPO_2])
+    );
+    vi.mocked(queries.topoRoutesQuery).mockReturnValue(stubQuery([ROUTE_1]));
 
     const result = await findTopoById("topo-2");
 
@@ -437,8 +493,10 @@ describe("findTopoById", () => {
       sector: SECTOR_1,
       crag: CRAG_1,
     });
-    vi.mocked(queries.getBoulderTopos).mockResolvedValue([TOPO_1, TOPO_2]);
-    vi.mocked(queries.getTopoRoutes).mockResolvedValue([]);
+    vi.mocked(queries.boulderToposQuery).mockReturnValue(
+      stubQuery([TOPO_1, TOPO_2])
+    );
+    vi.mocked(queries.topoRoutesQuery).mockReturnValue(stubQuery([]));
 
     const result = await findTopoById("topo-1");
 
@@ -453,8 +511,10 @@ describe("findTopoById", () => {
       sector: SECTOR_1,
       crag: CRAG_1,
     });
-    vi.mocked(queries.getBoulderTopos).mockResolvedValue([TOPO_1, TOPO_2]);
-    vi.mocked(queries.getTopoRoutes).mockResolvedValue([]);
+    vi.mocked(queries.boulderToposQuery).mockReturnValue(
+      stubQuery([TOPO_1, TOPO_2])
+    );
+    vi.mocked(queries.topoRoutesQuery).mockReturnValue(stubQuery([]));
 
     const result = await findTopoById("topo-1");
 
@@ -469,8 +529,10 @@ describe("findTopoById", () => {
       sector: SECTOR_1,
       crag: CRAG_1,
     });
-    vi.mocked(queries.getBoulderTopos).mockResolvedValue([TOPO_1, TOPO_2]);
-    vi.mocked(queries.getTopoRoutes).mockResolvedValue([]);
+    vi.mocked(queries.boulderToposQuery).mockReturnValue(
+      stubQuery([TOPO_1, TOPO_2])
+    );
+    vi.mocked(queries.topoRoutesQuery).mockReturnValue(stubQuery([]));
 
     const result = await findTopoById("topo-2");
 
@@ -493,8 +555,10 @@ describe("findTopoById", () => {
       sector: SECTOR_1,
       crag: CRAG_1,
     });
-    vi.mocked(queries.getBoulderTopos).mockResolvedValue([TOPO_1, TOPO_2, TOPO_3]);
-    vi.mocked(queries.getTopoRoutes).mockResolvedValue([]);
+    vi.mocked(queries.boulderToposQuery).mockReturnValue(
+      stubQuery([TOPO_1, TOPO_2, TOPO_3])
+    );
+    vi.mocked(queries.topoRoutesQuery).mockReturnValue(stubQuery([]));
 
     const result = await findTopoById("topo-2");
 
@@ -509,8 +573,8 @@ describe("findTopoById", () => {
       sector: SECTOR_1,
       crag: CRAG_1,
     });
-    vi.mocked(queries.getBoulderTopos).mockResolvedValue([TOPO_1]);
-    vi.mocked(queries.getTopoRoutes).mockResolvedValue([]);
+    vi.mocked(queries.boulderToposQuery).mockReturnValue(stubQuery([TOPO_1]));
+    vi.mocked(queries.topoRoutesQuery).mockReturnValue(stubQuery([]));
 
     const result = await findTopoById("topo-1");
 
@@ -550,16 +614,15 @@ describe("findRouteById", () => {
 // getAllRouteItems
 // ---------------------------------------------------------------------------
 describe("getAllRouteItems", () => {
-  it("aggregates routes across all published crags", async () => {
-    vi.mocked(queries.getPublishedAreas).mockResolvedValue([AREA_1]);
-    vi.mocked(queries.getCragsByAreaId).mockResolvedValue([CRAG_1, CRAG_2]);
-    vi.mocked(queries.getCragRoutes)
-      .mockResolvedValueOnce([ROUTE_LIST_ITEM_1])
-      .mockResolvedValueOnce([]);
+  it("returns all published routes from the single flat query", async () => {
+    vi.mocked(queries.getAllRouteItemsFlat).mockResolvedValue([
+      ROUTE_LIST_ITEM_1,
+    ]);
 
     const result = await getAllRouteItems();
     expect(result).toHaveLength(1);
     expect(result[0]!.id).toBe("route-1");
+    expect(vi.mocked(queries.getAllRouteItemsFlat)).toHaveBeenCalledOnce();
   });
 });
 
@@ -609,11 +672,6 @@ const GRADE_DIST_WITH_ROUTES = [
 ];
 
 describe("findAreaDetailBySlug", () => {
-  beforeEach(() => {
-    // Default: no crags with coordinates. Individual tests can override.
-    vi.mocked(queries.getAreaCragsWithCoords).mockResolvedValue([]);
-  });
-
   it("returns null when area slug does not exist", async () => {
     vi.mocked(queries.getAreaBySlug).mockResolvedValue(null);
 
@@ -630,17 +688,21 @@ describe("findAreaDetailBySlug", () => {
 
   it("returns populated AreaDetail with stats, gradeDistribution, and crags", async () => {
     vi.mocked(queries.getAreaBySlug).mockResolvedValue(AREA_1);
-    vi.mocked(queries.getAreaStats).mockResolvedValue({
-      crags: 2,
-      sectors: 4,
-      boulders: 8,
-      routes: 20,
-    });
-    vi.mocked(queries.getAreaGradeDistribution).mockResolvedValue(GRADE_DIST_WITH_ROUTES);
-    vi.mocked(queries.getCragsByAreaId).mockResolvedValue([CRAG_1, CRAG_2]);
-    vi.mocked(queries.getCragStats)
-      .mockResolvedValueOnce({ sectors: 2, boulders: 3, routes: 5 }) // crag-1
-      .mockResolvedValueOnce({ sectors: 2, boulders: 5, routes: 15 }); // crag-2
+    vi.mocked(queries.areaStatsQuery).mockReturnValue(
+      stubQuery({ crags: 2, sectors: 4, boulders: 8, routes: 20 })
+    );
+    vi.mocked(queries.areaGradeDistributionQuery).mockReturnValue(
+      stubQuery(GRADE_DIST_WITH_ROUTES)
+    );
+    vi.mocked(queries.cragsByAreaIdQuery).mockReturnValue(
+      stubQuery([CRAG_1, CRAG_2])
+    );
+    vi.mocked(queries.allCragStatsQuery).mockReturnValue(
+      stubQuery([
+        { cragId: "crag-1", sectors: 2, boulders: 3, routes: 5 },
+        { cragId: "crag-2", sectors: 2, boulders: 5, routes: 15 },
+      ])
+    );
 
     const result = await findAreaDetailBySlug("seoul");
 
@@ -663,10 +725,16 @@ describe("findAreaDetailBySlug", () => {
 
   it("returns gradeDistribution with all-zero counts when area has no routes", async () => {
     vi.mocked(queries.getAreaBySlug).mockResolvedValue(AREA_1);
-    vi.mocked(queries.getAreaStats).mockResolvedValue({ crags: 1, sectors: 1, boulders: 1, routes: 0 });
-    vi.mocked(queries.getAreaGradeDistribution).mockResolvedValue(ZERO_GRADE_DIST);
-    vi.mocked(queries.getCragsByAreaId).mockResolvedValue([CRAG_1]);
-    vi.mocked(queries.getCragStats).mockResolvedValue({ sectors: 1, boulders: 1, routes: 0 });
+    vi.mocked(queries.areaStatsQuery).mockReturnValue(
+      stubQuery({ crags: 1, sectors: 1, boulders: 1, routes: 0 })
+    );
+    vi.mocked(queries.areaGradeDistributionQuery).mockReturnValue(
+      stubQuery(ZERO_GRADE_DIST)
+    );
+    vi.mocked(queries.cragsByAreaIdQuery).mockReturnValue(stubQuery([CRAG_1]));
+    vi.mocked(queries.allCragStatsQuery).mockReturnValue(
+      stubQuery([{ cragId: "crag-1", sectors: 1, boulders: 1, routes: 0 }])
+    );
 
     const result = await findAreaDetailBySlug("seoul");
 
@@ -675,14 +743,20 @@ describe("findAreaDetailBySlug", () => {
     expect(result!.gradeDistribution.every((b) => b.count === 0)).toBe(true);
   });
 
-  it("includes only published crags in crags list (getCragsByAreaId handles the filter)", async () => {
-    // getCragsByAreaId already returns only published crags — we verify the
-    // repository passes through whatever getCragsByAreaId returns.
+  it("includes only published crags in crags list (cragsByAreaIdQuery handles the filter)", async () => {
+    // cragsByAreaIdQuery already returns only published crags — we verify the
+    // repository passes through whatever it returns.
     vi.mocked(queries.getAreaBySlug).mockResolvedValue(AREA_1);
-    vi.mocked(queries.getAreaStats).mockResolvedValue({ crags: 1, sectors: 2, boulders: 3, routes: 5 });
-    vi.mocked(queries.getAreaGradeDistribution).mockResolvedValue(ZERO_GRADE_DIST);
-    vi.mocked(queries.getCragsByAreaId).mockResolvedValue([CRAG_1]); // only 1 published crag
-    vi.mocked(queries.getCragStats).mockResolvedValue({ sectors: 2, boulders: 3, routes: 5 });
+    vi.mocked(queries.areaStatsQuery).mockReturnValue(
+      stubQuery({ crags: 1, sectors: 2, boulders: 3, routes: 5 })
+    );
+    vi.mocked(queries.areaGradeDistributionQuery).mockReturnValue(
+      stubQuery(ZERO_GRADE_DIST)
+    );
+    vi.mocked(queries.cragsByAreaIdQuery).mockReturnValue(stubQuery([CRAG_1])); // only 1 published crag
+    vi.mocked(queries.allCragStatsQuery).mockReturnValue(
+      stubQuery([{ cragId: "crag-1", sectors: 2, boulders: 3, routes: 5 }])
+    );
 
     const result = await findAreaDetailBySlug("seoul");
 
@@ -692,9 +766,10 @@ describe("findAreaDetailBySlug", () => {
 
   it("returns crags list as empty array when area has no published crags", async () => {
     vi.mocked(queries.getAreaBySlug).mockResolvedValue(AREA_1);
-    vi.mocked(queries.getAreaStats).mockResolvedValue({ crags: 0, sectors: 0, boulders: 0, routes: 0 });
-    vi.mocked(queries.getAreaGradeDistribution).mockResolvedValue(ZERO_GRADE_DIST);
-    vi.mocked(queries.getCragsByAreaId).mockResolvedValue([]);
+    vi.mocked(queries.areaGradeDistributionQuery).mockReturnValue(
+      stubQuery(ZERO_GRADE_DIST)
+    );
+    // areaStatsQuery / cragsByAreaIdQuery keep their empty beforeEach defaults
 
     const result = await findAreaDetailBySlug("seoul");
 
@@ -702,21 +777,21 @@ describe("findAreaDetailBySlug", () => {
     expect(result!.crags).toHaveLength(0);
   });
 
-  it("uses getAreaBySlug, getAreaStats, getAreaGradeDistribution, getCragsByAreaId, getCragStats, getAreaCragsWithCoords", async () => {
+  it("batches area stats, grade distribution, crags, coords, and per-crag stats after the slug lookup", async () => {
     vi.mocked(queries.getAreaBySlug).mockResolvedValue(AREA_1);
-    vi.mocked(queries.getAreaStats).mockResolvedValue({ crags: 0, sectors: 0, boulders: 0, routes: 0 });
-    vi.mocked(queries.getAreaGradeDistribution).mockResolvedValue(ZERO_GRADE_DIST);
-    vi.mocked(queries.getCragsByAreaId).mockResolvedValue([CRAG_1]);
-    vi.mocked(queries.getCragStats).mockResolvedValue({ sectors: 0, boulders: 0, routes: 0 });
+    vi.mocked(queries.areaGradeDistributionQuery).mockReturnValue(
+      stubQuery(ZERO_GRADE_DIST)
+    );
+    vi.mocked(queries.cragsByAreaIdQuery).mockReturnValue(stubQuery([CRAG_1]));
 
     await findAreaDetailBySlug("seoul");
 
     expect(vi.mocked(queries.getAreaBySlug)).toHaveBeenCalledWith("seoul");
-    expect(vi.mocked(queries.getAreaStats)).toHaveBeenCalledWith("area-1");
-    expect(vi.mocked(queries.getAreaGradeDistribution)).toHaveBeenCalledWith("area-1");
-    expect(vi.mocked(queries.getCragsByAreaId)).toHaveBeenCalledWith("area-1");
-    expect(vi.mocked(queries.getCragStats)).toHaveBeenCalledWith("crag-1");
-    expect(vi.mocked(queries.getAreaCragsWithCoords)).toHaveBeenCalledWith("area-1");
+    expect(vi.mocked(queries.areaStatsQuery)).toHaveBeenCalledWith("area-1");
+    expect(vi.mocked(queries.areaGradeDistributionQuery)).toHaveBeenCalledWith("area-1");
+    expect(vi.mocked(queries.cragsByAreaIdQuery)).toHaveBeenCalledWith("area-1");
+    expect(vi.mocked(queries.allCragStatsQuery)).toHaveBeenCalledWith("area-1");
+    expect(vi.mocked(queries.areaCragsWithCoordsQuery)).toHaveBeenCalledWith("area-1");
   });
 
   it("returns cragLocations from getAreaCragsWithCoords in the result", async () => {
@@ -725,13 +800,24 @@ describe("findAreaDetailBySlug", () => {
       { id: "crag-2", slug: "anyang", name: "안양", lat: 37.39, lng: 126.95 },
     ];
     vi.mocked(queries.getAreaBySlug).mockResolvedValue(AREA_1);
-    vi.mocked(queries.getAreaStats).mockResolvedValue({ crags: 2, sectors: 4, boulders: 8, routes: 20 });
-    vi.mocked(queries.getAreaGradeDistribution).mockResolvedValue(ZERO_GRADE_DIST);
-    vi.mocked(queries.getCragsByAreaId).mockResolvedValue([CRAG_1, CRAG_2]);
-    vi.mocked(queries.getCragStats)
-      .mockResolvedValueOnce({ sectors: 2, boulders: 3, routes: 5 })
-      .mockResolvedValueOnce({ sectors: 2, boulders: 5, routes: 15 });
-    vi.mocked(queries.getAreaCragsWithCoords).mockResolvedValue(locations);
+    vi.mocked(queries.areaStatsQuery).mockReturnValue(
+      stubQuery({ crags: 2, sectors: 4, boulders: 8, routes: 20 })
+    );
+    vi.mocked(queries.areaGradeDistributionQuery).mockReturnValue(
+      stubQuery(ZERO_GRADE_DIST)
+    );
+    vi.mocked(queries.cragsByAreaIdQuery).mockReturnValue(
+      stubQuery([CRAG_1, CRAG_2])
+    );
+    vi.mocked(queries.allCragStatsQuery).mockReturnValue(
+      stubQuery([
+        { cragId: "crag-1", sectors: 2, boulders: 3, routes: 5 },
+        { cragId: "crag-2", sectors: 2, boulders: 5, routes: 15 },
+      ])
+    );
+    vi.mocked(queries.areaCragsWithCoordsQuery).mockReturnValue(
+      stubQuery(locations)
+    );
 
     const result = await findAreaDetailBySlug("seoul");
 
@@ -742,11 +828,17 @@ describe("findAreaDetailBySlug", () => {
 
   it("returns cragLocations as empty array when no crags have coordinates", async () => {
     vi.mocked(queries.getAreaBySlug).mockResolvedValue(AREA_1);
-    vi.mocked(queries.getAreaStats).mockResolvedValue({ crags: 1, sectors: 1, boulders: 1, routes: 0 });
-    vi.mocked(queries.getAreaGradeDistribution).mockResolvedValue(ZERO_GRADE_DIST);
-    vi.mocked(queries.getCragsByAreaId).mockResolvedValue([CRAG_1]);
-    vi.mocked(queries.getCragStats).mockResolvedValue({ sectors: 1, boulders: 1, routes: 0 });
-    // getAreaCragsWithCoords already defaulted to [] by beforeEach
+    vi.mocked(queries.areaStatsQuery).mockReturnValue(
+      stubQuery({ crags: 1, sectors: 1, boulders: 1, routes: 0 })
+    );
+    vi.mocked(queries.areaGradeDistributionQuery).mockReturnValue(
+      stubQuery(ZERO_GRADE_DIST)
+    );
+    vi.mocked(queries.cragsByAreaIdQuery).mockReturnValue(stubQuery([CRAG_1]));
+    vi.mocked(queries.allCragStatsQuery).mockReturnValue(
+      stubQuery([{ cragId: "crag-1", sectors: 1, boulders: 1, routes: 0 }])
+    );
+    // areaCragsWithCoordsQuery already defaulted to [] by beforeEach
 
     const result = await findAreaDetailBySlug("seoul");
 
