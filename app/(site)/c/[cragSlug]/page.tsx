@@ -338,7 +338,18 @@ function InfoPanel({ crag }: { crag: CragDetail }) {
 
       {/* Map + info rows */}
       <section className="space-y-5 px-4 pt-8">
-        <MapPreview crag={crag} />
+        {crag.lat !== null && crag.lng !== null ? (
+          <KakaoMap
+            lat={crag.lat}
+            lng={crag.lng}
+            name={crag.name}
+            className="h-[216px] w-full overflow-hidden rounded-[8px]"
+          />
+        ) : (
+          <div className="flex h-[216px] items-center justify-center rounded-[8px] bg-[#F7F8F8] text-[14px] font-normal leading-5 text-[#7A7A7A]">
+            위치 정보가 등록되지 않았습니다.
+          </div>
+        )}
         <InfoRow
           icon={
             <svg
@@ -637,48 +648,6 @@ function RouteTable({
             <span className="truncate">{route.boulderName}</span>
           </Link>
         ))}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Map preview (placeholder)
-// ---------------------------------------------------------------------------
-
-function MapPreview({
-  crag,
-  variant = "default",
-}: {
-  crag: CragDetail;
-  variant?: "default" | "large";
-}) {
-  const heightClass = variant === "large" ? "h-[400px]" : "h-[216px]";
-
-  return (
-    <div
-      className={`relative grid ${heightClass} place-items-center overflow-hidden rounded-[8px] bg-[#E7F1E7]`}
-    >
-      <div className="absolute inset-0 opacity-60 [background-image:repeating-linear-gradient(34deg,transparent_0,transparent_14px,rgba(122,122,122,0.16)_15px,transparent_16px)]" />
-      <div className="absolute left-[112px] top-[-24px] h-[480px] w-[24px] rotate-[-24deg] rounded-full bg-white" />
-      <div className="absolute left-[146px] top-[-24px] h-[480px] w-[14px] rotate-[-24deg] rounded-full bg-[#99C9D8]" />
-      <div className="absolute left-[166px] top-[26px] flex flex-col gap-2">
-        {crag.boulders.slice(0, 5).map((boulder) => (
-          <span
-            key={boulder.id}
-            className="grid size-3 place-items-center rounded-full bg-[#EA6AD9] text-[8px] leading-none text-white"
-          >
-            ★
-          </span>
-        ))}
-      </div>
-      <div className="relative text-center">
-        <p className="text-[20px] font-bold leading-7 text-[#2A2A2A]">카카오맵 연동</p>
-        {crag.lat && crag.lng ? (
-          <p className="mt-1 text-[12px] font-normal leading-4 text-[#7A7A7A]">
-            {crag.lat.toFixed(4)}, {crag.lng.toFixed(4)}
-          </p>
-        ) : null}
       </div>
     </div>
   );

@@ -45,7 +45,9 @@ export default function RootLayout({
         {children}
         {kakaoKey ? (
           <Script
-            src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoKey}&libraries=services&autoload=false`}
+            // https 고정 — 프로토콜 상대(//)면 로컬 http 개발 환경에서
+            // http://dapi.kakao.com 으로 요청돼 Chrome ORB에 차단된다.
+            src={`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoKey}&libraries=services&autoload=false`}
             strategy="afterInteractive"
           />
         ) : null}
