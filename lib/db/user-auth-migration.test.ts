@@ -3,6 +3,8 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const migrationSql = () => readFileSync(join(process.cwd(), "migrations/0009_user_auth.sql"), "utf8");
+const instagramDuplicatesSql = () =>
+  readFileSync(join(process.cwd(), "migrations/0013_users_instagram_id_allow_duplicates.sql"), "utf8");
 
 describe("Phase 6 user auth migration", () => {
   it("creates users with profile fields needed by OAuth login", () => {
@@ -44,5 +46,16 @@ describe("Phase 6 user auth migration", () => {
     expect(sql).toMatch(/CREATE UNIQUE INDEX IF NOT EXISTS idx_users_instagram_id ON users \(instagram_id\)/i);
     expect(sql).toMatch(/WHERE instagram_id IS NOT NULL AND deleted_at IS NULL/i);
     expect(sql).toMatch(/CREATE INDEX IF NOT EXISTS idx_user_oauth_identities_user_id ON user_oauth_identities \(user_id\)/i);
+  });
+});
+
+describe("instagram_id duplicate allowance migration (0013)", () => {
+  it("replaces the unique instagram_id index with a plain lookup index", () => {
+    const sql = instagramDuplicatesSql();
+
+    expect(sql).toMatch(/DROP INDEX IF EXISTS idx_users_instagram_id/i);
+    expect(sql).toMatch(/CREATE INDEX IF NOT EXISTS idx_users_instagram_id ON users \(instagram_id\)/i);
+    expect(sql).not.toMatch(/CREATE UNIQUE INDEX/i);
+    expect(sql).toMatch(/WHERE instagram_id IS NOT NULL AND deleted_at IS NULL/i);
   });
 });
