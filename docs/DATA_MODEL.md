@@ -289,6 +289,26 @@ Constraints:
 - `UNIQUE(platform, external_media_id) WHERE external_media_id IS NOT NULL AND deleted_at IS NULL`
 - `UNIQUE(platform, permalink_url) WHERE permalink_url IS NOT NULL AND deleted_at IS NULL`
 
+Phase 10부터 기록 추가 UI로 생성되는 수동 Beta는 `user_id`에 세션 사용자를 저장하고 `claim_status='claimed'`로 만든다. Phase 5 webhook/익명 수동 Beta는 여전히 `user_id = NULL`, `claim_status='unclaimed'`다.
+
+### `user_records`
+
+Phase 10 사용자 완등 기록 (migration `0012_user_records.sql`). 기록은 본인 `/me/records` 화면에 즉시 반영되며, 공개 영상(Beta)의 검수 생명주기와 분리된다.
+
+| Column | Type | Required | Notes |
+|---|---:|:---:|---|
+| `id` | `TEXT` | yes | `rec_<uuid>` |
+| `user_id` | `TEXT` | yes | FK → `users.id` |
+| `route_id` | `TEXT` | yes | FK → `routes.id`; Server Action에서 published Route로 검증 |
+| `beta_id` | `TEXT` | no | FK → `betas.id`; 기록 추가 시 영상 링크를 함께 등록한 경우만 (해당 Beta는 `pending`으로 생성) |
+| `sent_at` | `TEXT` | yes | 완등 날짜 (`YYYY-MM-DD`) |
+| `rating` | `INTEGER` | no | 루트 평가 별점, `CHECK (rating BETWEEN 1 AND 5)` |
+| `created_at` | `TEXT` | yes | DB timestamp |
+| `updated_at` | `TEXT` | yes | DB timestamp |
+| `deleted_at` | `TEXT` | no | Soft-delete marker |
+
+Indexes: `idx_user_records_user_id (user_id)`, `idx_user_records_route_id (route_id)`. 같은 루트 재완등 기록은 허용한다(unique 제약 없음).
+
 ### `webhook_inbox`
 
 Instagram webhook ingestion log. Tracks incoming webhook payloads for matching, retry, and debugging.

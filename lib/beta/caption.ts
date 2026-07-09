@@ -18,10 +18,5 @@ export function buildInstagramCaption(input: CaptionRouteContext): string {
     ...input.boulderHashtags.map(hashtag),
   ];
 
-  return [
-    "방금 보냈어요!",
-    `[${input.cragName}] ${input.sectorName} / ${input.boulderName} / ${input.routeName} (${input.grade})`,
-    "",
-    `@granite.kr ${Array.from(new Set(tags)).join(" ")}`,
-  ].join("\n");
+  return `"${input.routeName}" ${input.grade} on ${input.sectorName}, ${input.boulderName}, ${input.cragName}. @granite.kr ${Array.from(new Set(tags)).join(" ")}`;
 }

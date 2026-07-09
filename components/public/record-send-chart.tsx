@@ -1,4 +1,5 @@
-import type { MockRecordGradeBucket } from "@/lib/mock/records";
+import type { RecordGradeBucket } from "@/lib/records/user-records-view";
+import { AddRecordLauncher } from "./add-record-launcher";
 
 const MAX_BAR_HEIGHT = 56;
 const MIN_BAR_HEIGHT = 2;
@@ -13,24 +14,14 @@ function barColor(count: number, maxCount: number): string {
   return `rgb(${shade}, ${shade}, ${shade})`;
 }
 
-export function RecordSendChart({ buckets }: { buckets: MockRecordGradeBucket[] }) {
+export function RecordSendChart({ buckets }: { buckets: RecordGradeBucket[] }) {
   const maxCount = Math.max(...buckets.map((bucket) => bucket.count), 0);
 
   return (
     <section className="px-4">
       <div className="flex items-center justify-between">
         <h2 className="text-[16px] font-bold leading-6 text-[#090909]">완등 기록</h2>
-        <button
-          type="button"
-          disabled
-          title="기록 추가는 준비중입니다."
-          className="flex items-center gap-1 text-[14px] font-medium leading-5 text-[#7A7A7A]"
-        >
-          기록 추가
-          <svg aria-hidden viewBox="0 0 16 16" className="size-4 fill-none stroke-[#7A7A7A]" strokeWidth="1.4">
-            <path d="M8 3v10M3 8h10" />
-          </svg>
-        </button>
+        <AddRecordLauncher />
       </div>
       <div className="mt-3 rounded-[8px] bg-white px-3 pb-3 pt-4">
         {maxCount > 0 ? (

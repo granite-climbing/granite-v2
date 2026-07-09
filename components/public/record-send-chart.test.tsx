@@ -2,11 +2,20 @@
 import React from "react";
 import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/actions/record", () => ({
+  searchRoutesForRecordAction: vi.fn(),
+  addRecordAction: vi.fn()
+}));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() })
+}));
+
 import { RecordSendChart } from "./record-send-chart";
 
 describe("RecordSendChart", () => {
-  it("renders a bar per grade with counts and a disabled add action", () => {
+  it("renders a bar per grade with counts and an enabled add action", () => {
     render(
       <RecordSendChart
         buckets={[
@@ -22,7 +31,7 @@ describe("RecordSendChart", () => {
     expect(screen.getByText("2")).toBeInTheDocument();
     expect(screen.getByText("V1")).toBeInTheDocument();
     expect(screen.getByText("8")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "기록 추가" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "기록 추가" })).toBeEnabled();
   });
 
   it("renders empty state when all counts are zero", () => {

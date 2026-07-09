@@ -1,9 +1,12 @@
 "use client";
 
 import React, { useActionState, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { BetaVideoSheet } from "./beta-video-sheet";
+import { AddRecordDialog } from "./add-record-dialog";
 import type { BetaVideoItem } from "./beta-video-grid";
 import type { ProjectActionResult } from "@/lib/actions/project";
+import type { RouteSearchItemForRecord } from "@/lib/actions/record";
 
 export type RouteMoreSheetProps = {
   route: {
@@ -25,6 +28,8 @@ export type RouteMoreSheetProps = {
   returnTo: string;
   saveAction: (formData: FormData) => Promise<ProjectActionResult>;
   removeAction: (formData: FormData) => Promise<ProjectActionResult>;
+  recordRoute: RouteSearchItemForRecord;
+  isLoggedIn: boolean;
   onClose: () => void;
 };
 
@@ -50,10 +55,22 @@ export function RouteMoreSheet({
   returnTo,
   saveAction,
   removeAction,
+  recordRoute,
+  isLoggedIn,
   onClose
 }: RouteMoreSheetProps) {
+  const router = useRouter();
   const [showBetaSheet, setShowBetaSheet] = useState(false);
+  const [showAddRecord, setShowAddRecord] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  function handleAddRecordClick() {
+    if (!isLoggedIn) {
+      router.push(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+      return;
+    }
+    setShowAddRecord(true);
+  }
 
   useEffect(() => {
     const { body } = document;
@@ -113,7 +130,12 @@ export function RouteMoreSheet({
               saveAction={saveAction}
               removeAction={removeAction}
             />
-            <button type="button" aria-label="완등 기록" className="size-6 text-[#121212]">
+            <button
+              type="button"
+              aria-label="완등 기록"
+              onClick={handleAddRecordClick}
+              className="size-6 text-[#121212]"
+            >
               <DoubleCheckIcon className="size-6" />
             </button>
             <button type="button" aria-label="공유하기" className="size-6 text-[#121212]">
@@ -240,6 +262,9 @@ export function RouteMoreSheet({
           betaVideos={betaVideos}
           onClose={() => setShowBetaSheet(false)}
         />
+      ) : null}
+      {showAddRecord ? (
+        <AddRecordDialog prefilledRoute={recordRoute} onClose={() => setShowAddRecord(false)} />
       ) : null}
     </div>
   );

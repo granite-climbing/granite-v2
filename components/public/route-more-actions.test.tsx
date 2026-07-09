@@ -4,6 +4,17 @@ import "@testing-library/jest-dom/vitest";
 import React from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+const routerPushMock = vi.hoisted(() => vi.fn());
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: routerPushMock, refresh: vi.fn() })
+}));
+vi.mock("@/lib/actions/record", () => ({
+  searchRoutesForRecordAction: vi.fn(),
+  addRecordAction: vi.fn()
+}));
+
 import { RouteMoreActions } from "./route-more-actions";
 import type { BetaVideoItem } from "./beta-video-grid";
 
@@ -35,7 +46,17 @@ const baseProps = {
   saved: false,
   returnTo: "/t/topo_1?route=route_1",
   saveAction: vi.fn(),
-  removeAction: vi.fn()
+  removeAction: vi.fn(),
+  recordRoute: {
+    routeId: "route_1",
+    routeName: "Little Finger",
+    routeGrade: "V5",
+    boulderName: "리틀핑거 바위",
+    sectorName: "메인섹터",
+    cragName: "현충바위",
+    boulderHashtags: ["현충바위"]
+  },
+  isLoggedIn: true
 };
 
 function openDialog() {
@@ -49,6 +70,30 @@ function openBetaSheet() {
 describe("RouteMoreActions", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    routerPushMock.mockClear();
+  });
+
+  it("opens the add-record dialog prefilled when logged in", () => {
+    render(<RouteMoreActions {...baseProps} isLoggedIn={true} />);
+
+    openDialog();
+    fireEvent.click(screen.getByRole("button", { name: "완등 기록" }));
+
+    expect(screen.getByRole("dialog", { name: "기록 추가" })).toBeInTheDocument();
+    expect(screen.getByText("루트 평가")).toBeInTheDocument();
+    expect(routerPushMock).not.toHaveBeenCalled();
+  });
+
+  it("sends logged-out users to login with returnTo", () => {
+    render(<RouteMoreActions {...baseProps} isLoggedIn={false} />);
+
+    openDialog();
+    fireEvent.click(screen.getByRole("button", { name: "완등 기록" }));
+
+    expect(screen.queryByRole("dialog", { name: "기록 추가" })).not.toBeInTheDocument();
+    expect(routerPushMock).toHaveBeenCalledWith(
+      `/login?returnTo=${encodeURIComponent("/t/topo_1?route=route_1")}`
+    );
   });
 
   it("opens route details from the More button", () => {

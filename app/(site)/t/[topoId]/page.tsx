@@ -70,6 +70,7 @@ export default async function TopoPage({ params, searchParams }: TopoPageProps) 
         betaVideosByRouteId={betaVideosByRouteId}
         areaName={areaName}
         savedRouteIds={savedRouteIds}
+        isLoggedIn={Boolean(session)}
       />
     </main>
   );
@@ -107,12 +108,14 @@ function TopoRouteSheet({
   betaVideosByRouteId,
   areaName,
   savedRouteIds,
+  isLoggedIn,
 }: {
   topo: TopoDetail;
   selectedRoute?: Route;
   betaVideosByRouteId: Map<string, Array<{ id: string; mediaUrl: string; thumbnailUrl: string | null; displayName: string }>>;
   areaName: string | null;
   savedRouteIds: Set<string>;
+  isLoggedIn: boolean;
 }) {
   return (
     <section className="bg-white px-4 pb-10 pt-2">
@@ -180,6 +183,16 @@ function TopoRouteSheet({
                   returnTo={`/t/${topo.id}?route=${route.id}`}
                   saveAction={saveRouteProjectAction}
                   removeAction={removeRouteProjectAction}
+                  recordRoute={{
+                    routeId: route.id,
+                    routeName: route.name,
+                    routeGrade: route.grade,
+                    boulderName: topo.boulder.name,
+                    sectorName: topo.sector.name,
+                    cragName: topo.crag.name,
+                    boulderHashtags: parseHashtags(topo.boulder.hashtags)
+                  }}
+                  isLoggedIn={isLoggedIn}
                 />
               </span>
             </div>
