@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useActionState, useEffect, useRef, useState } from "react";
+import React, { useActionState, useEffect, useOptimistic, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { showToast } from "./toast";
 import { BetaVideoSheet } from "./beta-video-sheet";
 import { AddRecordDialog } from "./add-record-dialog";
 import type { BetaVideoItem } from "./beta-video-grid";
@@ -283,9 +284,16 @@ function BookmarkToggleButton({
   saveAction: (formData: FormData) => Promise<ProjectActionResult>;
   removeAction: (formData: FormData) => Promise<ProjectActionResult>;
 }) {
-  const [result, formAction, pending] = useActionState(
-    async (_state: ProjectActionResult | null, formData: FormData) =>
-      saved ? removeAction(formData) : saveAction(formData),
+  // 서버 왕복(1초+)을 기다리지 않고 아이콘을 즉시 토글한다.
+  // 액션 실패 시 transition이 끝나면 saved prop 값으로 자동 롤백된다.
+  const [optimisticSaved, setOptimisticSaved] = useOptimistic(saved);
+  const [, formAction, pending] = useActionState(
+    async (_state: ProjectActionResult | null, formData: FormData) => {
+      setOptimisticSaved(!saved);
+      const result = saved ? await removeAction(formData) : await saveAction(formData);
+      showToast(result.message, result.ok ? "success" : "error");
+      return result;
+    },
     null
   );
 
@@ -296,16 +304,12 @@ function BookmarkToggleButton({
       <button
         type="submit"
         aria-label="북마크"
-        aria-pressed={saved}
+        aria-pressed={optimisticSaved}
         disabled={pending}
-        className="size-6 text-[#121212] disabled:opacity-50"
+        className="size-6 text-[#121212]"
       >
-        <BookmarkIcon className="size-6" filled={saved} />
+        <BookmarkIcon className="size-6" filled={optimisticSaved} />
       </button>
-      {/* Always mounted so screen readers announce the message when it appears. */}
-      <p role="status" className="sr-only">
-        {result && !result.ok ? result.message : null}
-      </p>
     </form>
   );
 }

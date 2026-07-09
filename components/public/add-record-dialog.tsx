@@ -3,6 +3,7 @@
 import React, { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { buildInstagramCaption } from "@/lib/beta/caption";
+import { showToast } from "./toast";
 import {
   addRecordAction,
   searchRoutesForRecordAction,
@@ -86,6 +87,8 @@ export function AddRecordDialog({ prefilledRoute = null, onClose }: AddRecordDia
     async (_state: { message: string } | null, formData: FormData) => {
       const result = await addRecordAction(formData);
       if (result.ok) {
+        // 다이얼로그가 닫히면 인라인 메시지는 유실되므로 토스트로 알린다.
+        showToast(result.message);
         router.refresh();
         onClose();
       }

@@ -11,8 +11,10 @@ const updateThumbnailMock = vi.hoisted(() => vi.fn());
 const acquireThumbnailMock = vi.hoisted(() => vi.fn());
 const insertUserRecordMock = vi.hoisted(() => vi.fn());
 const searchRoutesMock = vi.hoisted(() => vi.fn());
+const afterMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/headers", () => ({ cookies: cookiesMock }));
+vi.mock("next/server", () => ({ after: afterMock }));
 vi.mock("@/lib/auth/session", () => ({
   USER_SESSION_COOKIE_NAME: "granite_session",
   verifyUserSessionToken: verifySessionMock
@@ -158,6 +160,61 @@ describe("addRecordAction", () => {
     expect(insertUserRecordMock).toHaveBeenCalledWith(
       expect.objectContaining({ betaId, rating: 5 })
     );
+  });
+
+  it("defers thumbnail acquisition until after the response", async () => {
+    loggedInUser();
+    findPublishedRouteMock.mockResolvedValue({ id: "route_1" });
+    findByExternalMediaMock.mockResolvedValue(null);
+    findByPermalinkMock.mockResolvedValue(null);
+    acquireThumbnailMock.mockResolvedValue("https://cdn.granite.kr/beta/x/thumb.jpg");
+
+    const result = await addRecordAction(
+      formDataOf({ routeId: "route_1", sentAt: "2026-07-09", mediaUrl: "https://youtu.be/abc123" })
+    );
+
+    expect(result.ok).toBe(true);
+    expect(acquireThumbnailMock).not.toHaveBeenCalled();
+    expect(updateThumbnailMock).not.toHaveBeenCalled();
+    expect(afterMock).toHaveBeenCalledTimes(1);
+
+    const betaId = createManualBetaMock.mock.calls[0][0].id;
+    await afterMock.mock.calls[0][0]();
+    expect(acquireThumbnailMock).toHaveBeenCalledWith(
+      expect.objectContaining({ betaId, platform: "youtube" })
+    );
+    expect(updateThumbnailMock).toHaveBeenCalledWith(betaId, "https://cdn.granite.kr/beta/x/thumb.jpg");
+  });
+
+  it("swallows deferred thumbnail failures without touching the beta row", async () => {
+    loggedInUser();
+    findPublishedRouteMock.mockResolvedValue({ id: "route_1" });
+    findByExternalMediaMock.mockResolvedValue(null);
+    findByPermalinkMock.mockResolvedValue(null);
+    acquireThumbnailMock.mockRejectedValue(new Error("oEmbed down"));
+
+    const result = await addRecordAction(
+      formDataOf({ routeId: "route_1", sentAt: "2026-07-09", mediaUrl: "https://youtu.be/abc123" })
+    );
+
+    expect(result.ok).toBe(true);
+    await expect(afterMock.mock.calls[0][0]()).resolves.toBeUndefined();
+    expect(updateThumbnailMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects duplicates found by permalink when the external media lookup misses", async () => {
+    loggedInUser();
+    findPublishedRouteMock.mockResolvedValue({ id: "route_1" });
+    findByExternalMediaMock.mockResolvedValue(null);
+    findByPermalinkMock.mockResolvedValue({ id: "beta_existing" });
+
+    const result = await addRecordAction(
+      formDataOf({ routeId: "route_1", sentAt: "2026-07-09", mediaUrl: "https://youtu.be/abc123" })
+    );
+
+    expect(result).toEqual({ ok: false, message: "이미 등록된 영상입니다." });
+    expect(createManualBetaMock).not.toHaveBeenCalled();
+    expect(insertUserRecordMock).not.toHaveBeenCalled();
   });
 });
 

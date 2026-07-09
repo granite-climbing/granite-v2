@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { SubmitButton } from "@/components/public/submit-button";
 import { completeSignupAction } from "@/lib/actions/signup";
 import { PENDING_SIGNUP_COOKIE_NAME, verifyPendingSignupToken } from "@/lib/auth/signup";
 
@@ -105,12 +106,12 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
             </div>
           </section>
 
-          <button
-            type="submit"
+          <SubmitButton
+            pendingText="가입 중"
             className="mt-10 h-[54px] w-full rounded-[27px] bg-white text-[15px] font-bold text-black transition active:scale-[0.99]"
           >
             시작하기
-          </button>
+          </SubmitButton>
         </form>
       </section>
     </main>

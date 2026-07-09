@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
+import { after } from "next/server";
 import { USER_SESSION_COOKIE_NAME, verifyUserSessionToken } from "@/lib/auth/session";
 import { findActiveUserById } from "@/lib/db/user-auth-queries";
 import {
@@ -49,8 +50,7 @@ export async function addRecordAction(formData: FormData): Promise<AddRecordActi
   const cookieStore = await cookies();
   const token = cookieStore.get(USER_SESSION_COOKIE_NAME)?.value;
   const session = token ? await verifyUserSessionToken(token) : null;
-  const user = session ? await findActiveUserById(session.userId) : null;
-  if (!user) {
+  if (!session) {
     return { ok: false, message: "로그인이 필요합니다." };
   }
 
@@ -61,7 +61,14 @@ export async function addRecordAction(formData: FormData): Promise<AddRecordActi
     return { ok: false, message: "입력값을 확인해주세요." };
   }
 
-  const publishedRoute = await findPublishedRouteIdForBeta(parsed.routeId);
+  // 사용자 조회와 루트 검증은 서로 독립적 — D1 HTTP 왕복을 줄이기 위해 병렬 실행.
+  const [user, publishedRoute] = await Promise.all([
+    findActiveUserById(session.userId),
+    findPublishedRouteIdForBeta(parsed.routeId),
+  ]);
+  if (!user) {
+    return { ok: false, message: "로그인이 필요합니다." };
+  }
   if (!publishedRoute) {
     return { ok: false, message: "유효하지 않은 루트입니다." };
   }
@@ -75,13 +82,13 @@ export async function addRecordAction(formData: FormData): Promise<AddRecordActi
       return { ok: false, message: "Instagram 또는 YouTube 링크만 등록할 수 있습니다." };
     }
 
-    let existing = media.externalMediaId
-      ? await findExistingBetaByExternalMedia(media.platform, media.externalMediaId)
-      : null;
-    if (!existing) {
-      existing = await findExistingBetaByPermalink(media.platform, media.permalinkUrl);
-    }
-    if (existing) {
+    const [byExternalMedia, byPermalink] = await Promise.all([
+      media.externalMediaId
+        ? findExistingBetaByExternalMedia(media.platform, media.externalMediaId)
+        : Promise.resolve(null),
+      findExistingBetaByPermalink(media.platform, media.permalinkUrl),
+    ]);
+    if (byExternalMedia ?? byPermalink) {
       return { ok: false, message: "이미 등록된 영상입니다." };
     }
 
@@ -100,18 +107,23 @@ export async function addRecordAction(formData: FormData): Promise<AddRecordActi
       sentAt: parsed.sentAt,
     });
 
-    try {
-      const cdnUrl = await acquireAndStoreBetaThumbnail({
-        betaId,
-        platform: media.platform,
-        postUrl: media.permalinkUrl,
-      });
-      if (cdnUrl) {
-        await updateBetaThumbnailUrl(betaId, cdnUrl);
+    // 썸네일 획득(외부 fetch + R2 업로드)은 1~3초 걸리므로 응답 후로 미룬다.
+    const pendingBetaId = betaId;
+    const { platform, permalinkUrl } = media;
+    after(async () => {
+      try {
+        const cdnUrl = await acquireAndStoreBetaThumbnail({
+          betaId: pendingBetaId,
+          platform,
+          postUrl: permalinkUrl,
+        });
+        if (cdnUrl) {
+          await updateBetaThumbnailUrl(pendingBetaId, cdnUrl);
+        }
+      } catch (err) {
+        console.warn("thumbnail acquisition failed:", err);
       }
-    } catch (err) {
-      console.warn("thumbnail acquisition failed:", err);
-    }
+    });
   }
 
   await insertUserRecord({

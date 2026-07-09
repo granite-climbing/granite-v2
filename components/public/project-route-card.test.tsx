@@ -2,7 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ProjectRouteCard } from "./project-route-card";
 import type { SavedRouteListItem } from "@/lib/db/schema";
@@ -42,5 +42,17 @@ describe("ProjectRouteCard", () => {
     const removeButton = screen.getByRole("button", { name: "프로젝트에서 제거" });
     expect(removeButton).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByDisplayValue("route_1")).toHaveAttribute("name", "routeId");
+  });
+
+  it("hides the card immediately when remove is clicked, before the server responds", async () => {
+    const pendingForever = vi.fn(() => new Promise<never>(() => {}));
+    render(<ProjectRouteCard route={route} removeAction={pendingForever} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "프로젝트에서 제거" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("article")).not.toBeInTheDocument();
+    });
+    expect(pendingForever).toHaveBeenCalledTimes(1);
   });
 });

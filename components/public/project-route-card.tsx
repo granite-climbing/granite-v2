@@ -1,8 +1,9 @@
 "use client";
 
 // The default React import is required: vitest compiles JSX with the classic runtime.
-import React, { useActionState } from "react";
+import React, { useActionState, useOptimistic } from "react";
 import Link from "next/link";
+import { showToast } from "./toast";
 import type { ProjectActionResult } from "@/lib/actions/project";
 import type { SavedRouteListItem } from "@/lib/db/schema";
 
@@ -12,14 +13,26 @@ type ProjectRouteCardProps = {
 };
 
 export function ProjectRouteCard({ route, removeAction }: ProjectRouteCardProps) {
-  // Result is discarded: removeRouteProjectAction never returns ok:false today.
-  // Surface the message here if the remove action ever gains a failure path.
-  const [, formAction, pending] = useActionState(
-    async (_state: ProjectActionResult | null, formData: FormData) => removeAction(formData),
+  // 서버 왕복을 기다리지 않고 카드를 즉시 숨긴다. 액션이 실패하면
+  // transition 종료와 함께 자동 롤백되고 에러 토스트를 띄운다.
+  const [optimisticRemoved, setOptimisticRemoved] = useOptimistic(false);
+  const [, formAction] = useActionState(
+    async (_state: ProjectActionResult | null, formData: FormData) => {
+      setOptimisticRemoved(true);
+      const result = await removeAction(formData);
+      if (!result.ok) {
+        showToast(result.message, "error");
+      }
+      return result;
+    },
     null
   );
 
   const href = `/t/${route.topoId}?route=${route.id}`;
+
+  if (optimisticRemoved) {
+    return null;
+  }
 
   return (
     <article className="flex items-start justify-between gap-3 rounded-xl bg-white p-4">
@@ -34,7 +47,6 @@ export function ProjectRouteCard({ route, removeAction }: ProjectRouteCardProps)
         <input type="hidden" name="returnTo" value="/me/projects" />
         <button
           type="submit"
-          disabled={pending}
           aria-label="프로젝트에서 제거"
           aria-pressed="true"
           className="shrink-0 text-[#121212] disabled:opacity-50"
