@@ -59,7 +59,7 @@ Run all commands from the repo root. Test runner: `pnpm test -- <path>` (vitest)
 **Files:**
 - Create: `migrations/0012_user_records.sql`
 
-- [ ] **Step 1: Write the migration**
+- [x] **Step 1: Write the migration**
 
 ```sql
 -- Granite Phase 10 user records (완등 기록)
@@ -81,12 +81,12 @@ CREATE INDEX IF NOT EXISTS idx_user_records_user_id ON user_records (user_id);
 CREATE INDEX IF NOT EXISTS idx_user_records_route_id ON user_records (route_id);
 ```
 
-- [ ] **Step 2: Apply locally and verify**
+- [x] **Step 2: Apply locally and verify**
 
 Run: `pnpm wrangler d1 migrations apply granite --local`
 Expected: `0012_user_records.sql` listed as applied without error.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add migrations/0012_user_records.sql
@@ -101,7 +101,7 @@ git commit -m "feat: add user_records table for phase 10 add-record"
 - Modify: `lib/beta/caption.ts`
 - Test: `lib/beta/caption.test.ts`
 
-- [ ] **Step 1: Update the test to the Figma sentence format (keep hashtag assertions)**
+- [x] **Step 1: Update the test to the Figma sentence format (keep hashtag assertions)**
 
 Replace the existing expected caption in `lib/beta/caption.test.ts` with tests equivalent to:
 
@@ -140,12 +140,12 @@ describe("buildInstagramCaption", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm vitest run lib/beta/caption.test.ts`
 Expected: FAIL — current implementation returns the old "방금 보냈어요!" multi-line format.
 
-- [ ] **Step 3: Update the implementation**
+- [x] **Step 3: Update the implementation**
 
 In `lib/beta/caption.ts`, replace the return statement of `buildInstagramCaption` (keep `hashtag()` and `CaptionRouteContext` unchanged):
 
@@ -161,12 +161,12 @@ export function buildInstagramCaption(input: CaptionRouteContext): string {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm vitest run lib/beta/caption.test.ts`
 Expected: PASS. Also run `pnpm vitest run components/public/route-more-sheet.test.tsx app/` related suites if they assert on caption text; fix any snapshot/text assertions that referenced the old format.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/beta/caption.ts lib/beta/caption.test.ts
@@ -181,7 +181,7 @@ git commit -m "feat: switch instagram caption to figma phase-10 format"
 - Modify: `lib/db/beta-queries.ts:4-74`
 - Test: `lib/db/beta-queries.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Add to `lib/db/beta-queries.test.ts` (follow the existing `queryD1Mock` hoisted-mock pattern in that file):
 
@@ -230,12 +230,12 @@ it("defaults to unowned unclaimed manual beta", async () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm vitest run lib/db/beta-queries.test.ts`
 Expected: FAIL — `userId`/`claimStatus` are not accepted and SQL hardcodes `NULL`/`'unclaimed'`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `lib/db/beta-queries.ts`, extend the input type and parameterize the SQL:
 
@@ -279,12 +279,12 @@ export async function createManualBeta(input: CreateManualBetaInput): Promise<vo
 
 Note: `AdminBetaRow` extends `CreateManualBetaInput` and already declares `userId: string | null` and `claimStatus`; verify `pnpm typecheck` stays green (the optional fields are compatible — if TS complains about the `AdminBetaRow` intersection, change `AdminBetaRow` to extend `Omit<CreateManualBetaInput, "userId" | "claimStatus">` since it already re-declares both).
 
-- [ ] **Step 4: Run tests + typecheck**
+- [x] **Step 4: Run tests + typecheck**
 
 Run: `pnpm vitest run lib/db/beta-queries.test.ts && pnpm typecheck`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/db/beta-queries.ts lib/db/beta-queries.test.ts
@@ -300,7 +300,7 @@ git commit -m "feat: allow user-owned claimed manual beta creation"
 - Modify: `lib/db/record-queries.ts`
 - Test: `lib/db/record-queries.test.ts`
 
-- [ ] **Step 1: Add types to `lib/db/schema.ts`**
+- [x] **Step 1: Add types to `lib/db/schema.ts`**
 
 Append near the existing `UserRecordListItem` types:
 
@@ -330,7 +330,7 @@ export type RouteSearchRowForRecord = {
 };
 ```
 
-- [ ] **Step 2: Write failing tests**
+- [x] **Step 2: Write failing tests**
 
 Add to `lib/db/record-queries.test.ts` (uses the existing hoisted `queryD1Mock`):
 
@@ -441,12 +441,12 @@ import {
 } from "./record-queries";
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `pnpm vitest run lib/db/record-queries.test.ts`
 Expected: FAIL — functions do not exist.
 
-- [ ] **Step 4: Implement in `lib/db/record-queries.ts`**
+- [x] **Step 4: Implement in `lib/db/record-queries.ts`**
 
 Add imports: `import type { RouteSearchRowForRecord, UserRecordWithRoute, ... } from "./schema";`
 
@@ -575,12 +575,12 @@ export async function getOwnBetaVideosByUserId(
 
 Note: `PUBLISHED_ROUTE_FILTER` already exists in this file and starts with `AND`, so it composes after the `WHERE` clauses above. Check `UserRecordGradeBucket` in `lib/db/schema.ts` — if it requires `gradeNum`, include it as shown; if the buckets test asserts exact object equality, match the type's actual shape (adjust the test's expected objects to include `gradeNum` if present).
 
-- [ ] **Step 5: Run tests + typecheck**
+- [x] **Step 5: Run tests + typecheck**
 
 Run: `pnpm vitest run lib/db/record-queries.test.ts && pnpm typecheck`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/db/schema.ts lib/db/record-queries.ts lib/db/record-queries.test.ts
@@ -596,7 +596,7 @@ git commit -m "feat: add user_records queries, route search, fixed grade buckets
 - Create: `lib/actions/record.ts`
 - Test: `lib/actions/record.test.ts`
 
-- [ ] **Step 1: Write `lib/actions/record-schema.ts`**
+- [x] **Step 1: Write `lib/actions/record-schema.ts`**
 
 ```ts
 import { z } from "zod";
@@ -641,7 +641,7 @@ export function parseRecordMediaUrl(rawUrl: string) {
 
 (Before writing, check how `detectMediaPlatform` signals an unsupported URL in `lib/beta/normalize.ts` — if it throws, the action's try/catch below covers it; if it returns a sentinel, convert that to a thrown `Error` inside `parseRecordMediaUrl`.)
 
-- [ ] **Step 2: Write failing action tests**
+- [x] **Step 2: Write failing action tests**
 
 Create `lib/actions/record.test.ts`:
 
@@ -818,12 +818,12 @@ describe("searchRoutesForRecordAction", () => {
 
 (If `lib/db/queries.ts`'s `parseHashtags` pulls heavy imports into the test graph, mock `@/lib/db/queries` with a passthrough `parseHashtags: (json: string) => JSON.parse(json)` — check the real function's defensive behavior first and mirror it.)
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `pnpm vitest run lib/actions/record.test.ts`
 Expected: FAIL — `./record` does not exist.
 
-- [ ] **Step 4: Write `lib/actions/record.ts`**
+- [x] **Step 4: Write `lib/actions/record.ts`**
 
 ```ts
 "use server";
@@ -957,12 +957,12 @@ export async function addRecordAction(formData: FormData): Promise<AddRecordActi
 
 Check the actual shape of `findActiveUserById`'s return (`User` in `lib/db/schema.ts`) — field names `displayName` / `instagramId` are used above; verify they match.
 
-- [ ] **Step 5: Run tests + typecheck**
+- [x] **Step 5: Run tests + typecheck**
 
 Run: `pnpm vitest run lib/actions/record.test.ts && pnpm typecheck`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/actions/record-schema.ts lib/actions/record.ts lib/actions/record.test.ts
@@ -981,7 +981,7 @@ git commit -m "feat: add-record server actions with optional pending beta"
 - Delete: `lib/mock/records.ts`
 - Test: `lib/records/user-records-view.test.ts`
 
-- [ ] **Step 1: Rewrite the view test**
+- [x] **Step 1: Rewrite the view test**
 
 Replace `lib/records/user-records-view.test.ts` content:
 
@@ -1076,12 +1076,12 @@ describe("getUserRecordsView", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm vitest run lib/records/user-records-view.test.ts`
 Expected: FAIL — view still returns mock data.
 
-- [ ] **Step 3: Rewrite `lib/records/user-records-view.ts`**
+- [x] **Step 3: Rewrite `lib/records/user-records-view.ts`**
 
 ```ts
 import { normalizeHandle } from "@/lib/beta/normalize";
@@ -1171,19 +1171,19 @@ export async function getUserRecordsView(user: User): Promise<UserRecordsView> {
 
 (`buildFixedGradeBuckets` returns `UserRecordGradeBucket` with `gradeNum`; `RecordGradeBucket` above is structurally satisfied by it. If TS complains, map to `{ grade, count }`.)
 
-- [ ] **Step 4: Swap component type imports and delete the mock**
+- [x] **Step 4: Swap component type imports and delete the mock**
 
 - `components/public/record-send-chart.tsx`: replace `import type { MockRecordGradeBucket } from "@/lib/mock/records";` with `import type { RecordGradeBucket } from "@/lib/records/user-records-view";` and change the prop type `{ buckets: MockRecordGradeBucket[] }` → `{ buckets: RecordGradeBucket[] }`.
 - `components/public/record-list.tsx`: `MockRecentRecord` → `RecentRecordItem` (import from `@/lib/records/user-records-view`).
 - `components/public/record-video-grid.tsx`: `MockRecordVideo` → `RecordVideoItem` (import from `@/lib/records/user-records-view`).
 - Delete `lib/mock/records.ts`. Fix any other references: run `grep -rn "lib/mock/records" app components lib` and update remaining imports (component test files may import the mock types — switch them to the new types).
 
-- [ ] **Step 5: Run the full test suite + typecheck**
+- [x] **Step 5: Run the full test suite + typecheck**
 
 Run: `pnpm test && pnpm typecheck`
 Expected: PASS (component tests updated as needed).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A
@@ -1198,7 +1198,7 @@ git commit -m "feat: drive records tab from user_records and own beta videos"
 - Create: `components/public/add-record-dialog.tsx`
 - Test: `components/public/add-record-dialog.test.tsx`
 
-- [ ] **Step 1: Write failing component tests**
+- [x] **Step 1: Write failing component tests**
 
 Create `components/public/add-record-dialog.test.tsx`:
 
@@ -1301,12 +1301,12 @@ describe("AddRecordDialog", () => {
 
 (Follow the setup style of `components/public/route-more-actions.test.tsx` for RTL config. The debounce uses a 300 ms timer — if `findByRole` times out, use `vi.useFakeTimers()` + `vi.advanceTimersByTime(300)` in the search test, matching whatever timer style existing component tests use.)
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm vitest run components/public/add-record-dialog.test.tsx`
 Expected: FAIL — component does not exist.
 
-- [ ] **Step 3: Implement `components/public/add-record-dialog.tsx`**
+- [x] **Step 3: Implement `components/public/add-record-dialog.tsx`**
 
 ```tsx
 "use client";
@@ -1563,12 +1563,12 @@ export function AddRecordDialog({ prefilledRoute = null, onClose }: AddRecordDia
 
 Also add the body-scroll-lock + Escape-close effects following the exact pattern in `route-more-sheet.tsx` (`useEffect` blocks at lines 57-81) — copy those two effects into this component.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm vitest run components/public/add-record-dialog.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/public/add-record-dialog.tsx components/public/add-record-dialog.test.tsx
@@ -1584,7 +1584,7 @@ git commit -m "feat: add-record dialog per figma 56-1439/56-1457"
 - Modify: `components/public/record-send-chart.tsx:22-33`
 - Test: `components/public/record-send-chart.test.tsx`, `components/public/add-record-launcher.test.tsx`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Create `components/public/add-record-launcher.test.tsx`:
 
@@ -1618,12 +1618,12 @@ describe("AddRecordLauncher", () => {
 
 Update `components/public/record-send-chart.test.tsx`: the existing assertion `expect(screen.getByRole("button", { name: "기록 추가" })).toBeDisabled()` becomes `toBeEnabled()` (add the same two `vi.mock` blocks above since the launcher renders inside).
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm vitest run components/public/add-record-launcher.test.tsx components/public/record-send-chart.test.tsx`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `components/public/add-record-launcher.tsx`:
 
@@ -1662,12 +1662,12 @@ In `components/public/record-send-chart.tsx`, replace the disabled button block 
 
 and add `import { AddRecordLauncher } from "./add-record-launcher";` at the top. `RecordSendChart` stays a server-safe component; the launcher is the client leaf.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `pnpm vitest run components/public/add-record-launcher.test.tsx components/public/record-send-chart.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/public/add-record-launcher.tsx components/public/add-record-launcher.test.tsx components/public/record-send-chart.tsx components/public/record-send-chart.test.tsx
@@ -1683,7 +1683,7 @@ git commit -m "feat: enable add-record entry on records tab"
 - Modify: `app/(site)/t/[topoId]/page.tsx` (pass new props)
 - Test: `components/public/route-more-sheet.test.tsx` (or the `route-more-actions.test.tsx` that covers the sheet)
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 In the test file covering `RouteMoreSheet` (check which of `route-more-actions.test.tsx` / a sheet-specific file renders it; add the shared props to its existing fixture). Add tests:
 
@@ -1722,12 +1722,12 @@ it("sends logged-out users to login with returnTo", () => {
 
 Mock `next/navigation`'s `useRouter` (`push`, `refresh`) and `@/lib/actions/record` as in Task 7's test.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm vitest run components/public/route-more-actions.test.tsx` (plus the sheet test file if separate)
 Expected: FAIL — props don't exist, button has no handler.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `components/public/route-more-sheet.tsx`:
 
@@ -1802,12 +1802,12 @@ isLoggedIn={isLoggedIn}
 
 (`RouteMoreActionsProps = Omit<RouteMoreSheetProps, "onClose">`, so the new props flow through `RouteMoreActions` automatically.)
 
-- [ ] **Step 4: Run tests + typecheck**
+- [x] **Step 4: Run tests + typecheck**
 
 Run: `pnpm vitest run components/public/ && pnpm typecheck`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/public/route-more-sheet.tsx components/public/route-more-actions.test.tsx "app/(site)/t/[topoId]/page.tsx"
@@ -1822,7 +1822,7 @@ git commit -m "feat: open prefilled add-record dialog from route more sheet"
 - Modify: `docs/ROADMAP.md` (Phase 10 status + gates)
 - Modify: `docs/DATA_MODEL.md` (add `user_records`)
 
-- [ ] **Step 1: Full verification**
+- [x] **Step 1: Full verification**
 
 Run in order; all must pass before docs are updated:
 
@@ -1834,16 +1834,16 @@ pnpm build
 
 If the local D1 is available, smoke the flow: `pnpm dev`, log in, add a record from `/me/records` (search a route, set date/rating), confirm it appears in the chart/recent list; add one with a YouTube URL and confirm a pending beta row exists (admin betas page) and the video shows in 나의 영상.
 
-- [ ] **Step 2: Update `docs/DATA_MODEL.md`**
+- [x] **Step 2: Update `docs/DATA_MODEL.md`**
 
 Add a `user_records` section next to the betas section describing the table (columns as in Task 1), ownership semantics (record = user's own send log, immediately visible to the owner; `beta_id` links the optional pending video), and the Phase 10 note that user-added manual betas carry `user_id` + `claim_status='claimed'`.
 
-- [ ] **Step 3: Update `docs/ROADMAP.md`**
+- [x] **Step 3: Update `docs/ROADMAP.md`**
 
 - Mark Phase 10 milestone row 상태 as 완료 and check off the 출시 게이트 items that are done, following the exact style used for Phase 9 (반영 note with PR/merge references is added at merge time — leave a 반영 placeholder note referencing this branch).
 - Update the line 16 Phase 9 note: the mock read model swap promised for Phase 10 is now done.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add docs/ROADMAP.md docs/DATA_MODEL.md
