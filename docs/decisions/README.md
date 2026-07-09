@@ -53,3 +53,4 @@ date: YYYY-MM-DD
 | [0017](0017-phased-release-1-5.md) | 5단계 출시 (UI / DB / Admin / Instagram / Personalization) | Superseded by 0019 |
 | [0018](0018-no-coord-precision-column.md) | 민감 좌표는 관리자 큐레이션으로 통제, coord_precision 컬럼 제거 | Accepted |
 | [0019](0019-insert-phase-4-ui-admin-refinement.md) | Phase 4에 Public/Admin UX 보정 단계 삽입 | Accepted |
+| [0020](0020-apple-web-oauth-callback-mode.md) | Apple web OAuth callback mode | Proposed |
