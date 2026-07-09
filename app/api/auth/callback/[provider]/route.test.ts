@@ -181,13 +181,15 @@ describe("OAuth callback route", () => {
     expect(exchangeOAuthCodeMock).not.toHaveBeenCalled();
   });
 
-  it("redirects token exchange failures with a specific token_exchange_failed error", async () => {
+  it("redirects token exchange failures with browser-visible diagnostics", async () => {
     process.env.APP_BASE_URL = "https://granite.kr";
     const state = createOAuthState({
       provider: "kakao",
       returnTo: "/me"
     });
-    exchangeOAuthCodeMock.mockRejectedValueOnce(new Error("bad redirect_uri"));
+    exchangeOAuthCodeMock.mockRejectedValueOnce(
+      new Error("OAuth token exchange failed: 400 - invalid_client - client_secret validation failed")
+    );
     const request = new NextRequest(`https://granite.kr/api/auth/callback/kakao?code=abc&state=${state.state}`, {
       headers: {
         cookie: `${OAUTH_STATE_COOKIE_NAME}=${encodeURIComponent(state.cookieValue)}`
@@ -197,7 +199,16 @@ describe("OAuth callback route", () => {
     const response = await GET(request, { params: Promise.resolve({ provider: "kakao" }) });
 
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("https://granite.kr/login?error=token_exchange_failed");
+    const location = new URL(response.headers.get("location") ?? "");
+    expect(location.origin).toBe("https://granite.kr");
+    expect(location.pathname).toBe("/login");
+    expect(location.searchParams.get("error")).toBe("token_exchange_failed");
+    expect(location.searchParams.get("oauth_provider")).toBe("kakao");
+    expect(location.searchParams.get("oauth_stage")).toBe("token_exchange_failed");
+    expect(location.searchParams.get("oauth_message")).toBe(
+      "OAuth token exchange failed: 400 - invalid_client - client_secret validation failed"
+    );
+    expect(location.href).not.toContain("abc");
     expect(fetchOAuthProfileMock).not.toHaveBeenCalled();
   });
 

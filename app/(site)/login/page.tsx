@@ -4,6 +4,7 @@ import {
   isOAuthProviderConfigured
 } from "@/lib/auth/oauth/providers";
 import type { OAuthProviderId } from "@/lib/auth/oauth/types";
+import { LoginOAuthDebugConsole } from "./login-oauth-debug-console";
 import { LoginProviderForm } from "./login-provider-form";
 
 type LoginPageProps = {
@@ -14,6 +15,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = (await searchParams) ?? {};
   const returnTo = sanitizeReturnTo(getParam(params.returnTo));
   const error = getParam(params.error);
+  const oauthDiagnostic = {
+    provider: getParam(params.oauth_provider),
+    stage: getParam(params.oauth_stage),
+    message: getParam(params.oauth_message)
+  };
   const providers = (["apple", "google", "kakao", "naver"] as OAuthProviderId[]).map((id) => {
     const provider = getOAuthProvider(id);
     return {
@@ -25,6 +31,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <main data-hide-site-footer className="min-h-screen bg-black px-5 text-white">
+      <LoginOAuthDebugConsole {...oauthDiagnostic} />
       <section className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col justify-end pb-11 pt-16">
         <div className="flex flex-1 items-center justify-center pb-14">
           <img src="/images/figma/granite-logo.svg" alt="Granite" className="h-auto w-[150px]" />

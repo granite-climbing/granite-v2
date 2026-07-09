@@ -84,7 +84,11 @@ async function handleOAuthCallback(
     });
   } catch (error) {
     logOAuthCallbackError(providerValue, "token_exchange_failed", error);
-    return redirectToLogin(request, "token_exchange_failed");
+    return redirectToLogin(request, "token_exchange_failed", {
+      provider: providerValue,
+      stage: "token_exchange_failed",
+      message: getErrorMessage(error)
+    });
   }
 
   let profile: Awaited<ReturnType<typeof fetchOAuthProfile>>;
@@ -132,16 +136,39 @@ function setSessionCookies(response: NextResponse, sessionToken: string): void {
   response.cookies.delete(OAUTH_STATE_COOKIE_NAME);
 }
 
-function redirectToLogin(request: NextRequest, error: string): NextResponse {
-  return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error)}`, request.url));
+type OAuthBrowserDiagnostic = {
+  provider: string;
+  stage: string;
+  message: string;
+};
+
+function redirectToLogin(request: NextRequest, error: string, diagnostic?: OAuthBrowserDiagnostic): NextResponse {
+  const url = new URL("/login", request.url);
+  url.searchParams.set("error", error);
+
+  if (diagnostic) {
+    url.searchParams.set("oauth_provider", sanitizeDiagnosticValue(diagnostic.provider));
+    url.searchParams.set("oauth_stage", sanitizeDiagnosticValue(diagnostic.stage));
+    url.searchParams.set("oauth_message", sanitizeDiagnosticValue(diagnostic.message));
+  }
+
+  return NextResponse.redirect(url);
 }
 
 function logOAuthCallbackError(provider: string, stage: string, error: unknown): void {
   console.error("[auth.callback]", {
     provider,
     stage,
-    message: error instanceof Error ? error.message : String(error)
+    message: getErrorMessage(error)
   });
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function sanitizeDiagnosticValue(value: string): string {
+  return value.replace(/[\u0000-\u001F\u007F]/g, " ").slice(0, 500);
 }
 
 function getFormValue(formData: FormData, key: string): string | null {
