@@ -2,10 +2,10 @@
 
 > 작성일: 2026-05-13
 > 갱신일: 2026-07-09
-> 상태: Phase 9 기록 탭 완료, Phase 10 UX 계획 반영
+> 상태: Phase 10 기록 추가 UI 완료
 > 기준 문서: [docs/PRD.md](PRD.md), [docs/ARCHITECTURE.md](ARCHITECTURE.md), [docs/decisions/](decisions/README.md)
 
-Granite v2는 Phase 9까지 구현을 진행했다. Phase 6의 실제 완료 범위는 로그인/회원가입/세션/마이 계정관리이며, 기존 Phase 6에 포함되어 있던 Claims, 기록 관리의 본 구현은 후속 Phase로 분리한다.
+Granite v2는 Phase 10까지 구현을 진행했다. Phase 6의 실제 완료 범위는 로그인/회원가입/세션/마이 계정관리이며, 기존 Phase 6에 포함되어 있던 Claims, 기록 관리의 본 구현은 후속 Phase로 분리한다.
 
 최근 커밋과 코드 기준으로 확인한 핵심 근거는 다음과 같다.
 
@@ -13,7 +13,8 @@ Granite v2는 Phase 9까지 구현을 진행했다. Phase 6의 실제 완료 범
 - Phase 6는 `phase6-social-login-main` 병합과 `feat(auth)`, `fix(auth)` 계열 커밋을 통해 OAuth, pending signup, 사용자 세션, WebView/native handoff, `/me` 계정 화면이 반영되었다.
 - Phase 7은 PR #7(`claude/epic-liskov-88b42b` 병합, merge commit `59399cd`)을 통해 Topo 루트 행의 Beta→More 전환, Figma 기준 More 상세 바텀시트, Location 플로팅 필이 반영되었다. 시트 내 별점/통계/댓글은 Records/Claims 백엔드 이전이라 mock 데이터(`TODO(phase-8)` 표기)이며, 헤더의 북마크/완등기록/공유 아이콘은 시각적 placeholder다.
 - Phase 8은 PR #9(`claude/practical-kilby-a01592` 병합, merge commit `5f34198`)를 통해 `migrations/0010_user_favorites.sql`의 `favorites` 테이블(Route 전용 CHECK, `user_id+target_type+target_id` unique), Route 저장/해제 Server Action(`lib/actions/project.ts`), 사용자 전용 쿼리 경계(`lib/db/project-queries.ts`), Figma 기준 `/me/projects` 본 화면(검색·최신순/Grade/Crag 정렬 칩·북마크 카드), More 시트 헤더 북마크의 실 저장 토글 연결이 반영되었다. 시트 헤더의 완등기록/공유 아이콘과 별점/통계/댓글 mock은 여전히 Phase 9+ 범위다.
-- Phase 9는 PR #8(`claude/nervous-panini-b66354` 병합, merge commit `a0fd7d0`)을 통해 Figma 기준 `/me/records` 본 화면(다크 프로필 헤더, 나의 영상/나의 기록 탭, 완등 차트, 최근 기록, 세부 분석 placeholder)이 반영되었다. 프로필 헤더는 사용자 설정값(닉네임/인스타/암스팬/키/몸무게, `migrations/0011_user_weight.sql`)을 사용하고, 기록 데이터는 기록 추가가 없는 동안 mock(`lib/records/user-records-view.ts`)이며 Phase 10에서 read model(`lib/db/record-queries.ts`, 테스트 포함 구현 완료)로 교체한다.
+- Phase 9는 PR #8(`claude/nervous-panini-b66354` 병합, merge commit `a0fd7d0`)을 통해 Figma 기준 `/me/records` 본 화면(다크 프로필 헤더, 나의 영상/나의 기록 탭, 완등 차트, 최근 기록, 세부 분석 placeholder)이 반영되었다. 프로필 헤더는 사용자 설정값(닉네임/인스타/암스팬/키/몸무게, `migrations/0011_user_weight.sql`)을 사용하고, 기록 데이터는 기록 추가가 없는 동안 mock(`lib/records/user-records-view.ts`)으로 렌더링했고, Phase 10에서 `user_records` 기반 실데이터로 교체 완료했다.
+- Phase 10은 `claude/phase-10-plan-dev-3a610b` 브랜치를 통해 Figma(56-1439/56-1457) 기준 기록 추가 다이얼로그, `user_records` 테이블(`migrations/0012_user_records.sql`), 루트 검색/완등 날짜/별점/영상 링크 입력, 두 진입점(기록 탭·More 시트 체크 버튼), `/me/records` 실데이터 전환이 반영되었다.
 
 ---
 
@@ -30,7 +31,7 @@ Granite v2는 Phase 9까지 구현을 진행했다. Phase 6의 실제 완료 범
 | Phase 7 | 완료 | Route 상세 최신 UX 반영 | Location 워딩, Beta->More, More 상세 정보 반영 |
 | Phase 8 | 완료 | 프로젝트 탭 본 구현 | favorites 스키마, Route 저장/해제, `/me/projects` 검색·정렬 UX 구현 |
 | Phase 9 | 완료 | 기록 탭 본 구현 | 프로필 헤더, 영상/기록 탭, 완등 차트/최근 기록 UI 구현 |
-| Phase 10 | 예정 | 기록 추가 UI | 기록 추가 진입, 루트 검색, 미디어 입력 플로우 구현 |
+| Phase 10 | 완료 | 기록 추가 UI | 기록 추가 진입, 루트 검색, 미디어 입력 플로우 구현 |
 
 각 Phase는 독립 배포 가능해야 한다. 다음 Phase는 직전 Phase의 사용자 경험을 깨지 않고, 미완성 기능은 명시적인 scaffold 또는 coming soon 상태로 유지한다.
 
@@ -393,6 +394,8 @@ Phase 6는 기존 명칭의 `Login / Favorites / Claims` 전체가 아니라, �
 
 ## Phase 10 — Add Record UI
 
+> 반영: `claude/phase-10-plan-dev-3a610b` 브랜치. Figma(56-1439/56-1457) 기준 기록 추가 다이얼로그가 두 진입점(기록 탭 `기록 추가` 버튼, 루트 More 시트 체크 버튼 — 해당 루트 프리필)에 연결되었다. 기록은 새 `user_records` 테이블(`migrations/0012_user_records.sql`)에 저장되어 본인 `/me/records`에 즉시 반영되고, 선택 입력한 Instagram/YouTube 링크는 Phase 5 정책대로 `pending` Beta(`user_id` 소유, `claim_status='claimed'`)로 생성되어 관리자 검수 후 공개된다. `/me/records`의 mock 데이터는 실데이터(`lib/records/user-records-view.ts` → `lib/db/record-queries.ts`)로 교체 완료. Instagram 캡션은 Figma 문구 포맷으로 변경하되 웹훅 루트 매칭에 필요한 `@granite.kr` 멘션과 볼더/루트 해시태그는 유지했다. 설계: [docs/specs/2026-07-09-granite-phase-10-add-record-design.md](specs/2026-07-09-granite-phase-10-add-record-design.md)
+
 ### 목적
 
 기록 추가 UI를 구현한다. 사용자가 기록 탭에서 Route를 검색하고 날짜/미디어 URL을 입력해 수동 Beta 또는 사용자 기록을 만들 수 있게 한다.
@@ -428,11 +431,11 @@ Phase 6는 기존 명칭의 `Login / Favorites / Claims` 전체가 아니라, �
 
 ### 출시 게이트
 
-- [ ] 로그인 사용자가 Route를 검색해 기록을 추가할 수 있음
-- [ ] Instagram/YouTube URL validation과 canonical id dedupe가 동작
-- [ ] 생성된 기록이 관리자 검수 상태와 사용자 표시 정책에 맞게 저장됨
-- [ ] 성공 후 `/me/records`에서 상태가 명확히 표시됨
-- [ ] `pnpm test`, `pnpm typecheck`, `pnpm build` 통과
+- [x] 로그인 사용자가 Route를 검색해 기록을 추가할 수 있음 (기록 탭 + More 시트 체크 버튼, 비로그인은 로그인 페이지로 이동)
+- [x] Instagram/YouTube URL validation과 canonical id dedupe가 동작 (기존 manual Beta 파이프라인 재사용)
+- [x] 생성된 기록이 관리자 검수 상태와 사용자 표시 정책에 맞게 저장됨 (기록은 즉시 본인 노출, 영상 Beta는 `pending` 검수)
+- [x] 성공 후 `/me/records`에서 상태가 명확히 표시됨 (완등 차트/최근 기록 실데이터, 나의 영상은 본인 pending 포함)
+- [x] `pnpm test`, `pnpm typecheck`, `pnpm build` 통과
 
 ---
 
