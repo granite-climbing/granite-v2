@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **구현 노트 (2026-07-09):** 본 플랜의 Task 1-10은 모두 수행되어 PR #10(`claude/phase-10-plan-dev-3a610b` 병합, merge commit `739624f`)으로 머지되었다. 플랜과 다르게 진행된 부분은 없으며, 로컬 D1 마이그레이션 적용과 `pnpm test`/`typecheck`/`build` 통과를 확인했다.
+
 **Goal:** Let a logged-in user add a completion record (route search + send date, optional star rating and Instagram/YouTube video link) from the records tab and from the route More sheet, with records showing immediately on `/me/records` and attached videos flowing through the existing pending-Beta moderation pipeline.
 
 **Architecture:** New `user_records` table decouples records from public Beta videos. `addRecordAction` server action creates the record (and optionally a pending Beta owned by the user). `lib/records/user-records-view.ts` swaps its Phase 9 mock for real `user_records` + own-Beta queries. A full-screen client dialog (`AddRecordDialog`) per Figma 56-1439/56-1457 is opened from two entry points: the records-tab `기록 추가` button and the More-sheet check button (route prefilled).
