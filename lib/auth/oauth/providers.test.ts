@@ -25,7 +25,7 @@ describe("OAuth provider configuration", () => {
     expect(url.searchParams.get("scope")).toBe("openid");
   });
 
-  it("keeps Apple configured for form_post callbacks without profile scopes", () => {
+  it("uses a query callback for Apple when no profile scopes are requested", () => {
     process.env.APPLE_WEB_CLIENT_ID = "kr.granite.web";
     const provider = getOAuthProvider("apple");
     const url = buildAuthorizationUrl("apple", {
@@ -36,7 +36,7 @@ describe("OAuth provider configuration", () => {
 
     expect(provider.provider).toBe("apple");
     expect(url.searchParams.get("client_id")).toBe("kr.granite.web");
-    expect(url.searchParams.get("response_mode")).toBe("form_post");
+    expect(url.searchParams.get("response_mode")).toBe("query");
     expect(url.searchParams.get("scope")).toBeNull();
   });
 

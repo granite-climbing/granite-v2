@@ -61,7 +61,7 @@ const PROVIDERS: Record<OAuthProviderId, OAuthProviderConfig> = {
     clientIdFallbackEnv: "APPLE_CLIENT_ID",
     clientSecretEnv: "APPLE_CLIENT_SECRET",
     scopes: [],
-    responseMode: "form_post"
+    responseMode: "query"
   }
 };
 
