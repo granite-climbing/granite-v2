@@ -42,4 +42,38 @@ describe("Apple OAuth client secret", () => {
 
     expect(verified.protectedHeader.kid).toBe("APPLEKEY1");
   });
+
+  it("generates a client_secret when the private key newlines are double escaped", async () => {
+    const { privateKey, publicKey } = await generateKeyPair("ES256", { extractable: true });
+    process.env.APPLE_CLIENT_ID = "";
+    process.env.APPLE_WEB_CLIENT_ID = "kr.granite.web";
+    process.env.APPLE_IOS_CLIENT_ID = "com.granite.climbing";
+    process.env.APPLE_CLIENT_SECRET = "";
+    process.env.APPLE_KEY_ID = "APPLEKEY1";
+    process.env.APPLE_PRIVATE_KEY = (await exportPKCS8(privateKey)).replaceAll("\n", "\\\\n");
+    process.env.APPLE_TEAM_ID = "TEAMID1234";
+
+    const clientSecret = await getOAuthClientSecret(getOAuthProvider("apple"));
+    const verified = await jwtVerify(clientSecret, publicKey, {
+      audience: "https://appleid.apple.com",
+      issuer: "TEAMID1234",
+      subject: "kr.granite.web"
+    });
+
+    expect(verified.protectedHeader.kid).toBe("APPLEKEY1");
+  });
+
+  it("surfaces private key import failures while generating client_secret", async () => {
+    process.env.APPLE_CLIENT_ID = "";
+    process.env.APPLE_WEB_CLIENT_ID = "kr.granite.web";
+    process.env.APPLE_IOS_CLIENT_ID = "com.granite.climbing";
+    process.env.APPLE_CLIENT_SECRET = "";
+    process.env.APPLE_KEY_ID = "APPLEKEY1";
+    process.env.APPLE_PRIVATE_KEY = "not-a-pem";
+    process.env.APPLE_TEAM_ID = "TEAMID1234";
+
+    await expect(getOAuthClientSecret(getOAuthProvider("apple"))).rejects.toThrow(
+      "Apple client_secret generation failed"
+    );
+  });
 });

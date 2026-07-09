@@ -128,13 +128,21 @@ export async function getOAuthClientSecret(provider: OAuthProviderConfig): Promi
 
   const clientId = getOAuthClientId(provider);
   const keyId = process.env.APPLE_KEY_ID ?? "";
-  const privateKey = process.env.APPLE_PRIVATE_KEY?.replaceAll("\\n", "\n") ?? "";
+  const privateKey = normalizeApplePrivateKey(process.env.APPLE_PRIVATE_KEY ?? "");
   const teamId = process.env.APPLE_TEAM_ID ?? "";
   if (!clientId || !keyId || !privateKey || !teamId) {
     return "";
   }
 
-  const signingKey = await importPKCS8(privateKey, "ES256");
+  let signingKey: Awaited<ReturnType<typeof importPKCS8>>;
+  try {
+    signingKey = await importPKCS8(privateKey, "ES256");
+  } catch (error) {
+    throw new Error(
+      `Apple client_secret generation failed: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+
   return new SignJWT({})
     .setProtectedHeader({ alg: "ES256", kid: keyId })
     .setIssuedAt()
@@ -143,6 +151,10 @@ export async function getOAuthClientSecret(provider: OAuthProviderConfig): Promi
     .setAudience("https://appleid.apple.com")
     .setSubject(clientId)
     .sign(signingKey);
+}
+
+function normalizeApplePrivateKey(value: string): string {
+  return value.replaceAll("\\\\n", "\n").replaceAll("\\n", "\n");
 }
 
 export function buildAuthorizationUrl(providerId: OAuthProviderId, input: BuildAuthorizationUrlInput): URL {

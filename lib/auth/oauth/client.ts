@@ -64,7 +64,14 @@ export async function exchangeOAuthCode(
   });
 
   if (!response.ok) {
-    throw new Error(`OAuth token exchange failed: ${response.status}`);
+    const errorDetail = await readOAuthErrorDetail(response);
+    console.error("[auth.oauth.token]", {
+      provider: provider.provider,
+      status: response.status,
+      error: errorDetail.error,
+      errorDescription: errorDetail.errorDescription
+    });
+    throw new Error(formatOAuthTokenError(response.status, errorDetail));
   }
 
   const parsed = tokenResponseSchema.parse(await response.json());
@@ -119,6 +126,40 @@ export async function fetchOAuthProfile(
   }
 
   return normalizeOAuthProfile(provider.provider, await response.json());
+}
+
+type OAuthErrorDetail = {
+  error: string | null;
+  errorDescription: string | null;
+};
+
+async function readOAuthErrorDetail(response: Response): Promise<OAuthErrorDetail> {
+  const text = await response.text();
+  if (!text) {
+    return { error: null, errorDescription: null };
+  }
+
+  try {
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    return {
+      error: typeof parsed.error === "string" ? parsed.error : null,
+      errorDescription: typeof parsed.error_description === "string" ? parsed.error_description : null
+    };
+  } catch {
+    return { error: "unparseable_error_response", errorDescription: text.slice(0, 300) };
+  }
+}
+
+function formatOAuthTokenError(status: number, detail: OAuthErrorDetail): string {
+  const parts = [`OAuth token exchange failed: ${status}`];
+  if (detail.error) {
+    parts.push(detail.error);
+  }
+  if (detail.errorDescription) {
+    parts.push(detail.errorDescription);
+  }
+
+  return parts.join(" - ");
 }
 
 async function fetchAppleProfileFromIdToken(

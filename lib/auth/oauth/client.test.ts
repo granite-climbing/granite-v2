@@ -5,7 +5,8 @@ import { exchangeOAuthCode, fetchOAuthProfile } from "./client";
 const originalEnv = {
   APPLE_CLIENT_ID: process.env.APPLE_CLIENT_ID,
   APPLE_WEB_CLIENT_ID: process.env.APPLE_WEB_CLIENT_ID,
-  APPLE_IOS_CLIENT_ID: process.env.APPLE_IOS_CLIENT_ID
+  APPLE_IOS_CLIENT_ID: process.env.APPLE_IOS_CLIENT_ID,
+  APPLE_CLIENT_SECRET: process.env.APPLE_CLIENT_SECRET
 };
 
 describe("OAuth HTTP client", () => {
@@ -13,6 +14,8 @@ describe("OAuth HTTP client", () => {
     process.env.APPLE_CLIENT_ID = originalEnv.APPLE_CLIENT_ID;
     process.env.APPLE_WEB_CLIENT_ID = originalEnv.APPLE_WEB_CLIENT_ID;
     process.env.APPLE_IOS_CLIENT_ID = originalEnv.APPLE_IOS_CLIENT_ID;
+    process.env.APPLE_CLIENT_SECRET = originalEnv.APPLE_CLIENT_SECRET;
+    vi.restoreAllMocks();
   });
 
   it("exchanges an authorization code with provider token endpoints", async () => {
@@ -72,6 +75,38 @@ describe("OAuth HTTP client", () => {
     expect(String(requestBody)).toContain("code=naver-oauth-code");
     expect(String(requestBody)).toContain("state=naver-callback-state");
     expect(tokenSet.expiresIn).toBe(3600);
+  });
+
+  it("logs token endpoint errors without request secrets", async () => {
+    process.env.APPLE_WEB_CLIENT_ID = "kr.granite.web";
+    process.env.APPLE_CLIENT_SECRET = "apple-client-secret";
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      new Response(
+        JSON.stringify({
+          error: "invalid_client",
+          error_description: "client_secret validation failed"
+        }),
+        { status: 400, headers: { "content-type": "application/json" } }
+      )
+    );
+
+    await expect(
+      exchangeOAuthCode("apple", {
+        code: "sensitive-authorization-code",
+        redirectUri: "https://v2.granite.kr/api/auth/callback/apple",
+        fetchImpl
+      })
+    ).rejects.toThrow("invalid_client");
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith("[auth.oauth.token]", {
+      provider: "apple",
+      status: 400,
+      error: "invalid_client",
+      errorDescription: "client_secret validation failed"
+    });
+    expect(JSON.stringify(consoleErrorSpy.mock.calls)).not.toContain("sensitive-authorization-code");
+    expect(JSON.stringify(consoleErrorSpy.mock.calls)).not.toContain("apple-client-secret");
   });
 
   it("fetches and normalizes a provider profile", async () => {
