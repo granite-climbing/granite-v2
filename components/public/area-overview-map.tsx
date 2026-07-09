@@ -23,7 +23,30 @@ export function AreaOverviewMap({ markers, className }: AreaOverviewMapProps) {
     window.setTimeout(() => el.classList.remove("ring-2", "ring-[#090909]"), 1500);
   }, []);
 
+  // Fit every marker in view, then step one level further out so markers
+  // don't hug the edges. Single-marker areas keep the default (zoomed-out)
+  // level from KakaoMap instead — setBounds would zoom all the way in.
+  const onCreate = useCallback(
+    (map: kakao.maps.Map) => {
+      if (markers.length < 2) return;
+      const bounds = new kakao.maps.LatLngBounds();
+      for (const m of markers) {
+        bounds.extend(new kakao.maps.LatLng(m.lat, m.lng));
+      }
+      map.setBounds(bounds, 32, 32, 32, 32);
+      map.setLevel(map.getLevel() + 1);
+    },
+    [markers]
+  );
+
   if (markers.length === 0) return null;
 
-  return <KakaoMap markers={markers} onMarkerClick={onMarkerClick} className={className} />;
+  return (
+    <KakaoMap
+      markers={markers}
+      onMarkerClick={onMarkerClick}
+      onCreate={onCreate}
+      className={className}
+    />
+  );
 }

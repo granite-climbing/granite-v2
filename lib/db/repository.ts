@@ -18,6 +18,7 @@ import {
   getAllRouteItemsFlat,
   getAreaBySlug,
   getCragBySlug,
+  getPublishedAreas,
   getRouteById,
   getTopoById,
   parseHashtags,
@@ -30,6 +31,7 @@ import {
 } from "./queries";
 import { batchD1, queryD1First } from "./d1-http";
 import type {
+  Area,
   AreaDetail,
   BoulderDetail,
   CragDetail,
@@ -301,6 +303,19 @@ async function loadAllRouteItems(): Promise<RouteListItem[]> {
 // ---------------------------------------------------------------------------
 // Public API — each function wraps its loader in unstable_cache
 // ---------------------------------------------------------------------------
+
+/**
+ * Published areas for navigation (e.g. the Area page region chips).
+ * Invalidated by `revalidateTag("areas:list")` like the other area caches.
+ */
+export async function getPublishedAreasList(): Promise<Area[]> {
+  const cached = unstable_cache(
+    () => getPublishedAreas(),
+    ["getPublishedAreasList"],
+    { tags: ["areas:list"] }
+  );
+  return cached();
+}
 
 export async function findAreaDetailBySlug(slug: string): Promise<AreaDetail | null> {
   const cached = unstable_cache(

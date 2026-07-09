@@ -26,11 +26,13 @@ type KakaoMapProps =
       center?: { lat: number; lng: number };
       zoom?: number;
       className?: string;
+      /** Access the raw map instance after creation (e.g. to fit bounds). */
+      onCreate?: (map: kakao.maps.Map) => void;
     };
 
 export function KakaoMap(props: KakaoMapProps) {
   if ("markers" in props) {
-    const { markers, onMarkerClick, center, zoom = 7, className } = props;
+    const { markers, onMarkerClick, center, zoom = 9, className, onCreate } = props;
     if (markers.length === 0) return null;
     const computedCenter =
       center ?? {
@@ -39,7 +41,12 @@ export function KakaoMap(props: KakaoMapProps) {
       };
     return (
       <div className={className}>
-        <Map center={computedCenter} level={zoom} style={{ width: "100%", height: "100%" }}>
+        <Map
+          center={computedCenter}
+          level={zoom}
+          style={{ width: "100%", height: "100%" }}
+          onCreate={onCreate}
+        >
           {markers.map((m) => (
             <MapMarker
               key={m.id}

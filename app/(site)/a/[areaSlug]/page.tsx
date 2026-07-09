@@ -1,10 +1,10 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { AppHeader } from "@/components/layout/app-header";
+import { AreaCragCard } from "@/components/public/area-crag-card";
 import { AreaOverviewMap } from "@/components/public/area-overview-map";
-import { CragCard } from "@/components/public/crag-card";
-import { StatBar } from "@/components/public/stat-bar";
-import { findAreaDetailBySlug } from "@/lib/db/repository";
+import { findAreaDetailBySlug, getPublishedAreasList } from "@/lib/db/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +46,10 @@ export default async function AreaPage({ params, searchParams }: AreaPageProps) 
   const resolvedSearch = await searchParams;
   const q = resolvedSearch?.q?.trim() ?? "";
 
-  const area = await findAreaDetailBySlug(areaSlug);
+  const [area, allAreas] = await Promise.all([
+    findAreaDetailBySlug(areaSlug),
+    getPublishedAreasList(),
+  ]);
   if (!area) {
     notFound();
   }
@@ -63,50 +66,48 @@ export default async function AreaPage({ params, searchParams }: AreaPageProps) 
     : area.crags;
 
   return (
-    <main className="min-h-screen bg-white pb-10 text-[#090909]">
+    <main className="min-h-screen bg-[#121212] pb-10">
       <AppHeader />
 
-      {/* Hero */}
-      <section
-        className="relative flex h-[200px] items-end overflow-hidden bg-cover bg-center px-4 pb-4 text-white"
-        style={area.coverImageUrl ? { backgroundImage: `url("${area.coverImageUrl}")` } : undefined}
-      >
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/70" />
-        <div className="relative">
-          <h1 className="text-[24px] font-extrabold leading-8">{area.name}</h1>
-          {area.nameEn ? (
-            <p className="text-[13px] font-medium leading-5 text-white/80">{area.nameEn}</p>
-          ) : null}
+      {/* Full-bleed overview map (square, per Figma `area` frame) */}
+      {area.cragLocations.length > 0 ? (
+        <AreaOverviewMap markers={area.cragLocations} className="aspect-square w-full" />
+      ) : (
+        <div className="grid aspect-square w-full place-items-center bg-[#D9D9D9]">
+          <p className="text-[14px] font-medium leading-5 text-black">지도</p>
         </div>
-      </section>
+      )}
 
-      {/* Aggregate stats */}
-      <section className="grid h-[56px] place-items-center bg-[#F7F8F8]">
-        <p className="text-center text-[13px] font-medium leading-5 text-[#2A2A2A]">
-          {area.stats.crags} Crags · {area.stats.sectors} Sectors · {area.stats.boulders} Boulders ·{" "}
-          {area.stats.routes} Routes
-        </p>
-      </section>
-
-      {/* Grade distribution */}
-      <section className="px-4 pt-5">
-        <StatBar gradeDistribution={area.gradeDistribution} variant="full" />
-      </section>
+      {/* Region chips */}
+      <nav
+        className="no-scrollbar flex gap-[6px] overflow-x-auto px-4 pt-3"
+        aria-label="지역 선택"
+      >
+        <RegionChip href="/" label="전체" active={false} />
+        {allAreas.map((a) => (
+          <RegionChip
+            key={a.id}
+            href={`/a/${a.slug}`}
+            label={a.name}
+            active={a.id === area.id}
+          />
+        ))}
+      </nav>
 
       {/* Search */}
-      <section className="px-4 pt-5">
+      <section className="px-4 pt-3">
         <form method="get" action={`/a/${area.slug}`}>
           <label className="relative block">
             <span className="sr-only">Crag 검색</span>
             <input
               name="q"
               defaultValue={q}
-              className="h-12 w-full rounded-full border-0 bg-white px-4 pr-12 text-[14px] font-medium leading-5 text-[#090909] shadow-[0_0_6px_2px_rgba(0,0,0,0.1)] outline-none placeholder:text-[#B8B8B8]"
+              className="h-12 w-full rounded-full border-0 bg-[#2A2A2A] px-4 pr-12 text-[14px] font-medium leading-5 text-white outline-none placeholder:text-[#7A7A7A]"
               placeholder="Crag 이름 검색"
             />
             <button
               type="submit"
-              className="absolute right-4 top-3 text-[18px] leading-6 text-[#090909]"
+              className="absolute right-4 top-3 text-[18px] leading-6 text-white"
               aria-label="검색"
             >
               ⌕
@@ -115,22 +116,12 @@ export default async function AreaPage({ params, searchParams }: AreaPageProps) 
         </form>
       </section>
 
-      {/* Overview map — only rendered when at least one crag has coordinates */}
-      {area.cragLocations.length > 0 ? (
-        <div className="mt-6 px-4">
-          <AreaOverviewMap
-            markers={area.cragLocations}
-            className="h-[240px] w-full overflow-hidden rounded-lg md:h-[360px]"
-          />
-        </div>
-      ) : null}
-
       {/* Crag list */}
-      <section className="mt-6 flex flex-col items-center gap-4 px-4">
+      <section className="mt-3 space-y-3 px-4">
         {filteredCrags.length > 0 ? (
           filteredCrags.map((crag) => (
-            <div key={crag.id} id={`crag-card-${crag.id}`} className="rounded-lg transition-shadow">
-              <CragCard crag={crag} />
+            <div key={crag.id} id={`crag-card-${crag.id}`} className="rounded-[8px]">
+              <AreaCragCard crag={crag} />
             </div>
           ))
         ) : (
@@ -140,5 +131,29 @@ export default async function AreaPage({ params, searchParams }: AreaPageProps) 
         )}
       </section>
     </main>
+  );
+}
+
+function RegionChip({
+  href,
+  label,
+  active,
+}: {
+  href: string;
+  label: string;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`shrink-0 rounded-full px-3 py-[6px] text-center text-[14px] leading-5 ${
+        active
+          ? "bg-white font-medium text-[#090909]"
+          : "bg-[#2A2A2A] font-normal text-white"
+      }`}
+    >
+      {label}
+    </Link>
   );
 }
