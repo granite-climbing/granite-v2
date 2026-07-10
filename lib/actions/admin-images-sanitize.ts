@@ -3,7 +3,7 @@
 
 import sharp from "sharp";
 
-const MAX_OUTPUT_DIMENSION = 4000; // px cap per side after optimization
+const MAX_OUTPUT_DIMENSION = 1600; // px cap per side after optimization
 const ALLOWED_INPUT_FORMATS = new Set(["jpeg", "png", "webp"]);
 
 export type SanitizedImage = {

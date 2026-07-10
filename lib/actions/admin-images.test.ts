@@ -54,7 +54,7 @@ describe("sanitizeAdminImage", () => {
     await expect(sanitizeAdminImage(input)).rejects.toThrow(/Invalid image data|Unsupported/);
   });
 
-  // Test C — optimizes images that exceed the 4000px output cap
+  // Test C — optimizes images that exceed the 1600px output cap
   it("resizes images that exceed the output dimension cap", async () => {
     const input = await sharp({
       create: { width: 5000, height: 2500, channels: 3, background: "#fff" },
@@ -65,10 +65,10 @@ describe("sanitizeAdminImage", () => {
     const sanitized = await sanitizeAdminImage(input);
     const meta = await sharp(sanitized.bytes).metadata();
 
-    expect(sanitized.width).toBe(4000);
-    expect(sanitized.height).toBe(2000);
-    expect(meta.width).toBe(4000);
-    expect(meta.height).toBe(2000);
+    expect(sanitized.width).toBe(1600);
+    expect(sanitized.height).toBe(800);
+    expect(meta.width).toBe(1600);
+    expect(meta.height).toBe(800);
   });
 
   // Test D — EXIF/GPS metadata is stripped from the output
