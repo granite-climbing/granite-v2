@@ -32,7 +32,7 @@ type KakaoMapProps =
 
 export function KakaoMap(props: KakaoMapProps) {
   if ("markers" in props) {
-    const { markers, onMarkerClick, center, zoom = 9, className, onCreate } = props;
+    const { markers, onMarkerClick, center, zoom = 11, className, onCreate } = props;
     if (markers.length === 0) return null;
     const computedCenter =
       center ?? {
