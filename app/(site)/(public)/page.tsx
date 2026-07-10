@@ -16,9 +16,9 @@ export default async function HomePage() {
       <AppHeader />
       <section className="relative h-[200px] w-full overflow-hidden bg-[url('/images/figma/main-banner.jpg')] bg-cover bg-center text-white">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60" />
-        <div className="absolute left-[55px] top-[70px] w-[253px] text-center">
+        <div className="absolute inset-x-4 top-[70px] mx-auto max-w-[560px] text-center">
           <p className="text-[28px] font-extrabold leading-9">DREAM to DREAM!</p>
-          <p className="mt-1 text-[14px] font-medium leading-5 text-white">
+          <p className="mt-1 text-[14px] font-medium leading-5 text-white whitespace-nowrap">
             {model.totals.crags} CRAGS · {model.totals.boulders} BOULDERS · {model.totals.routes} ROUTES
           </p>
         </div>
