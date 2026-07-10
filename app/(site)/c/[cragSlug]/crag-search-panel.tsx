@@ -127,7 +127,7 @@ export function CragSearchPanel({
         </div>
       ) : null}
       <div className="mt-4">
-        <ClientSearchInput value={query} onChange={setQuery} placeholder="루트 이름 검색, 난이도 검색" />
+        <ClientSearchInput value={query} onChange={setQuery} placeholder="루트 이름 검색" />
       </div>
       <div className="mt-4 px-4">
         {sortedRoutes.length === 0 ? (
@@ -185,30 +185,20 @@ function SearchIcon() {
 function filterSectors(crag: CragDetail, query: string) {
   const q = normalizeQuery(query);
   if (!q) return crag.sectors;
-  return crag.sectors.filter((sector) =>
-    [sector.name, sector.nameEn, sector.description, sector.season].some((value) =>
-      value?.toLowerCase().includes(q)
-    )
-  );
+  return crag.sectors.filter((sector) => sector.name.toLowerCase().includes(q));
 }
 
 function filterBoulders(crag: CragDetail, query: string) {
   const q = normalizeQuery(query);
   if (!q) return crag.boulders;
-  return crag.boulders.filter((boulder) =>
-    [boulder.name, boulder.slug, boulder.hashtags].some((value) => value.toLowerCase().includes(q))
-  );
+  return crag.boulders.filter((boulder) => boulder.name.toLowerCase().includes(q));
 }
 
 function filterRoutes(routes: RouteListItem[], query: string, boulderId: string) {
   const scopedRoutes = boulderId ? routes.filter((route) => route.boulderId === boulderId) : routes;
   const q = normalizeQuery(query);
   if (!q) return scopedRoutes;
-  return scopedRoutes.filter((route) =>
-    [route.name, route.slug, route.grade, route.boulderName, route.sectorName, route.cragName].some((value) =>
-      value.toLowerCase().includes(q)
-    )
-  );
+  return scopedRoutes.filter((route) => route.name.toLowerCase().includes(q));
 }
 
 function normalizeQuery(query: string) {

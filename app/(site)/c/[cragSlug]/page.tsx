@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/layout/app-header";
 import { KakaoMap } from "@/components/public/kakao-map";
 import { findCragBySlug } from "@/lib/db/repository";
-import type { CragDetail, TabName } from "@/lib/db/schema";
+import type { CragDetail, RouteListItem, TabName } from "@/lib/db/schema";
 import { bucketGradeNums, GRADE_LABELS } from "@/lib/grade-histogram";
 import { CragSearchPanel } from "./crag-search-panel";
 
@@ -44,7 +44,7 @@ export default async function CragPage({ params, searchParams }: CragPageProps) 
     <main className="min-h-screen bg-white pb-10 text-[#090909]">
       <AppHeader />
       <CragHero crag={crag} />
-      <CragTabs crag={crag} activeTab={activeTab} query={query} sort={sort} boulderId={boulderId} />
+      <CragTabs crag={crag} activeTab={activeTab} sort={sort} boulderId={boulderId} />
       <CragTabPanel crag={crag} activeTab={activeTab} query={query} sort={sort} boulderId={boulderId} basePath={basePath} />
     </main>
   );
@@ -68,13 +68,11 @@ function CragHero({ crag }: { crag: CragDetail }) {
 function CragTabs({
   crag,
   activeTab,
-  query,
   sort,
   boulderId,
 }: {
   crag: CragDetail;
   activeTab: TabName;
-  query: string;
   sort: GradeSort;
   boulderId: string;
 }) {
@@ -83,12 +81,8 @@ function CragTabs({
       {crag.tabs.map((tab) => {
         const active = tab === activeTab;
         const tabLower = tab.toLowerCase();
-        // Preserve ?q= when switching between search-bearing tabs.
         // Preserve ?sort= and ?boulderId= only when navigating to/staying on the Route tab.
         const params = new URLSearchParams({ tab: tabLower });
-        if (query && ["Sector", "Boulder", "Route"].includes(tab)) {
-          params.set("q", query);
-        }
         if (sort && tab === "Route") {
           params.set("sort", sort);
         }
