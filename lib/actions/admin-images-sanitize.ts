@@ -8,8 +8,8 @@ const ALLOWED_INPUT_FORMATS = new Set(["jpeg", "png", "webp"]);
 
 export type SanitizedImage = {
   bytes: Buffer;
-  contentType: "image/jpeg" | "image/png" | "image/webp";
-  extension: "jpg" | "png" | "webp";
+  contentType: "image/webp";
+  extension: "webp";
   // Dimensions of the stored, sanitized output.
   width: number;
   height: number;
@@ -18,7 +18,7 @@ export type SanitizedImage = {
 /**
  * Decode the input buffer with sharp (content-sniff, not header-trust),
  * optimize large images to the configured dimension cap, then re-encode
- * without metadata.
+ * as WebP without metadata.
  *
  * sharp drops all EXIF/XMP/ICC/GPS metadata unless `.withMetadata()` is
  * explicitly called — so the re-encode pipeline is the stripping mechanism.
@@ -53,30 +53,7 @@ export async function sanitizeAdminImage(input: Buffer): Promise<SanitizedImage>
       withoutEnlargement: true,
     });
 
-  if (meta.format === "jpeg") {
-    const bytes = await pipeline.jpeg({ quality: 85, mozjpeg: true }).toBuffer();
-    const outputMeta = await sharp(bytes).metadata();
-    return {
-      bytes,
-      contentType: "image/jpeg",
-      extension: "jpg",
-      width: outputMeta.width ?? meta.width,
-      height: outputMeta.height ?? meta.height,
-    };
-  }
-  if (meta.format === "png") {
-    const bytes = await pipeline.png({ compressionLevel: 9 }).toBuffer();
-    const outputMeta = await sharp(bytes).metadata();
-    return {
-      bytes,
-      contentType: "image/png",
-      extension: "png",
-      width: outputMeta.width ?? meta.width,
-      height: outputMeta.height ?? meta.height,
-    };
-  }
-  // webp
-  const bytes = await pipeline.webp({ quality: 85 }).toBuffer();
+  const bytes = await pipeline.webp({ quality: 82, effort: 4 }).toBuffer();
   const outputMeta = await sharp(bytes).metadata();
   return {
     bytes,

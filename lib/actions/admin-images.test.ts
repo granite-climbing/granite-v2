@@ -29,8 +29,8 @@ describe("admin image uploads", () => {
 // ---------------------------------------------------------------------------
 
 describe("sanitizeAdminImage", () => {
-  // Test A — happy-path jpeg
-  it("returns expected shape for a plain jpeg", async () => {
+  // Test A — happy-path jpeg converted to webp
+  it("converts a plain jpeg to webp", async () => {
     const input = await sharp({
       create: { width: 100, height: 80, channels: 3, background: "#fff" },
     })
@@ -38,11 +38,13 @@ describe("sanitizeAdminImage", () => {
       .toBuffer();
 
     const sanitized = await sanitizeAdminImage(input);
+    const meta = await sharp(sanitized.bytes).metadata();
 
-    expect(sanitized.contentType).toBe("image/jpeg");
-    expect(sanitized.extension).toBe("jpg");
+    expect(sanitized.contentType).toBe("image/webp");
+    expect(sanitized.extension).toBe("webp");
     expect(sanitized.width).toBe(100);
     expect(sanitized.height).toBe(80);
+    expect(meta.format).toBe("webp");
     expect(sanitized.bytes.length).toBeGreaterThan(0);
   });
 
@@ -112,5 +114,22 @@ describe("sanitizeAdminImage", () => {
     expect(sanitized.width).toBe(60);
     expect(sanitized.height).toBe(40);
     expect(sanitized.bytes.length).toBeGreaterThan(0);
+  });
+
+  it("converts png input to webp output", async () => {
+    const input = await sharp({
+      create: { width: 40, height: 30, channels: 4, background: "#00000000" },
+    })
+      .png()
+      .toBuffer();
+
+    const sanitized = await sanitizeAdminImage(input);
+    const meta = await sharp(sanitized.bytes).metadata();
+
+    expect(sanitized.contentType).toBe("image/webp");
+    expect(sanitized.extension).toBe("webp");
+    expect(meta.format).toBe("webp");
+    expect(meta.width).toBe(40);
+    expect(meta.height).toBe(30);
   });
 });
