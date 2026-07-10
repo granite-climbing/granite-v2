@@ -3,10 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/layout/app-header";
 import { KakaoMap } from "@/components/public/kakao-map";
-import { SearchField } from "@/components/public/search-field";
 import { findCragBySlug } from "@/lib/db/repository";
-import type { CragDetail, RouteListItem, TabName } from "@/lib/db/schema";
+import type { CragDetail, TabName } from "@/lib/db/schema";
 import { bucketGradeNums, GRADE_LABELS } from "@/lib/grade-histogram";
+import { CragSearchPanel } from "./crag-search-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -136,149 +136,41 @@ function CragTabPanel({
   }
 
   if (activeTab === "Sector") {
-    const filtered = query
-      ? crag.sectors.filter((s) => {
-          const q = query.toLowerCase();
-          return (
-            s.name.toLowerCase().includes(q) ||
-            (s.nameEn?.toLowerCase().includes(q) ?? false)
-          );
-        })
-      : crag.sectors;
-
     return (
-      <section className="pt-4">
-        <SectionHeading />
-        <div className="mt-4">
-          <SearchField
-            defaultValue={query || undefined}
-            placeholder="섹터 이름 검색"
-            action={basePath}
-            hiddenFields={{ tab: "sector" }}
-          />
-        </div>
-        <div className="mt-4 space-y-3 px-4">
-          {filtered.length === 0 ? (
-            <EmptyResult query={query} />
-          ) : (
-            filtered.map((sector) => {
-              const routes = crag.routes.filter((r) => r.sectorSlug === sector.slug);
-              const boulderCount = crag.boulders.filter((b) => b.sectorId === sector.id).length;
-
-              return (
-                <SectorCard
-                  key={sector.id}
-                  sector={sector}
-                  boulderCount={boulderCount}
-                  routes={routes}
-                />
-              );
-            })
-          )}
-        </div>
-      </section>
+      <CragSearchPanel
+        crag={crag}
+        activeTab={activeTab}
+        initialQuery={query}
+        sort={sort}
+        boulderId={boulderId}
+        basePath={basePath}
+      />
     );
   }
 
   if (activeTab === "Boulder") {
-    const filtered = query
-      ? crag.boulders.filter((b) => {
-          const q = query.toLowerCase();
-          return b.name.toLowerCase().includes(q);
-        })
-      : crag.boulders;
-
     return (
-      <section className="pt-4">
-        <SectionHeading />
-        <div className="mt-4">
-          <SearchField
-            defaultValue={query || undefined}
-            placeholder="볼더 이름 검색"
-            action={basePath}
-            hiddenFields={{ tab: "boulder" }}
-          />
-        </div>
-        <div className="mt-4 space-y-3 px-4">
-          {filtered.length === 0 ? (
-            <EmptyResult query={query} />
-          ) : (
-            filtered.map((boulder) => (
-              <BoulderListCard
-                key={boulder.id}
-                boulder={boulder}
-                cragSlug={crag.slug}
-                routes={crag.routes.filter((r) => r.boulderId === boulder.id)}
-              />
-            ))
-          )}
-        </div>
-      </section>
+      <CragSearchPanel
+        crag={crag}
+        activeTab={activeTab}
+        initialQuery={query}
+        sort={sort}
+        boulderId={boulderId}
+        basePath={basePath}
+      />
     );
   }
 
   if (activeTab === "Route") {
-    // 1. Filter by boulderId first
-    let routes = crag.routes;
-    if (boulderId) {
-      routes = routes.filter((r) => r.boulderId === boulderId);
-    }
-
-    // 2. Then filter by search query
-    const filtered = query
-      ? routes.filter((r) => {
-          const q = query.toLowerCase();
-          return (
-            r.name.toLowerCase().includes(q) ||
-            r.boulderName.toLowerCase().includes(q) ||
-            r.grade.toLowerCase().includes(q)
-          );
-        })
-      : routes;
-
-    // 3. Sort after filtering
-    const sorted = sort === "grade:asc"
-      ? [...filtered].sort((a, b) => a.gradeNum - b.gradeNum || a.grade.localeCompare(b.grade))
-      : sort === "grade:desc"
-        ? [...filtered].sort((a, b) => b.gradeNum - a.gradeNum || b.grade.localeCompare(a.grade))
-        : filtered;
-
-    // Build the "clear filter" href (removes boulderId but keeps q and sort)
-    const clearFilterParams = new URLSearchParams({ tab: "route" });
-    if (query) clearFilterParams.set("q", query);
-    if (sort) clearFilterParams.set("sort", sort);
-    const clearFilterHref = `${basePath}?${clearFilterParams.toString()}`;
-
     return (
-      <section className="pt-4">
-        <SectionHeading />
-        {boulderId ? (
-          <div className="mb-3 mt-3 flex items-center justify-center gap-2 px-4 text-[12px] text-[#7A7A7A]">
-            <span>볼더 필터 적용 중</span>
-            <Link href={clearFilterHref} className="underline">
-              필터 해제
-            </Link>
-          </div>
-        ) : null}
-        <div className="mt-4">
-          <SearchField
-            defaultValue={query || undefined}
-            placeholder="루트 이름 검색, 난이도 검색"
-            action={basePath}
-            hiddenFields={{
-              tab: "route",
-              ...(boulderId ? { boulderId } : {}),
-            }}
-          />
-        </div>
-        <div className="mt-4 px-4">
-          {sorted.length === 0 ? (
-            <EmptyResult query={query} />
-          ) : (
-            <RouteTable routes={sorted} sort={sort} query={query} boulderId={boulderId} basePath={basePath} />
-          )}
-        </div>
-      </section>
+      <CragSearchPanel
+        crag={crag}
+        activeTab={activeTab}
+        initialQuery={query}
+        sort={sort}
+        boulderId={boulderId}
+        basePath={basePath}
+      />
     );
   }
 
@@ -307,22 +199,6 @@ function CragTabPanel({
 // ---------------------------------------------------------------------------
 // Shared sub-components
 // ---------------------------------------------------------------------------
-
-function SectionHeading() {
-  return (
-    <p className="text-center text-[16px] font-bold leading-6 text-[#090909]">
-      FIND YOUR NEXT DREAM!
-    </p>
-  );
-}
-
-function EmptyResult({ query }: { query: string }) {
-  return (
-    <p className="py-8 text-center text-[14px] font-normal leading-5 text-[#7A7A7A]">
-      &ldquo;{query}&rdquo; 에 해당하는 결과가 없습니다.
-    </p>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Info tab

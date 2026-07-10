@@ -1,0 +1,444 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import type { CragDetail, RouteListItem, TabName } from "@/lib/db/schema";
+import { bucketGradeNums, GRADE_LABELS } from "@/lib/grade-histogram";
+
+type GradeSort = "grade:asc" | "grade:desc" | "";
+type SearchableTab = Extract<TabName, "Sector" | "Boulder" | "Route">;
+
+export function CragSearchPanel({
+  crag,
+  activeTab,
+  initialQuery,
+  sort,
+  boulderId,
+  basePath,
+}: {
+  crag: CragDetail;
+  activeTab: SearchableTab;
+  initialQuery: string;
+  sort: GradeSort;
+  boulderId: string;
+  basePath: string;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [query, setQuery] = useState(initialQuery);
+
+  const paramQuery = searchParams.get("q") ?? "";
+
+  useEffect(() => {
+    setQuery(paramQuery);
+  }, [paramQuery]);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      const trimmed = query.trim();
+      if (trimmed === paramQuery) return;
+
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", activeTab.toLowerCase());
+      if (trimmed) {
+        params.set("q", trimmed);
+      } else {
+        params.delete("q");
+      }
+
+      const nextQuery = params.toString();
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+    }, 600);
+
+    return () => window.clearTimeout(handle);
+  }, [activeTab, pathname, query, router, searchParams, paramQuery]);
+
+  if (activeTab === "Sector") {
+    const filtered = filterSectors(crag, query);
+
+    return (
+      <section className="pt-4">
+        <SectionHeading />
+        <div className="mt-4">
+          <ClientSearchInput value={query} onChange={setQuery} placeholder="섹터 이름 검색" />
+        </div>
+        <div className="mt-4 space-y-4 px-4">
+          {filtered.length === 0 ? (
+            <EmptyResult query={query} />
+          ) : (
+            filtered.map((sector) => (
+              <SectorCard
+                key={sector.id}
+                sector={sector}
+                routes={crag.routes.filter((r) => r.sectorSlug === sector.slug)}
+              />
+            ))
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  if (activeTab === "Boulder") {
+    const filtered = filterBoulders(crag, query);
+
+    return (
+      <section className="pt-4">
+        <SectionHeading />
+        <div className="mt-4">
+          <ClientSearchInput value={query} onChange={setQuery} placeholder="볼더 이름 검색" />
+        </div>
+        <div className="mt-4 space-y-3 px-4">
+          {filtered.length === 0 ? (
+            <EmptyResult query={query} />
+          ) : (
+            filtered.map((boulder) => (
+              <BoulderListCard
+                key={boulder.id}
+                boulder={boulder}
+                cragSlug={crag.slug}
+                routes={crag.routes.filter((r) => r.boulderId === boulder.id)}
+              />
+            ))
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  const filteredRoutes = filterRoutes(crag.routes, query, boulderId);
+  const sortedRoutes = sortRoutes(filteredRoutes, sort);
+  const clearFilterParams = new URLSearchParams({ tab: "route" });
+  if (query.trim()) clearFilterParams.set("q", query.trim());
+  if (sort) clearFilterParams.set("sort", sort);
+  const clearFilterHref = `${basePath}?${clearFilterParams.toString()}`;
+
+  return (
+    <section className="pt-4">
+      <SectionHeading />
+      {boulderId ? (
+        <div className="mb-3 mt-3 flex items-center justify-center gap-2 px-4 text-[12px] text-[#7A7A7A]">
+          <span>볼더 필터 적용 중</span>
+          <Link href={clearFilterHref} className="underline">
+            필터 해제
+          </Link>
+        </div>
+      ) : null}
+      <div className="mt-4">
+        <ClientSearchInput value={query} onChange={setQuery} placeholder="루트 이름 검색, 난이도 검색" />
+      </div>
+      <div className="mt-4 px-4">
+        {sortedRoutes.length === 0 ? (
+          <EmptyResult query={query} />
+        ) : (
+          <RouteTable routes={sortedRoutes} sort={sort} query={query} boulderId={boulderId} basePath={basePath} />
+        )}
+      </div>
+    </section>
+  );
+}
+
+function ClientSearchInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <div className="relative mx-4">
+      <label>
+        <span className="sr-only">검색</span>
+        <input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          autoComplete="off"
+          className="h-12 w-full rounded-full border-0 bg-white px-4 pr-12 text-[14px] font-medium leading-5 text-[#090909] shadow-[0_0_6px_2px_rgba(0,0,0,0.1)] outline-none placeholder:text-[#B8B8B8] focus:shadow-[0_0_6px_2px_rgba(0,0,0,0.18)]"
+        />
+      </label>
+      <span className="pointer-events-none absolute right-4 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center text-[#090909]">
+        <SearchIcon />
+      </span>
+    </div>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-[22px]" fill="none">
+      <path
+        d="m20 20-4.35-4.35m2.35-5.15a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function filterSectors(crag: CragDetail, query: string) {
+  const q = normalizeQuery(query);
+  if (!q) return crag.sectors;
+  return crag.sectors.filter((sector) =>
+    [sector.name, sector.nameEn, sector.description, sector.season].some((value) =>
+      value?.toLowerCase().includes(q)
+    )
+  );
+}
+
+function filterBoulders(crag: CragDetail, query: string) {
+  const q = normalizeQuery(query);
+  if (!q) return crag.boulders;
+  return crag.boulders.filter((boulder) =>
+    [boulder.name, boulder.slug, boulder.hashtags].some((value) => value.toLowerCase().includes(q))
+  );
+}
+
+function filterRoutes(routes: RouteListItem[], query: string, boulderId: string) {
+  const scopedRoutes = boulderId ? routes.filter((route) => route.boulderId === boulderId) : routes;
+  const q = normalizeQuery(query);
+  if (!q) return scopedRoutes;
+  return scopedRoutes.filter((route) =>
+    [route.name, route.slug, route.grade, route.boulderName, route.sectorName, route.cragName].some((value) =>
+      value.toLowerCase().includes(q)
+    )
+  );
+}
+
+function normalizeQuery(query: string) {
+  return query.trim().toLowerCase();
+}
+
+function sortRoutes(routes: RouteListItem[], sort: GradeSort) {
+  if (sort === "grade:asc") {
+    return [...routes].sort((a, b) => a.gradeNum - b.gradeNum || a.grade.localeCompare(b.grade));
+  }
+  if (sort === "grade:desc") {
+    return [...routes].sort((a, b) => b.gradeNum - a.gradeNum || b.grade.localeCompare(a.grade));
+  }
+  return routes;
+}
+
+function SectionHeading() {
+  return (
+    <p className="text-center text-[16px] font-bold leading-6 text-[#090909]">
+      FIND YOUR NEXT DREAM!
+    </p>
+  );
+}
+
+function EmptyResult({ query }: { query: string }) {
+  return (
+    <p className="py-8 text-center text-[14px] font-normal leading-5 text-[#7A7A7A]">
+      &ldquo;{query}&rdquo; 에 해당하는 결과가 없습니다.
+    </p>
+  );
+}
+
+function SectorCard({
+  sector,
+  routes,
+}: {
+  sector: CragDetail["sectors"][number];
+  routes: RouteListItem[];
+}) {
+  return (
+    <article className="overflow-hidden rounded-[8px] bg-white shadow-[0_0_6px_2px_rgba(0,0,0,0.1)]">
+      <div
+        className="h-[140px] w-full bg-[#BABABA] bg-cover bg-center"
+        style={sector.coverImageUrl ? { backgroundImage: `url("${sector.coverImageUrl}")` } : undefined}
+      />
+      <div className="px-4 pb-4 pt-3">
+        <h2 className="text-[16px] font-bold leading-6 text-[#090909]">{sector.name}</h2>
+        <p className="mt-1 text-[12px] font-medium leading-4 text-[#7A7A7A]">
+          {sector.season} · {sector.description}
+        </p>
+        <MiniGradeBars routes={routes} barWidth={8} maxHeight={24} className="mt-3" />
+      </div>
+    </article>
+  );
+}
+
+function MiniGradeBars({
+  routes,
+  barWidth,
+  maxHeight,
+  className,
+}: {
+  routes: RouteListItem[];
+  barWidth: number;
+  maxHeight: number;
+  className?: string;
+}) {
+  const bars = bucketGradeNums(routes);
+  const max = Math.max(...bars, 1);
+  return (
+    <div
+      className={`flex items-end gap-[2px]${className ? ` ${className}` : ""}`}
+      aria-label="V등급 분포"
+    >
+      {bars.map((count, i) => (
+        <div
+          key={GRADE_LABELS[i]}
+          className="rounded-[2px] bg-[#7A7A7A]"
+          style={{
+            width: `${barWidth}px`,
+            height: `${count === 0 ? 2 : Math.max(2, Math.round((count / max) * maxHeight))}px`,
+            opacity: count === 0 ? 0.25 : 1,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function BoulderListCard({
+  boulder,
+  cragSlug,
+  routes,
+}: {
+  boulder: CragDetail["boulders"][number];
+  cragSlug: string;
+  routes: RouteListItem[];
+}) {
+  return (
+    <Link
+      href={`/c/${cragSlug}?tab=route&boulderId=${encodeURIComponent(boulder.id)}`}
+      className="flex h-[100px] items-center overflow-hidden rounded-[8px] bg-white shadow-[0_0_6px_2px_rgba(0,0,0,0.06)] transition-shadow hover:shadow-[0_0_6px_2px_rgba(0,0,0,0.1)]"
+    >
+      <div
+        className="ml-2 size-[84px] shrink-0 self-center rounded-[4px] bg-[#D9D9D9] bg-cover bg-center"
+        style={
+          boulder.coverImageUrl
+            ? { backgroundImage: `url("${boulder.coverImageUrl}")` }
+            : undefined
+        }
+      />
+      <div className="flex flex-1 flex-col justify-center pl-3 pr-2">
+        <h2 className="text-[16px] font-bold leading-6 text-[#090909]">{boulder.name}</h2>
+        <p className="mt-[2px] text-[10px] font-normal leading-[14px] text-[#7A7A7A]">
+          {boulder.routeCount} Routes
+        </p>
+        <MiniGradeBars routes={routes} barWidth={6} maxHeight={20} className="mt-2" />
+      </div>
+      <div className="flex shrink-0 items-center pr-2">
+        <span className="text-[18px] leading-none text-[#7A7A7A]">›</span>
+      </div>
+    </Link>
+  );
+}
+
+function nextGradeSortHref({
+  basePath,
+  query,
+  sort,
+  boulderId,
+}: {
+  basePath: string;
+  query: string;
+  sort: GradeSort;
+  boulderId: string;
+}): string {
+  const nextSort: GradeSort = sort === "" ? "grade:asc" : sort === "grade:asc" ? "grade:desc" : "";
+  const params = new URLSearchParams({ tab: "route" });
+  const trimmed = query.trim();
+  if (trimmed) params.set("q", trimmed);
+  if (nextSort) params.set("sort", nextSort);
+  if (boulderId) params.set("boulderId", boulderId);
+  return `${basePath}?${params.toString()}`;
+}
+
+function GradeSortIcon({ sort }: { sort: GradeSort }) {
+  if (sort === "grade:asc") {
+    return (
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 10 10"
+        className="ml-1 inline-block size-[10px] shrink-0 align-middle"
+        fill="currentColor"
+      >
+        <path d="M5 1 L9 8 L1 8 Z" />
+      </svg>
+    );
+  }
+  if (sort === "grade:desc") {
+    return (
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 10 10"
+        className="ml-1 inline-block size-[10px] shrink-0 align-middle"
+        fill="currentColor"
+      >
+        <path d="M5 9 L9 2 L1 2 Z" />
+      </svg>
+    );
+  }
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 10 14"
+      className="ml-1 inline-block size-[10px] shrink-0 align-middle text-[#B8B8B8]"
+      fill="currentColor"
+    >
+      <path d="M5 1 L8.5 5.5 L1.5 5.5 Z" />
+      <path d="M5 13 L8.5 8.5 L1.5 8.5 Z" />
+    </svg>
+  );
+}
+
+function RouteTable({
+  routes,
+  sort,
+  query,
+  boulderId,
+  basePath,
+}: {
+  routes: RouteListItem[];
+  sort: GradeSort;
+  query: string;
+  boulderId: string;
+  basePath: string;
+}) {
+  const gradeHref = nextGradeSortHref({ basePath, query, sort, boulderId });
+  return (
+    <div>
+      <div className="grid h-10 grid-cols-[1fr_80px_80px] items-center bg-[#F7F8F8] px-2 text-[14px] font-medium leading-5 text-[#090909]">
+        <span>Route</span>
+        <Link
+          href={gradeHref}
+          className="flex items-center"
+          aria-label={
+            sort === "grade:asc"
+              ? "난이도 내림차순 정렬"
+              : sort === "grade:desc"
+                ? "정렬 해제"
+                : "난이도 오름차순 정렬"
+          }
+        >
+          Grade
+          <GradeSortIcon sort={sort} />
+        </Link>
+        <span>Boulder</span>
+      </div>
+      <div className="border-b border-[#E8E8E8]">
+        {routes.map((route) => (
+          <Link
+            key={route.id}
+            href={`/t/${route.topoId}?route=${route.id}`}
+            className="grid h-10 grid-cols-[1fr_80px_80px] items-center border-t border-[#E8E8E8] px-2 text-[14px] font-normal leading-5 text-[#2A2A2A]"
+          >
+            <span className="truncate pr-2">{route.name}</span>
+            <span>{route.grade}</span>
+            <span className="truncate">{route.boulderName}</span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}

@@ -28,10 +28,24 @@ export function SearchField({
       <button
         type="submit"
         aria-label="검색"
-        className="absolute right-3 top-3 flex size-6 items-center justify-center text-[20px] leading-6 text-[#090909]"
+        className="absolute right-4 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center text-[#090909]"
       >
-        ⌕
+        <SearchIcon />
       </button>
     </form>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-[22px]" fill="none">
+      <path
+        d="m20 20-4.35-4.35m2.35-5.15a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
