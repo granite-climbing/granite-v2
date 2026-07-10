@@ -74,6 +74,7 @@ export type Route = {
   lineImageUrl: string;
   isPublished: boolean;
   sortOrder: number;
+  topoBaseImageUrl?: string;
 };
 
 export type Announcement = {
@@ -209,6 +210,31 @@ export type AreaDetail = Area & {
   gradeDistribution: GradeBand[];
   crags: Array<Crag & { stats: Omit<Stats, "crags">; gradeCounts: number[] }>;
   cragLocations: CragLocation[];
+};
+
+export type SearchSectorResult = Sector & {
+  cragName: string;
+  cragSlug: string;
+  boulderCount: number;
+  routeCount: number;
+};
+
+export type SearchBoulderResult = Boulder & {
+  sectorName: string;
+  sectorSlug: string;
+  cragName: string;
+  cragSlug: string;
+  routeCount: number;
+  gradeRange: string;
+  hashtagsList: string[];
+};
+
+export type SearchResults = {
+  areas: Array<Area & { stats: Stats }>;
+  crags: Array<Crag & { stats: Omit<Stats, "crags"> }>;
+  sectors: SearchSectorResult[];
+  boulders: SearchBoulderResult[];
+  routes: RouteListItem[];
 };
 
 export type BetaSource = "manual" | "instagram_webhook";

@@ -31,6 +31,9 @@ import type {
   GradeBand,
   RouteListItem,
   Route,
+  SearchBoulderResult,
+  SearchResults,
+  SearchSectorResult,
   Sector,
   Stats,
   Topo,
@@ -153,6 +156,33 @@ interface StatsRow {
   routes: number;
 }
 
+interface SearchAreaRow extends AreaRow {
+  crags: number;
+  sectors: number;
+  boulders: number;
+  routes: number;
+}
+
+interface SearchCragRow extends CragRow {
+  sectors: number;
+  boulders: number;
+  routes: number;
+}
+
+interface SearchSectorRow extends SectorRow {
+  cragName: string;
+  cragSlug: string;
+  boulderCount: number;
+  routeCount: number;
+}
+
+interface SearchBoulderRow extends BoulderWithStatsRow {
+  sectorName: string;
+  sectorSlug: string;
+  cragName: string;
+  cragSlug: string;
+}
+
 // ---------------------------------------------------------------------------
 // Mappers
 // ---------------------------------------------------------------------------
@@ -187,6 +217,10 @@ function mapRouteListItem(row: RouteListItemRow): RouteListItem {
 
 function mapAnnouncement(row: AnnouncementRow): Announcement {
   return { ...row, isPublished: row.isPublished === 1 };
+}
+
+function escapeLikeTerm(term: string): string {
+  return term.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
 
 /** Parse hashtags JSON string from the boulder row. Returns [] on error. */
@@ -789,6 +823,281 @@ export function allRouteItemsQuery(): D1Query<RouteListItem[]> {
 
 export async function getAllRouteItemsFlat(): Promise<RouteListItem[]> {
   return runQuery(allRouteItemsQuery());
+}
+
+const PUBLIC_SEARCH_LIMIT = 20;
+
+function searchPattern(term: string): string {
+  return `%${escapeLikeTerm(term.trim())}%`;
+}
+
+export function searchAreasQuery(term: string): D1Query<SearchResults["areas"]> {
+  const pattern = searchPattern(term);
+  return {
+    sql: `SELECT
+       a.id,
+       a.name,
+       a.name_en         AS nameEn,
+       a.slug,
+       a.cover_image_url AS coverImageUrl,
+       a.is_published    AS isPublished,
+       a.sort_order      AS sortOrder,
+       (SELECT COUNT(*)
+        FROM crags c
+        WHERE c.area_id = a.id AND c.is_published = 1 AND c.deleted_at IS NULL
+       ) AS crags,
+       (SELECT COUNT(*)
+        FROM sectors s
+        JOIN crags c ON c.id = s.crag_id
+        WHERE c.area_id = a.id AND s.is_published = 1 AND c.is_published = 1
+          AND s.deleted_at IS NULL AND c.deleted_at IS NULL
+       ) AS sectors,
+       (SELECT COUNT(*)
+        FROM boulders b
+        JOIN sectors s ON s.id = b.sector_id
+        JOIN crags c ON c.id = s.crag_id
+        WHERE c.area_id = a.id AND b.is_published = 1 AND s.is_published = 1 AND c.is_published = 1
+          AND b.deleted_at IS NULL AND s.deleted_at IS NULL AND c.deleted_at IS NULL
+       ) AS boulders,
+       (SELECT COUNT(*)
+        FROM routes r
+        JOIN topos t ON t.id = r.topo_id
+        JOIN boulders b ON b.id = t.boulder_id
+        JOIN sectors s ON s.id = b.sector_id
+        JOIN crags c ON c.id = s.crag_id
+        WHERE c.area_id = a.id
+          AND r.is_published = 1 AND t.is_published = 1 AND b.is_published = 1
+          AND s.is_published = 1 AND c.is_published = 1
+          AND r.deleted_at IS NULL AND t.deleted_at IS NULL AND b.deleted_at IS NULL
+          AND s.deleted_at IS NULL AND c.deleted_at IS NULL
+       ) AS routes
+     FROM areas a
+     WHERE a.is_published = 1
+       AND a.deleted_at IS NULL
+       AND (a.name LIKE ? ESCAPE '\\' OR a.name_en LIKE ? ESCAPE '\\')
+     ORDER BY a.sort_order, a.name COLLATE NOCASE
+     LIMIT ${PUBLIC_SEARCH_LIMIT}`,
+    params: [pattern, pattern],
+    map: (rows) =>
+      (rows as SearchAreaRow[]).map((row) => ({
+        ...mapArea(row),
+        stats: {
+          crags: row.crags,
+          sectors: row.sectors,
+          boulders: row.boulders,
+          routes: row.routes,
+        },
+      })),
+  };
+}
+
+export function searchCragsQuery(term: string): D1Query<SearchResults["crags"]> {
+  const pattern = searchPattern(term);
+  return {
+    sql: `SELECT
+       c.id,
+       c.area_id         AS areaId,
+       c.name,
+       c.name_en         AS nameEn,
+       c.slug,
+       c.lat,
+       c.lng,
+       c.description,
+       c.season,
+       c.cover_image_url AS coverImageUrl,
+       c.is_published    AS isPublished,
+       c.sort_order      AS sortOrder,
+       (SELECT COUNT(*)
+        FROM sectors s
+        WHERE s.crag_id = c.id AND s.is_published = 1 AND s.deleted_at IS NULL
+       ) AS sectors,
+       (SELECT COUNT(*)
+        FROM boulders b
+        JOIN sectors s ON s.id = b.sector_id
+        WHERE s.crag_id = c.id AND b.is_published = 1 AND s.is_published = 1
+          AND b.deleted_at IS NULL AND s.deleted_at IS NULL
+       ) AS boulders,
+       (SELECT COUNT(*)
+        FROM routes r
+        JOIN topos t ON t.id = r.topo_id
+        JOIN boulders b ON b.id = t.boulder_id
+        JOIN sectors s ON s.id = b.sector_id
+        WHERE s.crag_id = c.id
+          AND r.is_published = 1 AND t.is_published = 1 AND b.is_published = 1 AND s.is_published = 1
+          AND r.deleted_at IS NULL AND t.deleted_at IS NULL AND b.deleted_at IS NULL AND s.deleted_at IS NULL
+       ) AS routes
+     FROM crags c
+     JOIN areas a ON a.id = c.area_id
+     WHERE c.is_published = 1
+       AND a.is_published = 1
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL
+       AND (c.name LIKE ? ESCAPE '\\' OR c.name_en LIKE ? ESCAPE '\\')
+     ORDER BY a.sort_order, c.sort_order, c.name COLLATE NOCASE
+     LIMIT ${PUBLIC_SEARCH_LIMIT}`,
+    params: [pattern, pattern],
+    map: (rows) =>
+      (rows as SearchCragRow[]).map((row) => ({
+        ...mapCrag(row),
+        stats: { sectors: row.sectors, boulders: row.boulders, routes: row.routes },
+      })),
+  };
+}
+
+export function searchSectorsQuery(term: string): D1Query<SearchSectorResult[]> {
+  const pattern = searchPattern(term);
+  return {
+    sql: `SELECT
+       s.id,
+       s.crag_id         AS cragId,
+       s.name,
+       s.name_en         AS nameEn,
+       s.slug,
+       s.lat,
+       s.lng,
+       s.description,
+       s.season,
+       s.cover_image_url AS coverImageUrl,
+       s.is_published    AS isPublished,
+       s.sort_order      AS sortOrder,
+       c.name            AS cragName,
+       c.slug            AS cragSlug,
+       (SELECT COUNT(*)
+        FROM boulders b
+        WHERE b.sector_id = s.id AND b.is_published = 1 AND b.deleted_at IS NULL
+       ) AS boulderCount,
+       (SELECT COUNT(*)
+        FROM routes r
+        JOIN topos t ON t.id = r.topo_id
+        JOIN boulders b ON b.id = t.boulder_id
+        WHERE b.sector_id = s.id
+          AND r.is_published = 1 AND t.is_published = 1 AND b.is_published = 1
+          AND r.deleted_at IS NULL AND t.deleted_at IS NULL AND b.deleted_at IS NULL
+       ) AS routeCount
+     FROM sectors s
+     JOIN crags c ON c.id = s.crag_id
+     JOIN areas a ON a.id = c.area_id
+     WHERE s.is_published = 1
+       AND c.is_published = 1
+       AND a.is_published = 1
+       AND s.deleted_at IS NULL
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL
+       AND (s.name LIKE ? ESCAPE '\\' OR s.name_en LIKE ? ESCAPE '\\')
+     ORDER BY a.sort_order, c.sort_order, s.sort_order, s.name COLLATE NOCASE
+     LIMIT ${PUBLIC_SEARCH_LIMIT}`,
+    params: [pattern, pattern],
+    map: (rows) =>
+      (rows as SearchSectorRow[]).map((row) => ({
+        ...mapSector(row),
+        cragName: row.cragName,
+        cragSlug: row.cragSlug,
+        boulderCount: row.boulderCount,
+        routeCount: row.routeCount,
+      })),
+  };
+}
+
+export function searchBouldersQuery(term: string): D1Query<SearchBoulderResult[]> {
+  const pattern = searchPattern(term);
+  return {
+    sql: `SELECT
+       b.id,
+       b.sector_id        AS sectorId,
+       b.name,
+       b.slug,
+       b.lat,
+       b.lng,
+       b.hashtags,
+       b.cover_image_url  AS coverImageUrl,
+       b.is_published     AS isPublished,
+       b.sort_order       AS sortOrder,
+       s.name             AS sectorName,
+       s.slug             AS sectorSlug,
+       c.name             AS cragName,
+       c.slug             AS cragSlug,
+       COUNT(r.id)        AS routeCount,
+       MIN(r.grade_num)   AS minGrade,
+       MAX(r.grade_num)   AS maxGrade
+     FROM boulders b
+     JOIN sectors s ON s.id = b.sector_id
+     JOIN crags c ON c.id = s.crag_id
+     JOIN areas a ON a.id = c.area_id
+     LEFT JOIN topos t ON t.boulder_id = b.id AND t.is_published = 1 AND t.deleted_at IS NULL
+     LEFT JOIN routes r ON r.topo_id = t.id AND r.is_published = 1 AND r.deleted_at IS NULL
+     WHERE b.is_published = 1
+       AND s.is_published = 1
+       AND c.is_published = 1
+       AND a.is_published = 1
+       AND b.deleted_at IS NULL
+       AND s.deleted_at IS NULL
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL
+       AND (b.name LIKE ? ESCAPE '\\' OR b.hashtags LIKE ? ESCAPE '\\')
+     GROUP BY b.id
+     ORDER BY a.sort_order, c.sort_order, s.sort_order, b.sort_order, b.name COLLATE NOCASE
+     LIMIT ${PUBLIC_SEARCH_LIMIT}`,
+    params: [pattern, pattern],
+    map: (rows) =>
+      (rows as SearchBoulderRow[]).map((row) => ({
+        ...mapBoulder(row),
+        sectorName: row.sectorName,
+        sectorSlug: row.sectorSlug,
+        cragName: row.cragName,
+        cragSlug: row.cragSlug,
+        routeCount: row.routeCount,
+        gradeRange: formatGradeRange(row.minGrade, row.maxGrade),
+        hashtagsList: parseHashtags(row.hashtags),
+      })),
+  };
+}
+
+export function searchRoutesQuery(term: string): D1Query<RouteListItem[]> {
+  const pattern = searchPattern(term);
+  return {
+    sql: `SELECT
+       r.id,
+       r.topo_id          AS topoId,
+       r.name,
+       r.slug,
+       r.grade,
+       r.grade_num        AS gradeNum,
+       r.fa,
+       r.description,
+       r.line_image_url   AS lineImageUrl,
+       r.is_published     AS isPublished,
+       r.sort_order       AS sortOrder,
+       b.id               AS boulderId,
+       b.name             AS boulderName,
+       s.name             AS sectorName,
+       c.name             AS cragName,
+       c.slug             AS cragSlug,
+       s.slug             AS sectorSlug,
+       t.base_image_url     AS topoBaseImageUrl
+     FROM routes r
+     JOIN topos t ON t.id = r.topo_id
+     JOIN boulders b ON b.id = t.boulder_id
+     JOIN sectors s ON s.id = b.sector_id
+     JOIN crags c ON c.id = s.crag_id
+     JOIN areas a ON a.id = c.area_id
+     WHERE r.is_published = 1
+       AND t.is_published = 1
+       AND b.is_published = 1
+       AND s.is_published = 1
+       AND c.is_published = 1
+       AND a.is_published = 1
+       AND r.deleted_at IS NULL
+       AND t.deleted_at IS NULL
+       AND b.deleted_at IS NULL
+       AND s.deleted_at IS NULL
+       AND c.deleted_at IS NULL
+       AND a.deleted_at IS NULL
+       AND r.name LIKE ? ESCAPE '\\'
+     ORDER BY a.sort_order, c.sort_order, s.sort_order, b.sort_order, r.sort_order, r.name COLLATE NOCASE
+     LIMIT ${PUBLIC_SEARCH_LIMIT}`,
+    params: [pattern],
+    map: (rows) => (rows as RouteListItemRow[]).map(mapRouteListItem),
+  };
 }
 
 // ---------------------------------------------------------------------------

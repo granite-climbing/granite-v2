@@ -24,6 +24,11 @@ import {
   parseHashtags,
   publishedAnnouncementsQuery,
   publishedAreasQuery,
+  searchAreasQuery,
+  searchBouldersQuery,
+  searchCragsQuery,
+  searchRoutesQuery,
+  searchSectorsQuery,
   sectorBySlugQuery,
   sectorRoutesQuery,
   statsQuery,
@@ -39,6 +44,7 @@ import type {
   HomeModel,
   Route,
   RouteListItem,
+  SearchResults,
   SectorDetail,
   Stats,
   TopoDetail,
@@ -394,6 +400,28 @@ export async function getAllRouteItems(): Promise<RouteListItem[]> {
     tags: ["areas:list"],
   });
   return cached();
+}
+
+export async function searchPublicContent(term: string): Promise<SearchResults> {
+  const query = term.trim();
+  if (!query) {
+    return { areas: [], crags: [], sectors: [], boulders: [], routes: [] };
+  }
+
+  const cached = unstable_cache(
+    () =>
+      batchD1([
+        searchAreasQuery(query),
+        searchCragsQuery(query),
+        searchSectorsQuery(query),
+        searchBouldersQuery(query),
+        searchRoutesQuery(query),
+      ]),
+    ["searchPublicContent", query],
+    { tags: ["areas:list"] }
+  );
+  const [areas, crags, sectors, boulders, routes] = await cached();
+  return { areas, crags, sectors, boulders, routes };
 }
 
 // ---------------------------------------------------------------------------

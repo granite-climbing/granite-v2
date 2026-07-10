@@ -69,11 +69,12 @@ export function CragSearchPanel({
             <EmptyResult query={query} />
           ) : (
             filtered.map((sector) => (
-              <SectorCard
-                key={sector.id}
-                sector={sector}
-                routes={crag.routes.filter((r) => r.sectorSlug === sector.slug)}
-              />
+              <div key={sector.id} id={`sector-card-${sector.id}`}>
+                <SectorCard
+                  sector={sector}
+                  routes={crag.routes.filter((r) => r.sectorSlug === sector.slug)}
+                />
+              </div>
             ))
           )}
         </div>
@@ -95,12 +96,13 @@ export function CragSearchPanel({
             <EmptyResult query={query} />
           ) : (
             filtered.map((boulder) => (
-              <BoulderListCard
-                key={boulder.id}
-                boulder={boulder}
-                cragSlug={crag.slug}
-                routes={crag.routes.filter((r) => r.boulderId === boulder.id)}
-              />
+              <div key={boulder.id} id={`boulder-card-${boulder.id}`}>
+                <BoulderListCard
+                  boulder={boulder}
+                  cragSlug={crag.slug}
+                  routes={crag.routes.filter((r) => r.boulderId === boulder.id)}
+                />
+              </div>
             ))
           )}
         </div>
