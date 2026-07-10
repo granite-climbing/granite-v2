@@ -1,4 +1,5 @@
 import { queryD1 } from "./d1-http";
+import type { RouteRecordRow } from "@/lib/records/summary";
 import type {
   RouteSearchRowForRecord,
   UserRecordClaimCandidate,
@@ -99,14 +100,67 @@ export type InsertUserRecordInput = {
   betaId: string | null;
   sentAt: string;
   rating: number | null;
+  feltGradeNum: number | null;
+  comment: string | null;
 };
 
 export async function insertUserRecord(input: InsertUserRecordInput): Promise<void> {
   await queryD1(
-    `INSERT INTO user_records (id, user_id, route_id, beta_id, sent_at, rating)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [input.id, input.userId, input.routeId, input.betaId, input.sentAt, input.rating]
+    `INSERT INTO user_records (id, user_id, route_id, beta_id, sent_at, rating, felt_grade_num, comment)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      input.id,
+      input.userId,
+      input.routeId,
+      input.betaId,
+      input.sentAt,
+      input.rating,
+      input.feltGradeNum,
+      input.comment
+    ]
   );
+}
+
+/**
+ * All (non-deleted) records for the given routes with the author's profile,
+ * newest first, in ONE query. Feed each route's rows to
+ * `buildRouteRecordSummary` (lib/records/summary) for the route detail sheet.
+ */
+export async function getRouteRecordRowsByRouteIds(
+  routeIds: string[]
+): Promise<Map<string, RouteRecordRow[]>> {
+  const byRouteId = new Map<string, RouteRecordRow[]>();
+  if (routeIds.length === 0) {
+    return byRouteId;
+  }
+
+  const placeholders = routeIds.map(() => "?").join(", ");
+  const rows = await queryD1<RouteRecordRow & { routeId: string }>(
+    `SELECT
+       ur.route_id AS routeId,
+       ur.id AS id,
+       u.display_name AS displayName,
+       u.avatar_url AS avatarUrl,
+       ur.sent_at AS sentAt,
+       ur.created_at AS createdAt,
+       ur.rating AS rating,
+       ur.felt_grade_num AS feltGradeNum,
+       ur.comment AS comment
+     FROM user_records ur
+     JOIN users u ON u.id = ur.user_id
+     WHERE ur.route_id IN (${placeholders})
+       AND ur.deleted_at IS NULL
+       AND u.deleted_at IS NULL
+     ORDER BY ur.sent_at DESC, ur.created_at DESC`,
+    routeIds
+  );
+
+  for (const { routeId, ...row } of rows) {
+    const list = byRouteId.get(routeId) ?? [];
+    list.push(row);
+    byRouteId.set(routeId, list);
+  }
+  return byRouteId;
 }
 
 const USER_RECORD_ROUTE_JOIN = `

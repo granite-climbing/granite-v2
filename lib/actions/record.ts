@@ -133,6 +133,8 @@ export async function addRecordAction(formData: FormData): Promise<AddRecordActi
     betaId,
     sentAt: parsed.sentAt,
     rating: parsed.rating,
+    feltGradeNum: parsed.feltGradeNum,
+    comment: parsed.comment,
   });
 
   return { ok: true, message: "기록이 추가되었습니다." };

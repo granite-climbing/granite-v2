@@ -17,6 +17,14 @@ export type AddRecordDialogProps = {
 
 const SEARCH_DEBOUNCE_MS = 300;
 
+const RECORD_COMMENT_MAX_LENGTH = 100;
+
+// V0 … V11, V12+ — matches FELT_GRADE_MAX in lib/records/summary.
+const FELT_GRADE_OPTIONS = Array.from({ length: 13 }, (_, gradeNum) => ({
+  value: String(gradeNum),
+  label: gradeNum >= 12 ? "V12+" : `V${gradeNum}`,
+}));
+
 function todayString(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
@@ -226,6 +234,33 @@ export function AddRecordDialog({ prefilledRoute = null, onClose }: AddRecordDia
                   </button>
                 ))}
               </div>
+
+              <label className="mt-5 block text-[14px] font-medium leading-5 text-[#090909]">
+                체감 난이도
+                <select
+                  name="feltGradeNum"
+                  defaultValue=""
+                  className="mt-2 h-12 w-full appearance-none rounded-[8px] border border-[#E8E8E8] bg-white px-4 text-[14px] leading-5 text-[#090909]"
+                >
+                  <option value="">선택 안함</option>
+                  {FELT_GRADE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="mt-5 block text-[14px] font-medium leading-5 text-[#090909]">
+                한줄평
+                <input
+                  type="text"
+                  name="comment"
+                  maxLength={RECORD_COMMENT_MAX_LENGTH}
+                  placeholder="루트에 대한 한줄평을 남겨주세요"
+                  className="mt-2 h-12 w-full rounded-[8px] border border-[#E8E8E8] px-4 text-[14px] leading-5 text-[#090909] placeholder:text-[#B8B8B8]"
+                />
+              </label>
             </section>
 
             <section className="px-4 py-5">

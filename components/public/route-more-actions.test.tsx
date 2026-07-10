@@ -17,6 +17,7 @@ vi.mock("@/lib/actions/record", () => ({
 
 import { RouteMoreActions } from "./route-more-actions";
 import type { BetaVideoItem } from "./beta-video-grid";
+import { buildRouteRecordSummary } from "@/lib/records/summary";
 
 const betaVideos: BetaVideoItem[] = [
   {
@@ -56,6 +57,7 @@ const baseProps = {
     cragName: "현충바위",
     boulderHashtags: ["현충바위"]
   },
+  recordSummary: buildRouteRecordSummary([]),
   isLoggedIn: true
 };
 
@@ -192,25 +194,80 @@ describe("RouteMoreActions", () => {
     expect(saveAction).not.toHaveBeenCalled();
   });
 
-  it("renders mock rating stats", () => {
-    render(<RouteMoreActions {...baseProps} />);
+  it("renders record rating stats and felt distribution from the summary", () => {
+    const recordSummary = buildRouteRecordSummary([
+      {
+        id: "rec_1",
+        displayName: "닉네임",
+        avatarUrl: null,
+        sentAt: "2026-07-01",
+        createdAt: "2026-07-01 10:00:00",
+        rating: 5,
+        feltGradeNum: 4,
+        comment: "완등이 어려웠어요ㅜㅜ"
+      },
+      {
+        id: "rec_2",
+        displayName: "클라이머",
+        avatarUrl: null,
+        sentAt: "2026-07-02",
+        createdAt: "2026-07-02 10:00:00",
+        rating: 4,
+        feltGradeNum: 4,
+        comment: null
+      }
+    ]);
+    render(<RouteMoreActions {...baseProps} recordSummary={recordSummary} />);
 
     openDialog();
 
     expect(screen.getByText("4.5, Solid V4")).toBeInTheDocument();
-    expect(screen.getByText("Feels V4.1")).toBeInTheDocument();
-    expect(screen.getByText("Ascents 1,027")).toBeInTheDocument();
+    expect(screen.getByText("Feels V4")).toBeInTheDocument();
+    expect(screen.getByText("Ascents 2")).toBeInTheDocument();
+    // felt distribution row: V4 voted twice
+    expect(screen.getByText("완등이 어려웠어요ㅜㅜ")).toBeInTheDocument();
+    expect(screen.getByText("닉네임")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "기록하기" })).toBeInTheDocument();
   });
 
-  it("renders mock comments", () => {
+  it("shows empty states when the route has no records", () => {
     render(<RouteMoreActions {...baseProps} />);
 
     openDialog();
 
-    expect(screen.getByText("Ascents comment")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "기록하기" })).toBeInTheDocument();
-    expect(screen.getAllByText("완등이 어려웠어요ㅜㅜ").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("7months ago").length).toBeGreaterThan(0);
+    expect(screen.getByText("아직 평가되지 않았어요!")).toBeInTheDocument();
+    expect(
+      screen.getByText("아직 완등자가 없어요. 최초의 완등자가 되어보세요!")
+    ).toBeInTheDocument();
+  });
+
+  it("shows the comment empty state when ascents exist without comments", () => {
+    const recordSummary = buildRouteRecordSummary([
+      {
+        id: "rec_1",
+        displayName: "닉네임",
+        avatarUrl: null,
+        sentAt: "2026-07-01",
+        createdAt: "2026-07-01 10:00:00",
+        rating: 4,
+        feltGradeNum: null,
+        comment: null
+      }
+    ]);
+    render(<RouteMoreActions {...baseProps} recordSummary={recordSummary} />);
+
+    openDialog();
+
+    expect(screen.getByText("아직 작성된 한줄평이 없어요.")).toBeInTheDocument();
+  });
+
+  it("opens the add-record dialog from the 기록하기 comment button", () => {
+    render(<RouteMoreActions {...baseProps} isLoggedIn={true} />);
+
+    openDialog();
+    fireEvent.click(screen.getByRole("button", { name: "기록하기" }));
+
+    expect(screen.getByRole("dialog", { name: "기록 추가" })).toBeInTheDocument();
   });
 
   it("closes the sheet with the back arrow", () => {

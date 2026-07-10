@@ -8,6 +8,7 @@ import { AddRecordDialog } from "./add-record-dialog";
 import type { BetaVideoItem } from "./beta-video-grid";
 import type { ProjectActionResult } from "@/lib/actions/project";
 import type { RouteSearchItemForRecord } from "@/lib/actions/record";
+import { formatTimeAgo, type RouteRecordSummary } from "@/lib/records/summary";
 
 export type RouteMoreSheetProps = {
   route: {
@@ -30,22 +31,10 @@ export type RouteMoreSheetProps = {
   saveAction: (formData: FormData) => Promise<ProjectActionResult>;
   removeAction: (formData: FormData) => Promise<ProjectActionResult>;
   recordRoute: RouteSearchItemForRecord;
+  recordSummary: RouteRecordSummary;
   isLoggedIn: boolean;
   onClose: () => void;
 };
-
-// TODO(phase-8): 실제 Records/Claims 데이터로 교체 — 현재는 Figma 시안용 mock.
-const MOCK_RATING = { average: 4.5, solidGrade: "V4", feelsGrade: "V4.1", ascents: 1027, ratingCount: 32, stars: 4 };
-const MOCK_GRADE_DISTRIBUTION = [
-  { grade: "V3", count: 4, ratio: 0.35 },
-  { grade: "V4", count: 18, ratio: 0.78 },
-  { grade: "V5", count: 7, ratio: 0.5 },
-  { grade: "V6", count: 2, ratio: 0.15 }
-];
-const MOCK_COMMENTS = [
-  { id: "mock_1", nickname: "닉네임", timeAgo: "7months ago", body: "완등이 어려웠어요ㅜㅜ", feelsGrade: "V11", stars: 4 },
-  { id: "mock_2", nickname: "닉네임", timeAgo: "7months ago", body: "완등이 어려웠어요ㅜㅜ", feelsGrade: "V11", stars: 4 }
-];
 
 export function RouteMoreSheet({
   route,
@@ -57,6 +46,7 @@ export function RouteMoreSheet({
   saveAction,
   removeAction,
   recordRoute,
+  recordSummary,
   isLoggedIn,
   onClose
 }: RouteMoreSheetProps) {
@@ -102,7 +92,9 @@ export function RouteMoreSheet({
     .filter((part): part is string => Boolean(part))
     .join(" > ");
 
-  const formattedAscents = MOCK_RATING.ascents.toLocaleString("en-US");
+  const formattedAscents = recordSummary.ascents.toLocaleString("en-US");
+  const hasEvaluation =
+    recordSummary.averageRating !== null || recordSummary.feelsGradeNum !== null;
 
   return (
     <div className="fixed inset-0 left-1/2 z-50 w-full max-w-[430px] -translate-x-1/2 bg-black/60">
@@ -153,10 +145,10 @@ export function RouteMoreSheet({
           <div className="mt-1 flex items-center gap-1">
             <div className="flex items-center gap-0.5">
               {[0, 1, 2, 3, 4].map((index) => (
-                <Star key={index} filled={index < MOCK_RATING.stars} className="size-3.5" />
+                <Star key={index} filled={index < recordSummary.stars} className="size-3.5" />
               ))}
             </div>
-            <span className="text-[10px] leading-[14px] text-[#B8B8B8]">{MOCK_RATING.ratingCount}</span>
+            <span className="text-[10px] leading-[14px] text-[#B8B8B8]">{recordSummary.ratingCount}</span>
           </div>
           <div className="mt-1 flex items-baseline justify-between">
             <h3 className="text-[20px] font-medium leading-7 text-[#2A2A2A]">{route.name}</h3>
@@ -181,47 +173,67 @@ export function RouteMoreSheet({
           </div>
 
           <div className="mx-auto mt-4 flex w-full items-center rounded-[4px] bg-white p-4 shadow-[0px_0px_6px_2px_rgba(0,0,0,0.1)]">
-            <div className="flex flex-1 flex-col items-center gap-1">
-              <span className="text-[12px] font-medium text-[#090909]">
-                {MOCK_RATING.average}, Solid {MOCK_RATING.solidGrade}
-              </span>
-              <div className="flex items-center gap-0.5">
-                {[0, 1, 2, 3, 4].map((index) => (
-                  <Star key={index} filled={index < MOCK_RATING.stars} className="size-5" />
-                ))}
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1 text-[8px] leading-3 text-[#090909]">
-                  <ChartIcon className="size-3" />
-                  Feels {MOCK_RATING.feelsGrade}
-                </span>
-                <span className="flex items-center gap-1 text-[8px] leading-3 text-[#090909]">
-                  <CheckIcon className="size-3" />
-                  Ascents {formattedAscents}
-                </span>
-              </div>
-            </div>
-            <div className="mx-4 h-[52px] self-center border-l border-[#E8E8E8]" />
-            <div className="flex flex-1 flex-col gap-1.5">
-              {MOCK_GRADE_DISTRIBUTION.map((row) => (
-                <div key={row.grade} className="flex items-center gap-2">
-                  <span className="w-5 text-[8px] text-[#2A2A2A]">{row.grade}</span>
-                  <div className="h-[5px] w-[84px] rounded-full bg-[#E8E8E8]">
-                    <div
-                      className="h-[5px] rounded-full bg-[#2A2A2A]"
-                      style={{ width: `${Math.round(row.ratio * 84)}px` }}
-                    />
+            {hasEvaluation ? (
+              <>
+                <div className="flex flex-1 flex-col items-center gap-1">
+                  <span className="text-[12px] font-medium text-[#090909]">
+                    {recordSummary.averageRating !== null
+                      ? `${recordSummary.averageRating}, `
+                      : ""}
+                    {recordSummary.consensusLabel ?? `Solid ${route.grade}`}
+                  </span>
+                  <div className="flex items-center gap-0.5">
+                    {[0, 1, 2, 3, 4].map((index) => (
+                      <Star key={index} filled={index < recordSummary.stars} className="size-5" />
+                    ))}
                   </div>
-                  <span className="text-[8px] text-[#2A2A2A]">{row.count}</span>
+                  <div className="flex items-center gap-3">
+                    {recordSummary.feelsGradeNum !== null ? (
+                      <span className="flex items-center gap-1 text-[8px] leading-3 text-[#090909]">
+                        <ChartIcon className="size-3" />
+                        Feels V{recordSummary.feelsGradeNum}
+                      </span>
+                    ) : null}
+                    <span className="flex items-center gap-1 text-[8px] leading-3 text-[#090909]">
+                      <CheckIcon className="size-3" />
+                      Ascents {formattedAscents}
+                    </span>
+                  </div>
                 </div>
-              ))}
-            </div>
+                <div className="mx-4 h-[52px] self-center border-l border-[#E8E8E8]" />
+                <div className="flex flex-1 flex-col gap-1.5">
+                  {recordSummary.feltDistribution.length > 0 ? (
+                    recordSummary.feltDistribution.slice(0, 4).map((row) => (
+                      <div key={row.grade} className="flex items-center gap-2">
+                        <span className="w-5 text-[8px] text-[#2A2A2A]">{row.grade}</span>
+                        <div className="h-[5px] w-[84px] rounded-full bg-[#E8E8E8]">
+                          <div
+                            className="h-[5px] rounded-full bg-[#2A2A2A]"
+                            style={{ width: `${Math.round(row.ratio * 84)}px` }}
+                          />
+                        </div>
+                        <span className="text-[8px] text-[#2A2A2A]">{row.count}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-center text-[10px] leading-[14px] text-[#7A7A7A]">
+                      체감 난이도 평가가 아직 없어요.
+                    </p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <p className="w-full py-4 text-center text-[12px] font-medium leading-4 text-[#7A7A7A]">
+                아직 평가되지 않았어요!
+              </p>
+            )}
           </div>
 
           <div className="mt-6 flex items-center justify-between">
             <h4 className="text-[14px] font-medium leading-5 text-[#2A2A2A]">Ascents comment</h4>
             <button
               type="button"
+              onClick={handleAddRecordClick}
               className="flex items-center gap-0.5 text-[12px] font-medium leading-4 text-[#7A7A7A]"
             >
               <PencilIcon className="size-4" />
@@ -229,29 +241,50 @@ export function RouteMoreSheet({
             </button>
           </div>
           <div>
-            {MOCK_COMMENTS.map((comment) => (
-              <div key={comment.id} className="border-t border-[#E8E8E8] py-3">
-                <div className="flex items-center gap-2">
-                  <span className="size-6 rounded-full bg-[#9747FF]" />
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-[12px] font-bold leading-4 text-[#2A2A2A]">{comment.nickname}</span>
-                    <span className="text-[10px] leading-[14px] text-[#7A7A7A]">{comment.timeAgo}</span>
+            {recordSummary.comments.length > 0 ? (
+              recordSummary.comments.map((comment) => (
+                <div key={comment.id} className="border-t border-[#E8E8E8] py-3">
+                  <div className="flex items-center gap-2">
+                    {comment.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- 소셜 프로필 아바타는 외부 URL이라 next/image 도메인 화이트리스트를 타지 않는다
+                      <img
+                        src={comment.avatarUrl}
+                        alt=""
+                        className="size-6 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="size-6 rounded-full bg-[#9747FF]" />
+                    )}
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-[12px] font-bold leading-4 text-[#2A2A2A]">{comment.displayName}</span>
+                      <span className="text-[10px] leading-[14px] text-[#7A7A7A]">{formatTimeAgo(comment.sentAt)}</span>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[12px] font-medium leading-4 text-[#2A2A2A]">{comment.body}</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    {comment.feltGrade ? (
+                      <span className="flex h-4 items-center gap-0.5 rounded-full bg-[#E8E8E8] px-1.5 text-[8px] leading-3 text-[#3A3A3A]">
+                        <ChartIcon className="size-2" />
+                        Feels <span className="font-semibold">{comment.feltGrade}</span>
+                      </span>
+                    ) : null}
+                    {comment.rating !== null ? (
+                      <div className="flex items-center gap-0.5">
+                        {[0, 1, 2, 3, 4].map((index) => (
+                          <Star key={index} filled={index < (comment.rating ?? 0)} className="size-3.5" />
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
-                <p className="mt-2 text-[12px] font-medium leading-4 text-[#2A2A2A]">{comment.body}</p>
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="flex h-4 items-center gap-0.5 rounded-full bg-[#E8E8E8] px-1.5 text-[8px] leading-3 text-[#3A3A3A]">
-                    <ChartIcon className="size-2" />
-                    Feels <span className="font-semibold">{comment.feelsGrade}</span>
-                  </span>
-                  <div className="flex items-center gap-0.5">
-                    {[0, 1, 2, 3, 4].map((index) => (
-                      <Star key={index} filled={index < comment.stars} className="size-3.5" />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="border-t border-[#E8E8E8] py-6 text-center text-[12px] font-medium leading-4 text-[#7A7A7A]">
+                {recordSummary.ascents === 0
+                  ? "아직 완등자가 없어요. 최초의 완등자가 되어보세요!"
+                  : "아직 작성된 한줄평이 없어요."}
+              </p>
+            )}
           </div>
         </div>
       </section>
