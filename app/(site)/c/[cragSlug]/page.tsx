@@ -53,7 +53,7 @@ export default async function CragPage({ params, searchParams }: CragPageProps) 
 function CragHero({ crag }: { crag: CragDetail }) {
   return (
     <section
-      className="relative flex h-[240px] items-center justify-center overflow-hidden bg-cover bg-center px-4 text-center text-white"
+      className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-cover bg-center px-4 text-center text-white"
       style={{ backgroundImage: `url("${crag.coverImageUrl}")` }}
     >
       <div className="absolute inset-0 bg-black/30" />

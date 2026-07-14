@@ -13,10 +13,10 @@ export function CragCard({ crag }: CragCardProps) {
   return (
     <Link
       href={`/c/${crag.slug}`}
-      className="block h-[298px] w-[270px] shrink-0 overflow-hidden rounded-[8px] bg-white shadow-[0_0_6px_2px_rgba(0,0,0,0.1)]"
+      className="block w-[270px] shrink-0 overflow-hidden rounded-[8px] bg-white shadow-[0_0_6px_2px_rgba(0,0,0,0.1)]"
     >
       <div
-        className="h-[186px] bg-cover bg-center"
+        className="aspect-[4/3] bg-cover bg-center"
         style={{ backgroundImage: `url("${crag.coverImageUrl}")` }}
       />
       <div className="px-4 pt-4">
