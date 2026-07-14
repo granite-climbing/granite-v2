@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import type React from "react";
 import { AppHeader } from "@/components/layout/app-header";
+import { SearchField } from "@/components/public/search-field";
 import { searchPublicContent } from "@/lib/db/repository";
 import type {
   Area,
@@ -40,20 +41,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       <AppHeader />
 
       <section className="pt-5">
-        <div className="relative mx-4">
-          <label>
-            <span className="sr-only">통합 검색</span>
-                <input
-                  name="q"
-                  defaultValue={query}
-                  className="h-12 w-full rounded-full border-0 bg-white px-4 pr-12 text-[14px] font-medium leading-5 text-[#090909] shadow-[0_0_6px_2px_rgba(0,0,0,0.1)] outline-none placeholder:text-[#B8B8B8]"
-                  placeholder="문제, 볼더, 섹터, 암장, 난이도 검색"
-                />
-          </label>
-          <span className="pointer-events-none absolute right-4 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center text-[#090909]">
-            <SearchIcon />
-          </span>
-        </div>        
+        <SearchField
+          action="/search"
+          defaultValue={query}
+          placeholder="문제, 볼더, 섹터, 암장, 난이도 검색"
+          behavior="debounced"
+        />
       </section>
 
       <section className="px-4 pt-6">
@@ -234,19 +227,5 @@ function SearchListCard({
         <span className="text-[18px] leading-none text-[#7A7A7A]">›</span>
       </div>
     </Link>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-[22px]" fill="none">
-      <path
-        d="m20 20-4.35-4.35m2.35-5.15a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

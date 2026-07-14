@@ -3,6 +3,7 @@ import { AdSlot } from "@/components/public/ad-slot";
 import { AreaCard } from "@/components/public/area-card";
 import { CragCarousel } from "@/components/public/crag-carousel";
 import { DragScroller } from "@/components/public/drag-scroller";
+import { SearchField } from "@/components/public/search-field";
 import { getHomeModel } from "@/lib/db/repository";
 
 export const dynamic = "force-dynamic";
@@ -26,21 +27,13 @@ export default async function HomePage() {
 
       <section className="pt-5">
         <h2 className="text-center text-[16px] font-bold leading-6 text-[#090909]">FIND YOUR NEXT DREAM!</h2>
-        <form action="/search" method="get" className="mt-4">
-          <div className="relative mx-4">
-            <label>
-              <span className="sr-only">통합 검색</span>
-                  <input
-                    name="q"
-                    className="h-12 w-full rounded-full border-0 bg-white px-4 pr-12 text-[14px] font-medium leading-5 text-[#090909] shadow-[0_0_6px_2px_rgba(0,0,0,0.1)] outline-none placeholder:text-[#B8B8B8]"
-                    placeholder="문제, 볼더, 섹터, 암장, 난이도 검색"
-                  />
-            </label>
-            <span className="pointer-events-none absolute right-4 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center text-[#090909]">
-              <SearchIcon />
-            </span>
-          </div>
-        </form>
+        <div className="mt-4">
+          <SearchField
+            action="/search"
+            placeholder="문제, 볼더, 섹터, 암장, 난이도 검색"
+            behavior="focus-redirect"
+          />
+        </div>
       </section>
 
       <div className="mt-9">
@@ -125,20 +118,5 @@ export default async function HomePage() {
         <AdSlot />
       </div>
     </main>
-  );
-}
-
-
-function SearchIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-[22px]" fill="none">
-      <path
-        d="m20 20-4.35-4.35m2.35-5.15a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }
