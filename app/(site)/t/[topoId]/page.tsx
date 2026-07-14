@@ -5,6 +5,8 @@ import { findTopoById } from "@/lib/db/repository";
 import { TopoNavArrow } from "@/components/public/topo-nav";
 import { buildInstagramCaption } from "@/lib/beta/caption";
 import { getApprovedBetaVideosByRoute } from "@/lib/db/beta-queries";
+import { getRouteRecordRowsByRouteIds } from "@/lib/db/record-queries";
+import { buildRouteRecordSummary, type RouteRecordSummary } from "@/lib/records/summary";
 import { getPublishedAreas, parseHashtags } from "@/lib/db/queries";
 import { RouteMoreActions } from "@/components/public/route-more-actions";
 import { removeRouteProjectAction, saveRouteProjectAction } from "@/lib/actions/project";
@@ -30,11 +32,18 @@ export default async function TopoPage({ params, searchParams }: TopoPageProps) 
   const selectedRoute = topo.routes.find((route) => route.id === resolvedSearchParams?.route);
   const imageUrl = selectedRoute?.lineImageUrl || topo.baseImageUrl;
 
-  const [betaVideoEntries, areas] = await Promise.all([
+  const [betaVideoEntries, areas, recordRowsByRouteId] = await Promise.all([
     Promise.all(topo.routes.map(async (route) => [route.id, await getApprovedBetaVideosByRoute(route.id)] as const)),
-    getPublishedAreas()
+    getPublishedAreas(),
+    getRouteRecordRowsByRouteIds(topo.routes.map((route) => route.id))
   ]);
   const betaVideosByRouteId = new Map(betaVideoEntries);
+  const recordSummariesByRouteId = new Map<string, RouteRecordSummary>(
+    topo.routes.map((route) => [
+      route.id,
+      buildRouteRecordSummary(recordRowsByRouteId.get(route.id) ?? [])
+    ])
+  );
   const areaName = areas.find((area) => area.id === topo.crag.areaId)?.name ?? null;
 
   const cookieStore = await cookies();
@@ -68,6 +77,7 @@ export default async function TopoPage({ params, searchParams }: TopoPageProps) 
         topo={topo}
         selectedRoute={selectedRoute}
         betaVideosByRouteId={betaVideosByRouteId}
+        recordSummariesByRouteId={recordSummariesByRouteId}
         areaName={areaName}
         savedRouteIds={savedRouteIds}
         isLoggedIn={Boolean(session)}
@@ -106,6 +116,7 @@ function TopoRouteSheet({
   topo,
   selectedRoute,
   betaVideosByRouteId,
+  recordSummariesByRouteId,
   areaName,
   savedRouteIds,
   isLoggedIn,
@@ -113,6 +124,7 @@ function TopoRouteSheet({
   topo: TopoDetail;
   selectedRoute?: Route;
   betaVideosByRouteId: Map<string, Array<{ id: string; mediaUrl: string; thumbnailUrl: string | null; displayName: string }>>;
+  recordSummariesByRouteId: Map<string, RouteRecordSummary>;
   areaName: string | null;
   savedRouteIds: Set<string>;
   isLoggedIn: boolean;
@@ -179,6 +191,7 @@ function TopoRouteSheet({
                   }}
                   caption={caption}
                   betaVideos={betaVideos}
+                  recordSummary={recordSummariesByRouteId.get(route.id) ?? buildRouteRecordSummary([])}
                   saved={savedRouteIds.has(route.id)}
                   returnTo={`/t/${topo.id}?route=${route.id}`}
                   saveAction={saveRouteProjectAction}

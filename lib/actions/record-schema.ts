@@ -5,6 +5,10 @@ import {
   normalizeYouTubeOrInstagramUrl,
 } from "@/lib/beta/normalize";
 
+import { FELT_GRADE_MAX } from "@/lib/records/summary";
+
+export const RECORD_COMMENT_MAX_LENGTH = 100;
+
 const addRecordSchema = z.object({
   routeId: z.string().min(1),
   sentAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -13,6 +17,16 @@ const addRecordSchema = z.object({
     .optional()
     .transform((value) => (value ? Number(value) : null))
     .pipe(z.union([z.null(), z.number().int().min(1).max(5)])),
+  feltGradeNum: z
+    .string()
+    .optional()
+    .transform((value) => (value ? Number(value) : null))
+    .pipe(z.union([z.null(), z.number().int().min(0).max(FELT_GRADE_MAX)])),
+  comment: z
+    .string()
+    .optional()
+    .transform((value) => (value && value.trim().length > 0 ? value.trim() : null))
+    .pipe(z.union([z.null(), z.string().max(RECORD_COMMENT_MAX_LENGTH)])),
   mediaUrl: z
     .string()
     .optional()

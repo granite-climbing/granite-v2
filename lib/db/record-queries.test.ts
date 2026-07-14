@@ -229,12 +229,25 @@ describe("record queries", () => {
       routeId: "route_1",
       betaId: null,
       sentAt: "2026-07-09",
-      rating: 4
+      rating: 4,
+      feltGradeNum: 5,
+      comment: "완등이 어려웠어요"
     });
 
     const [sql, params] = queryD1Mock.mock.calls[0];
     expect(sql).toContain("INSERT INTO user_records");
-    expect(params).toEqual(["rec_1", "user_1", "route_1", null, "2026-07-09", 4]);
+    expect(sql).toContain("felt_grade_num");
+    expect(sql).toContain("comment");
+    expect(params).toEqual([
+      "rec_1",
+      "user_1",
+      "route_1",
+      null,
+      "2026-07-09",
+      4,
+      5,
+      "완등이 어려웠어요"
+    ]);
   });
 
   it("loads user records with published route context", async () => {
