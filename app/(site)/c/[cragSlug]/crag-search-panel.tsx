@@ -64,7 +64,7 @@ export function CragSearchPanel({
         <div className="mt-4">
           <ClientSearchInput value={query} onChange={setQuery} placeholder="섹터 이름 검색" />
         </div>
-        <div className="mt-4 space-y-4 px-4">
+        <div className="mt-4 space-y-3 px-4">
           {filtered.length === 0 ? (
             <EmptyResult query={query} />
           ) : (
@@ -72,6 +72,7 @@ export function CragSearchPanel({
               <div key={sector.id} id={`sector-card-${sector.id}`}>
                 <SectorCard
                   sector={sector}
+                  boulderCount={crag.boulders.filter((b) => b.sectorId === sector.id).length}
                   routes={crag.routes.filter((r) => r.sectorSlug === sector.slug)}
                 />
               </div>
@@ -235,23 +236,25 @@ function EmptyResult({ query }: { query: string }) {
 
 function SectorCard({
   sector,
+  boulderCount,
   routes,
 }: {
   sector: CragDetail["sectors"][number];
+  boulderCount: number;
   routes: RouteListItem[];
 }) {
   return (
-    <article className="overflow-hidden rounded-[8px] bg-white shadow-[0_0_6px_2px_rgba(0,0,0,0.1)]">
+    <article className="flex h-[100px] items-center overflow-hidden rounded-[8px] bg-white shadow-[0_0_6px_2px_rgba(0,0,0,0.06)]">
       <div
-        className="h-[140px] w-full bg-[#BABABA] bg-cover bg-center"
+        className="ml-2 size-[84px] shrink-0 self-center rounded-[4px] bg-[#D9D9D9] bg-cover bg-center"
         style={sector.coverImageUrl ? { backgroundImage: `url("${sector.coverImageUrl}")` } : undefined}
       />
-      <div className="px-4 pb-4 pt-3">
+      <div className="flex flex-1 flex-col justify-center pl-3 pr-2">
         <h2 className="text-[16px] font-bold leading-6 text-[#090909]">{sector.name}</h2>
-        <p className="mt-1 text-[12px] font-medium leading-4 text-[#7A7A7A]">
-          {sector.season} · {sector.description}
+        <p className="mt-[2px] text-[10px] font-normal leading-[14px] text-[#7A7A7A]">
+          {boulderCount} Boulders · {routes.length} Routes
         </p>
-        <MiniGradeBars routes={routes} barWidth={8} maxHeight={24} className="mt-3" />
+        <MiniGradeBars routes={routes} barWidth={6} maxHeight={20} className="mt-2" />
       </div>
     </article>
   );
