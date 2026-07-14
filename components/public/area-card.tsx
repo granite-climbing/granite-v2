@@ -21,7 +21,7 @@ export function AreaCard({ area, href }: AreaCardProps) {
     >
       {/* Cover image */}
       <div
-        className="aspect-[4/3] w-full bg-[#BABABA] bg-cover bg-center"
+        className="aspect-[3/2] w-full bg-[#BABABA] bg-cover bg-center"
         style={area.coverImageUrl ? { backgroundImage: `url("${area.coverImageUrl}")` } : undefined}
       />
       {/* Info */}
