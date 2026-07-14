@@ -10,11 +10,13 @@ import { CragSearchPanel } from "./crag-search-panel";
 
 export const dynamic = "force-dynamic";
 
-// Allowed grade sort values for the Route tab. "" means "no sort, repo order".
-type GradeSort = "grade:asc" | "grade:desc" | "";
+// Allowed sort values for the Route tab. "" means "no sort, repo order".
+type RouteSort = "grade:asc" | "grade:desc" | "boulder:asc" | "boulder:desc" | "";
 
-function parseGradeSort(raw: string | undefined): GradeSort {
-  return raw === "grade:asc" || raw === "grade:desc" ? raw : "";
+function parseRouteSort(raw: string | undefined): RouteSort {
+  return raw === "grade:asc" || raw === "grade:desc" || raw === "boulder:asc" || raw === "boulder:desc"
+    ? raw
+    : "";
 }
 
 type CragPageProps = {
@@ -36,7 +38,7 @@ export default async function CragPage({ params, searchParams }: CragPageProps) 
     ) ?? "Info";
 
   const query = resolvedSearchParams?.q?.trim() ?? "";
-  const sort = parseGradeSort(resolvedSearchParams?.sort);
+  const sort = parseRouteSort(resolvedSearchParams?.sort);
   const sectorId = resolvedSearchParams?.sectorId?.trim() ?? "";
   const boulderId = resolvedSearchParams?.boulderId?.trim() ?? "";
   const basePath = `/c/${crag.slug}`;
@@ -75,7 +77,7 @@ function CragTabs({
 }: {
   crag: CragDetail;
   activeTab: TabName;
-  sort: GradeSort;
+  sort: RouteSort;
   sectorId: string;
   boulderId: string;
 }) {
@@ -128,7 +130,7 @@ function CragTabPanel({
   crag: CragDetail;
   activeTab: TabName;
   query: string;
-  sort: GradeSort;
+  sort: RouteSort;
   sectorId: string;
   boulderId: string;
   basePath: string;
