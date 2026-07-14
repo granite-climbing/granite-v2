@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import type { CragDetail, RouteListItem, TabName } from "@/lib/db/schema";
 import { bucketGradeNums, GRADE_LABELS } from "@/lib/grade-histogram";
 
-type GradeSort = "grade:asc" | "grade:desc" | "";
+type RouteSort = "grade:asc" | "grade:desc" | "boulder:asc" | "boulder:desc" | "";
 type SearchableTab = Extract<TabName, "Sector" | "Boulder" | "Route">;
 
 export function CragSearchPanel({
@@ -20,7 +20,7 @@ export function CragSearchPanel({
   crag: CragDetail;
   activeTab: SearchableTab;
   initialQuery: string;
-  sort: GradeSort;
+  sort: RouteSort;
   boulderId: string;
   basePath: string;
 }) {
@@ -208,12 +208,28 @@ function normalizeQuery(query: string) {
   return query.trim().toLowerCase();
 }
 
-function sortRoutes(routes: RouteListItem[], sort: GradeSort) {
+function sortRoutes(routes: RouteListItem[], sort: RouteSort) {
   if (sort === "grade:asc") {
     return [...routes].sort((a, b) => a.gradeNum - b.gradeNum || a.grade.localeCompare(b.grade));
   }
   if (sort === "grade:desc") {
     return [...routes].sort((a, b) => b.gradeNum - a.gradeNum || b.grade.localeCompare(a.grade));
+  }
+  if (sort === "boulder:asc") {
+    return [...routes].sort(
+      (a, b) =>
+        a.boulderName.localeCompare(b.boulderName) ||
+        a.name.localeCompare(b.name) ||
+        a.gradeNum - b.gradeNum
+    );
+  }
+  if (sort === "boulder:desc") {
+    return [...routes].sort(
+      (a, b) =>
+        b.boulderName.localeCompare(a.boulderName) ||
+        a.name.localeCompare(b.name) ||
+        a.gradeNum - b.gradeNum
+    );
   }
   return routes;
 }
@@ -329,18 +345,22 @@ function BoulderListCard({
   );
 }
 
-function nextGradeSortHref({
+function nextRouteSortHref({
   basePath,
   query,
   sort,
   boulderId,
+  field,
 }: {
   basePath: string;
   query: string;
-  sort: GradeSort;
+  sort: RouteSort;
   boulderId: string;
+  field: "grade" | "boulder";
 }): string {
-  const nextSort: GradeSort = sort === "" ? "grade:asc" : sort === "grade:asc" ? "grade:desc" : "";
+  const asc = `${field}:asc` as RouteSort;
+  const desc = `${field}:desc` as RouteSort;
+  const nextSort: RouteSort = sort === asc ? desc : sort === desc ? "" : asc;
   const params = new URLSearchParams({ tab: "route" });
   const trimmed = query.trim();
   if (trimmed) params.set("q", trimmed);
@@ -349,8 +369,8 @@ function nextGradeSortHref({
   return `${basePath}?${params.toString()}`;
 }
 
-function GradeSortIcon({ sort }: { sort: GradeSort }) {
-  if (sort === "grade:asc") {
+function SortIcon({ active }: { active: "asc" | "desc" | "" }) {
+  if (active === "asc") {
     return (
       <svg
         aria-hidden="true"
@@ -362,7 +382,7 @@ function GradeSortIcon({ sort }: { sort: GradeSort }) {
       </svg>
     );
   }
-  if (sort === "grade:desc") {
+  if (active === "desc") {
     return (
       <svg
         aria-hidden="true"
@@ -395,12 +415,15 @@ function RouteTable({
   basePath,
 }: {
   routes: RouteListItem[];
-  sort: GradeSort;
+  sort: RouteSort;
   query: string;
   boulderId: string;
   basePath: string;
 }) {
-  const gradeHref = nextGradeSortHref({ basePath, query, sort, boulderId });
+  const gradeHref = nextRouteSortHref({ basePath, query, sort, boulderId, field: "grade" });
+  const boulderHref = nextRouteSortHref({ basePath, query, sort, boulderId, field: "boulder" });
+  const gradeSort = sort === "grade:asc" ? "asc" : sort === "grade:desc" ? "desc" : "";
+  const boulderSort = sort === "boulder:asc" ? "asc" : sort === "boulder:desc" ? "desc" : "";
   return (
     <div>
       <div className="grid h-10 grid-cols-[1fr_80px_80px] items-center bg-[#F7F8F8] px-2 text-[14px] font-medium leading-5 text-[#090909]">
@@ -417,9 +440,22 @@ function RouteTable({
           }
         >
           Grade
-          <GradeSortIcon sort={sort} />
+          <SortIcon active={gradeSort} />
         </Link>
-        <span>Boulder</span>
+        <Link
+          href={boulderHref}
+          className="flex items-center"
+          aria-label={
+            sort === "boulder:asc"
+              ? "볼더명 내림차순 정렬"
+              : sort === "boulder:desc"
+                ? "정렬 해제"
+                : "볼더명 오름차순 정렬"
+          }
+        >
+          Boulder
+          <SortIcon active={boulderSort} />
+        </Link>
       </div>
       <div className="border-b border-[#E8E8E8]">
         {routes.map((route) => (
