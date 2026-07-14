@@ -15,7 +15,7 @@ export default async function HomePage() {
   return (
     <main className="min-h-screen bg-white">
       <AppHeader />
-      <section className="relative aspect-[4/3] w-full overflow-hidden bg-[url('/images/figma/main-banner.jpg')] bg-cover bg-center text-white">
+      <section className="relative aspect-[3/2] w-full overflow-hidden bg-[url('/images/figma/main-banner.jpg')] bg-cover bg-center text-white">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60" />
         <div className="absolute inset-x-4 top-1/2 mx-auto max-w-[560px] -translate-y-1/2 text-center">
           <p className="text-[28px] font-extrabold leading-9">DREAM to DREAM!</p>
@@ -80,7 +80,7 @@ export default async function HomePage() {
             <a
               key={announcement.id}
               href={announcement.linkUrl}
-              className="relative block aspect-[4/3] w-[270px] shrink-0 overflow-hidden rounded-[8px] bg-cover bg-center"
+              className="relative block aspect-[3/2] w-[270px] shrink-0 overflow-hidden rounded-[8px] bg-cover bg-center"
               style={{ backgroundImage: `url("${announcement.coverImageUrl}")` }}
             >
               <div className="absolute inset-0 bg-gradient-to-b from-transparent from-[44%] to-black/80" />
