@@ -19,7 +19,7 @@ function parseGradeSort(raw: string | undefined): GradeSort {
 
 type CragPageProps = {
   params: Promise<{ cragSlug: string }>;
-  searchParams?: Promise<{ tab?: string; q?: string; sort?: string; boulderId?: string }>;
+  searchParams?: Promise<{ tab?: string; q?: string; sort?: string; sectorId?: string; boulderId?: string }>;
 };
 
 export default async function CragPage({ params, searchParams }: CragPageProps) {
@@ -37,6 +37,7 @@ export default async function CragPage({ params, searchParams }: CragPageProps) 
 
   const query = resolvedSearchParams?.q?.trim() ?? "";
   const sort = parseGradeSort(resolvedSearchParams?.sort);
+  const sectorId = resolvedSearchParams?.sectorId?.trim() ?? "";
   const boulderId = resolvedSearchParams?.boulderId?.trim() ?? "";
   const basePath = `/c/${crag.slug}`;
 
@@ -44,8 +45,8 @@ export default async function CragPage({ params, searchParams }: CragPageProps) 
     <main className="min-h-screen bg-white pb-10 text-[#090909]">
       <AppHeader />
       <CragHero crag={crag} />
-      <CragTabs crag={crag} activeTab={activeTab} sort={sort} boulderId={boulderId} />
-      <CragTabPanel crag={crag} activeTab={activeTab} query={query} sort={sort} boulderId={boulderId} basePath={basePath} />
+      <CragTabs crag={crag} activeTab={activeTab} sort={sort} sectorId={sectorId} boulderId={boulderId} />
+      <CragTabPanel crag={crag} activeTab={activeTab} query={query} sort={sort} sectorId={sectorId} boulderId={boulderId} basePath={basePath} />
     </main>
   );
 }
@@ -69,11 +70,13 @@ function CragTabs({
   crag,
   activeTab,
   sort,
+  sectorId,
   boulderId,
 }: {
   crag: CragDetail;
   activeTab: TabName;
   sort: GradeSort;
+  sectorId: string;
   boulderId: string;
 }) {
   return (
@@ -81,10 +84,13 @@ function CragTabs({
       {crag.tabs.map((tab) => {
         const active = tab === activeTab;
         const tabLower = tab.toLowerCase();
-        // Preserve ?sort= and ?boulderId= only when navigating to/staying on the Route tab.
+        // Preserve route filters only when navigating to/staying on the Route tab.
         const params = new URLSearchParams({ tab: tabLower });
         if (sort && tab === "Route") {
           params.set("sort", sort);
+        }
+        if (sectorId && tab === "Route") {
+          params.set("sectorId", sectorId);
         }
         if (boulderId && tab === "Route") {
           params.set("boulderId", boulderId);
@@ -115,6 +121,7 @@ function CragTabPanel({
   activeTab,
   query,
   sort,
+  sectorId,
   boulderId,
   basePath,
 }: {
@@ -122,6 +129,7 @@ function CragTabPanel({
   activeTab: TabName;
   query: string;
   sort: GradeSort;
+  sectorId: string;
   boulderId: string;
   basePath: string;
 }) {
@@ -136,6 +144,7 @@ function CragTabPanel({
         activeTab={activeTab}
         initialQuery={query}
         sort={sort}
+        sectorId={sectorId}
         boulderId={boulderId}
         basePath={basePath}
       />
@@ -149,6 +158,7 @@ function CragTabPanel({
         activeTab={activeTab}
         initialQuery={query}
         sort={sort}
+        sectorId={sectorId}
         boulderId={boulderId}
         basePath={basePath}
       />
@@ -162,6 +172,7 @@ function CragTabPanel({
         activeTab={activeTab}
         initialQuery={query}
         sort={sort}
+        sectorId={sectorId}
         boulderId={boulderId}
         basePath={basePath}
       />

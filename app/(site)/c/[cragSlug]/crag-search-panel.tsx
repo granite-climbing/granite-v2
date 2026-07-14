@@ -14,6 +14,7 @@ export function CragSearchPanel({
   activeTab,
   initialQuery,
   sort,
+  sectorId,
   boulderId,
   basePath,
 }: {
@@ -21,6 +22,7 @@ export function CragSearchPanel({
   activeTab: SearchableTab;
   initialQuery: string;
   sort: GradeSort;
+  sectorId: string;
   boulderId: string;
   basePath: string;
 }) {
@@ -72,6 +74,7 @@ export function CragSearchPanel({
               <div key={sector.id} id={`sector-card-${sector.id}`}>
                 <SectorCard
                   sector={sector}
+                  cragSlug={crag.slug}
                   boulderCount={crag.boulders.filter((b) => b.sectorId === sector.id).length}
                   routes={crag.routes.filter((r) => r.sectorSlug === sector.slug)}
                 />
@@ -111,19 +114,26 @@ export function CragSearchPanel({
     );
   }
 
-  const filteredRoutes = filterRoutes(crag.routes, query, boulderId);
+  const activeSector = sectorId ? crag.sectors.find((sector) => sector.id === sectorId) : undefined;
+  const activeBoulder = boulderId ? crag.boulders.find((boulder) => boulder.id === boulderId) : undefined;
+  const filteredRoutes = filterRoutes(crag.routes, query, activeSector?.slug ?? "", boulderId);
   const sortedRoutes = sortRoutes(filteredRoutes, sort);
   const clearFilterParams = new URLSearchParams({ tab: "route" });
   if (query.trim()) clearFilterParams.set("q", query.trim());
   if (sort) clearFilterParams.set("sort", sort);
   const clearFilterHref = `${basePath}?${clearFilterParams.toString()}`;
+  const filterLabel = activeBoulder
+    ? `볼더 필터 적용 중: ${activeBoulder.name}`
+    : activeSector
+      ? `섹터 필터 적용 중: ${activeSector.name}`
+      : "";
 
   return (
     <section className="pt-4">
       <SectionHeading />
-      {boulderId ? (
+      {filterLabel ? (
         <div className="mb-3 mt-3 flex items-center justify-center gap-2 px-4 text-[12px] text-[#7A7A7A]">
-          <span>볼더 필터 적용 중</span>
+          <span>{filterLabel}</span>
           <Link href={clearFilterHref} className="underline">
             필터 해제
           </Link>
@@ -136,7 +146,14 @@ export function CragSearchPanel({
         {sortedRoutes.length === 0 ? (
           <EmptyResult query={query} />
         ) : (
-          <RouteTable routes={sortedRoutes} sort={sort} query={query} boulderId={boulderId} basePath={basePath} />
+          <RouteTable
+            routes={sortedRoutes}
+            sort={sort}
+            query={query}
+            sectorId={sectorId}
+            boulderId={boulderId}
+            basePath={basePath}
+          />
         )}
       </div>
     </section>
@@ -197,8 +214,12 @@ function filterBoulders(crag: CragDetail, query: string) {
   return crag.boulders.filter((boulder) => boulder.name.toLowerCase().includes(q));
 }
 
-function filterRoutes(routes: RouteListItem[], query: string, boulderId: string) {
-  const scopedRoutes = boulderId ? routes.filter((route) => route.boulderId === boulderId) : routes;
+function filterRoutes(routes: RouteListItem[], query: string, sectorSlug: string, boulderId: string) {
+  const scopedRoutes = boulderId
+    ? routes.filter((route) => route.boulderId === boulderId)
+    : sectorSlug
+      ? routes.filter((route) => route.sectorSlug === sectorSlug)
+      : routes;
   const q = normalizeQuery(query);
   if (!q) return scopedRoutes;
   return scopedRoutes.filter((route) => route.name.toLowerCase().includes(q));
@@ -236,15 +257,20 @@ function EmptyResult({ query }: { query: string }) {
 
 function SectorCard({
   sector,
+  cragSlug,
   boulderCount,
   routes,
 }: {
   sector: CragDetail["sectors"][number];
+  cragSlug: string;
   boulderCount: number;
   routes: RouteListItem[];
 }) {
   return (
-    <article className="flex h-[100px] items-center overflow-hidden rounded-[8px] bg-white shadow-[0_0_6px_2px_rgba(0,0,0,0.06)]">
+    <Link
+      href={`/c/${cragSlug}?tab=route&sectorId=${encodeURIComponent(sector.id)}`}
+      className="flex h-[100px] items-center overflow-hidden rounded-[8px] bg-white shadow-[0_0_6px_2px_rgba(0,0,0,0.06)] transition-shadow hover:shadow-[0_0_6px_2px_rgba(0,0,0,0.1)]"
+    >
       <div
         className="ml-2 size-[84px] shrink-0 self-center rounded-[4px] bg-[#D9D9D9] bg-cover bg-center"
         style={sector.coverImageUrl ? { backgroundImage: `url("${sector.coverImageUrl}")` } : undefined}
@@ -256,7 +282,10 @@ function SectorCard({
         </p>
         <MiniGradeBars routes={routes} barWidth={6} maxHeight={20} className="mt-2" />
       </div>
-    </article>
+      <div className="flex shrink-0 items-center pr-2">
+        <span className="text-[18px] leading-none text-[#7A7A7A]">›</span>
+      </div>
+    </Link>
   );
 }
 
@@ -333,11 +362,13 @@ function nextGradeSortHref({
   basePath,
   query,
   sort,
+  sectorId,
   boulderId,
 }: {
   basePath: string;
   query: string;
   sort: GradeSort;
+  sectorId: string;
   boulderId: string;
 }): string {
   const nextSort: GradeSort = sort === "" ? "grade:asc" : sort === "grade:asc" ? "grade:desc" : "";
@@ -345,6 +376,7 @@ function nextGradeSortHref({
   const trimmed = query.trim();
   if (trimmed) params.set("q", trimmed);
   if (nextSort) params.set("sort", nextSort);
+  if (sectorId) params.set("sectorId", sectorId);
   if (boulderId) params.set("boulderId", boulderId);
   return `${basePath}?${params.toString()}`;
 }
@@ -391,16 +423,18 @@ function RouteTable({
   routes,
   sort,
   query,
+  sectorId,
   boulderId,
   basePath,
 }: {
   routes: RouteListItem[];
   sort: GradeSort;
   query: string;
+  sectorId: string;
   boulderId: string;
   basePath: string;
 }) {
-  const gradeHref = nextGradeSortHref({ basePath, query, sort, boulderId });
+  const gradeHref = nextGradeSortHref({ basePath, query, sort, sectorId, boulderId });
   return (
     <div>
       <div className="grid h-10 grid-cols-[1fr_80px_80px] items-center bg-[#F7F8F8] px-2 text-[14px] font-medium leading-5 text-[#090909]">
