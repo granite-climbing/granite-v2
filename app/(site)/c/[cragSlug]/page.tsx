@@ -59,7 +59,6 @@ function CragHero({ crag }: { crag: CragDetail }) {
       <div className="absolute inset-0 bg-black/30" />
       <div className="relative max-w-[328px]">
         <h1 className="text-[28px] font-extrabold leading-9">{crag.name}</h1>
-        <p className="mt-4 text-[12px] font-normal leading-4 text-white">{crag.description}</p>
       </div>
     </section>
   );

@@ -19,7 +19,7 @@ export function CragCard({ crag }: CragCardProps) {
         className="aspect-[4/3] bg-cover bg-center"
         style={{ backgroundImage: `url("${crag.coverImageUrl}")` }}
       />
-      <div className="px-4 pt-4">
+      <div className="px-4 pb-4 pt-4">
         <div>
           <h3 className="text-[16px] font-bold leading-6 text-[#090909]">{crag.name}</h3>
           <p className="mt-1 text-[12px] font-medium leading-4 text-[#7A7A7A]">
