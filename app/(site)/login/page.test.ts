@@ -1,10 +1,19 @@
+// @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import LoginPage from "./page";
 
 const source = () => readFileSync(join(process.cwd(), "app/(site)/login/page.tsx"), "utf8");
 
 describe("LoginPage", () => {
+  it("offers a close control that safely leaves the login screen", async () => {
+    render(await LoginPage({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.getByRole("link", { name: "로그인 닫기" }).getAttribute("href")).toBe("/");
+  });
+
   it("uses the Figma provider icon assets in login buttons", () => {
     const text = source();
 

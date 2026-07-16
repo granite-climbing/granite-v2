@@ -1,4 +1,5 @@
 import { startOAuthLoginAction } from "@/lib/actions/oauth-login";
+import Link from "next/link";
 import {
   getOAuthProvider,
   isOAuthProviderConfigured
@@ -30,8 +31,17 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   });
 
   return (
-    <main data-hide-site-footer className="min-h-screen bg-black px-5 text-white">
+    <main data-hide-site-footer className="relative min-h-screen bg-black px-5 text-white">
       <LoginOAuthDebugConsole {...oauthDiagnostic} />
+      <Link
+        href="/"
+        aria-label="로그인 닫기"
+        className="absolute left-5 top-5 grid size-10 place-items-center rounded-full text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+      >
+        <svg viewBox="0 0 24 24" className="size-6" aria-hidden="true">
+          <path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+        </svg>
+      </Link>
       <section className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col justify-end pb-11 pt-16">
         <div className="flex flex-1 items-center justify-center pb-14">
           <img src="/images/figma/granite-logo.svg" alt="Granite" className="h-auto w-[150px]" />

@@ -53,7 +53,7 @@ export function MyPageContent({ model, logoutSlot }: MyPageContentProps) {
         </div>
       </Section>
 
-      <Section title="로그인">
+      <Section title="계정">
         <div className="space-y-[18px]">
           {logoutSlot}
           <p className="text-[14px] font-medium text-[#C8C8C8]">회원탈퇴</p>

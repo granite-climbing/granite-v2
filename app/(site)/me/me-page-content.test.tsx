@@ -40,7 +40,9 @@ describe("MyPageContent", () => {
     expect(html).toContain("소셜 로그인");
     expect(html).toContain("공개여부");
     expect(html).toContain("계정 연결");
+    expect(html).toContain(">계정</h2>");
     expect(html).toContain("알림 설정");
+    expect(html).toContain("로그아웃");
     expect(html).toContain("회원탈퇴");
     expect(html).toContain("data-hide-site-footer");
     expect(html).toContain("sticky top-0");
