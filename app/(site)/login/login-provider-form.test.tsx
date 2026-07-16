@@ -8,6 +8,7 @@ import { LoginProviderForm } from "./login-provider-form";
 
 describe("LoginProviderForm", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -63,6 +64,24 @@ describe("LoginProviderForm", () => {
     });
 
     expect(screen.getByRole("alert")).toHaveTextContent("로그인에 실패했습니다");
+  });
+
+  it("keeps native login pending while the provider login screen is open", () => {
+    vi.useFakeTimers();
+    const postMessage = vi.fn();
+    vi.stubGlobal("FlutterWebView", { postMessage });
+
+    render(
+      <LoginProviderForm provider="naver" displayLabel="네이버" returnTo="/me" enabled action={vi.fn()}>
+        icon
+      </LoginProviderForm>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "네이버로 시작하기" }));
+    act(() => vi.advanceTimersByTime(12000));
+
+    expect(screen.getByRole("button", { name: "로그인 중..." })).toBeDisabled();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("keeps normal form submit available when no Flutter bridge exists", () => {

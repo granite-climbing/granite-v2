@@ -82,18 +82,6 @@ export function LoginProviderForm({
     });
   }, []);
 
-  useEffect(() => {
-    if (!pendingRequestId) return;
-
-    const timeoutId = window.setTimeout(() => {
-      pendingRequestIdRef.current = null;
-      setPendingRequestId(null);
-      setStatusMessage("로그인 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요.");
-    }, 12000);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [pendingRequestId]);
-
   return (
     <form
       action={action}
