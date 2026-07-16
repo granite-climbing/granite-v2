@@ -65,10 +65,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         {error ? (
           <p className="mt-4 text-center text-[12px] font-semibold text-[#FF6868]">로그인에 실패했습니다: {error}</p>
         ) : null}
-
-        <button type="button" disabled className="mx-auto mt-6 block text-[14px] font-semibold text-[#A7A7A7]">
-          이메일로 시작하기
-        </button>
       </section>
     </main>
   );

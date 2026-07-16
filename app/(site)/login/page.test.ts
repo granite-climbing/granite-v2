@@ -8,6 +8,12 @@ import LoginPage from "./page";
 const source = () => readFileSync(join(process.cwd(), "app/(site)/login/page.tsx"), "utf8");
 
 describe("LoginPage", () => {
+  it("does not show the unavailable email sign-in option", async () => {
+    render(await LoginPage({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.queryByRole("button", { name: "이메일로 시작하기" })).toBeNull();
+  });
+
   it("offers a close control that safely leaves the login screen", async () => {
     render(await LoginPage({ searchParams: Promise.resolve({}) }));
 
