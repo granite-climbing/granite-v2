@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { OAuthProviderId } from "@/lib/auth/oauth/types";
 
@@ -18,7 +18,39 @@ declare global {
     FlutterWebView?: {
       postMessage: (message: string) => void;
     };
+    GraniteBridge?: {
+      receive?: (message: NativeBridgeMessage) => void;
+    };
   }
+}
+
+type NativeBridgeMessage = {
+  version?: number;
+  id?: string;
+  type?: string;
+  direction?: string;
+  payload?: { reason?: string };
+};
+
+const nativeLoginListeners = new Set<(message: NativeBridgeMessage) => void>();
+let nativeBridgeInstalled = false;
+
+function subscribeToNativeLogin(listener: (message: NativeBridgeMessage) => void) {
+  nativeLoginListeners.add(listener);
+
+  if (!nativeBridgeInstalled) {
+    nativeBridgeInstalled = true;
+    window.GraniteBridge ??= {};
+    const previousReceive = window.GraniteBridge.receive;
+    window.GraniteBridge.receive = (message) => {
+      previousReceive?.(message);
+      nativeLoginListeners.forEach((registeredListener) => registeredListener(message));
+    };
+  }
+
+  return () => {
+    nativeLoginListeners.delete(listener);
+  };
 }
 
 export function LoginProviderForm({
@@ -30,6 +62,37 @@ export function LoginProviderForm({
   children
 }: LoginProviderFormProps) {
   const nativeBridgeProvider = provider === "kakao" || provider === "naver" || provider === "google" || provider === "apple";
+  const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const pendingRequestIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return subscribeToNativeLogin((message) => {
+      if (message.type !== "auth.native.login.failed" || message.id !== pendingRequestIdRef.current) {
+        return;
+      }
+
+      pendingRequestIdRef.current = null;
+      setPendingRequestId(null);
+      setStatusMessage(
+        message.payload?.reason === "cancelled"
+          ? "로그인이 취소되었습니다."
+          : "로그인에 실패했습니다. 다시 시도해주세요."
+      );
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!pendingRequestId) return;
+
+    const timeoutId = window.setTimeout(() => {
+      pendingRequestIdRef.current = null;
+      setPendingRequestId(null);
+      setStatusMessage("로그인 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요.");
+    }, 12000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [pendingRequestId]);
 
   return (
     <form
@@ -42,10 +105,14 @@ export function LoginProviderForm({
         }
 
         event.preventDefault();
+        const id = `native-login-${Date.now()}`;
+        pendingRequestIdRef.current = id;
+        setPendingRequestId(id);
+        setStatusMessage(null);
         bridge.postMessage(
           JSON.stringify({
             version: 1,
-            id: `native-login-${Date.now()}`,
+            id,
             type: "auth.native.login.requested",
             direction: "web-to-native",
             payload: {
@@ -61,8 +128,8 @@ export function LoginProviderForm({
       <input type="hidden" name="returnTo" value={returnTo} />
       <button
         type="submit"
-        disabled={!enabled}
-        aria-disabled={!enabled}
+        disabled={!enabled || pendingRequestId !== null}
+        aria-disabled={!enabled || pendingRequestId !== null}
         className={`flex h-[54px] w-full items-center justify-center gap-3 rounded-[27px] text-[14px] font-bold transition ${
           provider === "kakao"
             ? "bg-[#FFE100] text-black"
@@ -72,10 +139,11 @@ export function LoginProviderForm({
         } ${enabled ? "" : "cursor-not-allowed"}`}
       >
         <span aria-hidden="true" className="contents">
-          {children}
+          {pendingRequestId ? <span className="size-5 animate-spin rounded-full border-2 border-current border-t-transparent" /> : children}
         </span>
-        <span>{displayLabel}로 시작하기</span>
+        <span>{pendingRequestId ? "로그인 중..." : `${displayLabel}로 시작하기`}</span>
       </button>
+      {statusMessage ? <p role="alert" className="mt-2 text-center text-[12px] font-semibold text-[#FF6868]">{statusMessage}</p> : null}
     </form>
   );
 }

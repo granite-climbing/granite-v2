@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LoginProviderForm } from "./login-provider-form";
@@ -34,6 +34,35 @@ describe("LoginProviderForm", () => {
         surface: "flutter-webview"
       }
     });
+  });
+
+  it("shows a failure message when native login reports an error", () => {
+    const postMessage = vi.fn();
+    vi.stubGlobal("FlutterWebView", { postMessage });
+
+    render(
+      <LoginProviderForm provider="naver" displayLabel="네이버" returnTo="/me" enabled action={vi.fn()}>
+        icon
+      </LoginProviderForm>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "네이버로 시작하기" }));
+    const request = JSON.parse(postMessage.mock.calls[0][0]);
+
+    expect(screen.getByRole("button", { name: "로그인 중..." })).toBeDisabled();
+    act(() => {
+      const receive = window.GraniteBridge?.receive;
+      if (!receive) throw new Error("GraniteBridge receiver was not installed");
+      receive({
+        version: 1,
+        id: request.id,
+        type: "auth.native.login.failed",
+        direction: "native-to-web",
+        payload: { reason: "failed" }
+      });
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("로그인에 실패했습니다");
   });
 
   it("keeps normal form submit available when no Flutter bridge exists", () => {
