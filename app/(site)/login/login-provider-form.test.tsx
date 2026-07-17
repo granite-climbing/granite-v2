@@ -37,6 +37,24 @@ describe("LoginProviderForm", () => {
     });
   });
 
+  it("logs that Naver takes the native SDK route in Flutter WebView", () => {
+    const postMessage = vi.fn();
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    vi.stubGlobal("FlutterWebView", { postMessage });
+
+    render(
+      <LoginProviderForm provider="naver" displayLabel="네이버" returnTo="/me" enabled action={vi.fn()}>
+        icon
+      </LoginProviderForm>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "네이버로 시작하기" }));
+
+    expect(info).toHaveBeenCalledWith(
+      "[granite login] provider=naver route=native-sdk bridge_request"
+    );
+  });
+
   it("shows a failure message when native login reports an error", () => {
     const postMessage = vi.fn();
     vi.stubGlobal("FlutterWebView", { postMessage });
@@ -82,6 +100,25 @@ describe("LoginProviderForm", () => {
 
     expect(screen.getByRole("button", { name: "로그인 중..." })).toBeDisabled();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("logs a web OAuth fallback when Naver has no Flutter bridge", () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    vi.stubGlobal("FlutterWebView", undefined);
+
+    render(
+      <LoginProviderForm provider="naver" displayLabel="네이버" returnTo="/me" enabled action={vi.fn()}>
+        icon
+      </LoginProviderForm>
+    );
+
+    const form = screen.getByRole("button", { name: "네이버로 시작하기" }).closest("form");
+    if (!form) throw new Error("Naver login form was not rendered");
+    fireEvent.submit(form);
+
+    expect(info).toHaveBeenCalledWith(
+      "[granite login] provider=naver route=web-oauth-fallback reason=flutter_bridge_unavailable"
+    );
   });
 
   it("keeps normal form submit available when no Flutter bridge exists", () => {

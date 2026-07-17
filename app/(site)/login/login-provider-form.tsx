@@ -88,8 +88,21 @@ export function LoginProviderForm({
       onSubmit={(event) => {
         const bridge = getFlutterWebViewBridge();
 
-        if (!enabled || !nativeBridgeProvider || !bridge) {
+        if (!enabled || !nativeBridgeProvider) {
           return;
+        }
+
+        if (!bridge) {
+          if (provider === "naver") {
+            console.info(
+              "[granite login] provider=naver route=web-oauth-fallback reason=flutter_bridge_unavailable"
+            );
+          }
+          return;
+        }
+
+        if (provider === "naver") {
+          console.info("[granite login] provider=naver route=native-sdk bridge_request");
         }
 
         event.preventDefault();
