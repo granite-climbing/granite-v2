@@ -15,6 +15,10 @@ import {
 } from "@/lib/auth/session";
 import { findUserByOAuthIdentity } from "@/lib/db/user-auth-queries";
 
+const DEFAULT_ANDROID_PACKAGE_NAME = "com.granite.climbing";
+const NATIVE_APPLE_WEB_CALLBACK_STATE_PREFIX = "granite-native-apple-v1.";
+const NATIVE_APPLE_WEB_CALLBACK_STATE_MIN_ENTROPY_LENGTH = 32;
+
 export const runtime = "nodejs";
 
 type OAuthCallbackContext = {
@@ -37,12 +41,42 @@ export async function GET(request: NextRequest, context: OAuthCallbackContext): 
 }
 
 export async function POST(request: NextRequest, context: OAuthCallbackContext): Promise<NextResponse> {
+  const { provider: providerValue } = await context.params;
   const formData = await request.formData();
+  const state = getFormValue(formData, "state");
+
+  if (providerValue === "apple" && isNativeAppleWebCallbackState(state)) {
+    return redirectNativeAppleCallback(formData);
+  }
+
   return handleOAuthCallback(request, context, {
     code: getFormValue(formData, "code"),
     error: getFormValue(formData, "error"),
-    state: getFormValue(formData, "state")
+    state
   });
+}
+
+function isNativeAppleWebCallbackState(state: string | null): boolean {
+  if (!state?.startsWith(NATIVE_APPLE_WEB_CALLBACK_STATE_PREFIX)) {
+    return false;
+  }
+
+  const entropy = state.slice(NATIVE_APPLE_WEB_CALLBACK_STATE_PREFIX.length);
+  return /^[A-Za-z0-9_-]+$/.test(entropy) && entropy.length >= NATIVE_APPLE_WEB_CALLBACK_STATE_MIN_ENTROPY_LENGTH;
+}
+
+function redirectNativeAppleCallback(formData: FormData): NextResponse {
+  const callbackParams = new URLSearchParams();
+
+  for (const [key, value] of formData.entries()) {
+    if (typeof value === "string") {
+      callbackParams.append(key, value);
+    }
+  }
+
+  const packageName = process.env.ANDROID_PACKAGE_NAME?.trim() || DEFAULT_ANDROID_PACKAGE_NAME;
+  const intentUrl = `intent://callback?${callbackParams.toString()}#Intent;package=${packageName};scheme=signinwithapple;end`;
+  return NextResponse.redirect(intentUrl);
 }
 
 async function handleOAuthCallback(

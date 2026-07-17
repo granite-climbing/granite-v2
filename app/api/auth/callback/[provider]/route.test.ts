@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { createOAuthState, OAUTH_STATE_COOKIE_NAME } from "@/lib/auth/oauth/state";
 import { PENDING_SIGNUP_COOKIE_NAME, verifyPendingSignupToken } from "@/lib/auth/signup";
 import { USER_SESSION_COOKIE_NAME, verifyUserSessionToken } from "@/lib/auth/session";
-import { GET } from "./route";
+import { GET, POST } from "./route";
 
 const exchangeOAuthCodeMock = vi.hoisted(() => vi.fn());
 const fetchOAuthProfileMock = vi.hoisted(() => vi.fn());
@@ -20,11 +20,13 @@ vi.mock("@/lib/db/user-auth-queries", () => ({
 
 const originalJwtSecret = process.env.JWT_SECRET;
 const originalAppBaseUrl = process.env.APP_BASE_URL;
+const originalAndroidPackageName = process.env.ANDROID_PACKAGE_NAME;
 
 describe("OAuth callback route", () => {
   afterEach(() => {
     process.env.JWT_SECRET = originalJwtSecret;
     process.env.APP_BASE_URL = originalAppBaseUrl;
+    process.env.ANDROID_PACKAGE_NAME = originalAndroidPackageName;
     exchangeOAuthCodeMock.mockReset();
     fetchOAuthProfileMock.mockReset();
     findUserByOAuthIdentityMock.mockReset();
@@ -169,6 +171,50 @@ describe("OAuth callback route", () => {
       avatarUrl: "https://img.example/kakao.jpg",
       returnTo: "/r/route_1"
     });
+  });
+
+  it("returns native Apple form callbacks to the Android SDK without exchanging browser OAuth state", async () => {
+    process.env.ANDROID_PACKAGE_NAME = "com.granite.climbing";
+    const request = new NextRequest("https://v2.granite.kr/api/auth/callback/apple", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: "code=test-code&id_token=test-id-token&state=granite-native-apple-v1.aB3D5eF7gH9jK1mN2pQ4rS6tU8vW0xYz1234567"
+    });
+
+    const response = await POST(request, { params: Promise.resolve({ provider: "apple" }) });
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "intent://callback?code=test-code&id_token=test-id-token&state=granite-native-apple-v1.aB3D5eF7gH9jK1mN2pQ4rS6tU8vW0xYz1234567#Intent;package=com.granite.climbing;scheme=signinwithapple;end"
+    );
+    expect(exchangeOAuthCodeMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a fixed native Apple callback state", async () => {
+    const request = new NextRequest("https://v2.granite.kr/api/auth/callback/apple", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: "code=test-code&id_token=test-id-token&state=granite-native-apple-v1"
+    });
+
+    const response = await POST(request, { params: Promise.resolve({ provider: "apple" }) });
+
+    expect(response.headers.get("location")).toBe("https://v2.granite.kr/login?error=invalid_state");
+  });
+
+  it.each([
+    "granite-native-apple-v1.too-short",
+    "granite-native-apple-v1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!"
+  ])("rejects malformed native Apple callback state %s", async (state) => {
+    const request = new NextRequest("https://v2.granite.kr/api/auth/callback/apple", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: `code=test-code&id_token=test-id-token&state=${state}`
+    });
+
+    const response = await POST(request, { params: Promise.resolve({ provider: "apple" }) });
+
+    expect(response.headers.get("location")).toBe("https://v2.granite.kr/login?error=invalid_state");
   });
 
   it("redirects missing OAuth state cookies with a specific invalid_state error", async () => {
