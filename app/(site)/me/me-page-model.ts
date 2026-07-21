@@ -1,4 +1,9 @@
 import type { OAuthProviderId, User, UserOAuthIdentity } from "@/lib/db/schema";
+import {
+  PRIVACY_VISIBILITY_ITEMS,
+  parsePrivacyVisibility,
+  type PrivacyVisibilityKey
+} from "@/lib/user/privacy-visibility";
 
 export type ProfileRow = {
   label: string;
@@ -10,6 +15,7 @@ export type PrivacyRow = {
   label: string;
   enabled: boolean;
   disabled: boolean;
+  key?: PrivacyVisibilityKey;
 };
 
 export type AccountConnectionRow = {
@@ -36,6 +42,7 @@ const PROVIDER_LABELS: Record<OAuthProviderId, string> = {
 export function buildMePageModel(user: User, identities: UserOAuthIdentity[]): MePageModel {
   const primaryIdentity = identities[0] ?? null;
   const loginMethod = primaryIdentity ? PROVIDER_LABELS[primaryIdentity.provider] : "확인 필요";
+  const visibility = parsePrivacyVisibility(user.privacyVisibility);
 
   return {
     displayName: user.displayName,
@@ -46,15 +53,12 @@ export function buildMePageModel(user: User, identities: UserOAuthIdentity[]): M
       { label: "로그인 방법", value: loginMethod },
       { label: "비밀번호 관리", value: "소셜 로그인" }
     ],
-    privacyRows: [
-      { label: "Instagram 계정", enabled: false, disabled: true },
-      { label: "Youtube 계정", enabled: false, disabled: true },
-      { label: "키", enabled: false, disabled: true },
-      { label: "암 스팬", enabled: false, disabled: true },
-      { label: "몸무게", enabled: false, disabled: true },
-      { label: "기록", enabled: false, disabled: true },
-      { label: "프로젝트", enabled: false, disabled: true }
-    ],
+    privacyRows: PRIVACY_VISIBILITY_ITEMS.map((item) => ({
+      key: item.key,
+      label: item.label,
+      enabled: visibility[item.key],
+      disabled: false
+    })),
     accountConnections: [
       {
         label: "Instagram",

@@ -15,6 +15,7 @@ const baseUser: User = {
   weightKg: null,
   topBoulderingGrade: "V5",
   topSportGrade: null,
+  privacyVisibility: null,
   onboardingCompletedAt: "2026-06-04 00:00:00",
   deletedAt: null,
   createdAt: "2026-06-04 00:00:00",
@@ -45,8 +46,28 @@ describe("buildMePageModel", () => {
       { label: "Instagram", status: "연결안됨", linked: false },
       { label: "Youtube", status: "연결안됨", linked: false }
     ]);
-    expect(model.privacyRows.every((row) => row.disabled)).toBe(true);
+    // 공개여부 토글은 이제 상호작용 가능 (disabled=false), 저장값이 없으면 전부 비공개.
+    expect(model.privacyRows.every((row) => row.disabled === false)).toBe(true);
     expect(model.privacyRows.every((row) => row.enabled === false)).toBe(true);
+    expect(model.privacyRows.map((row) => row.key)).toEqual([
+      "instagram",
+      "youtube",
+      "height",
+      "apeIndex",
+      "weight",
+      "records",
+      "projects"
+    ]);
+  });
+
+  it("reflects stored privacy visibility per toggle", () => {
+    const model = buildMePageModel(
+      { ...baseUser, privacyVisibility: JSON.stringify({ height: true, records: true }) },
+      [googleIdentity]
+    );
+
+    const enabledKeys = model.privacyRows.filter((row) => row.enabled).map((row) => row.key);
+    expect(enabledKeys).toEqual(["height", "records"]);
   });
 
   it("uses no-provider copy when the user has no linked OAuth identity", () => {

@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import type { AccountConnectionRow, MePageModel, PrivacyRow, ProfileRow } from "./me-page-model";
+import { PrivacyToggles } from "./privacy-toggles";
 
 type MyPageContentProps = {
   model: MePageModel;
@@ -24,11 +25,7 @@ export function MyPageContent({ model, logoutSlot }: MyPageContentProps) {
       </section>
 
       <Section title="공개여부">
-        <div className="space-y-[13px]">
-          {model.privacyRows.map((row) => (
-            <PrivacyToggleRow key={row.label} row={row} />
-          ))}
-        </div>
+        <PrivacyToggles rows={model.privacyRows} />
       </Section>
 
       <Section title="계정 연결">

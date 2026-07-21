@@ -26,6 +26,7 @@ const user: User = {
   weightKg: 68,
   topBoulderingGrade: "V5",
   topSportGrade: null,
+  privacyVisibility: null,
   onboardingCompletedAt: "2026-07-01T00:00:00.000Z",
   deletedAt: null,
   createdAt: "2026-07-01T00:00:00.000Z",
