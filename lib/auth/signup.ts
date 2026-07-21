@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import type { OAuthProviderId } from "./oauth/types";
+import { sanitizeReturnTo } from "./return-to";
 import { getUserSessionSecret } from "./session";
 
 export const PENDING_SIGNUP_COOKIE_NAME = "granite_pending_signup";
@@ -63,14 +64,6 @@ export function getPendingSignupCookieOptions() {
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production"
   };
-}
-
-function sanitizeReturnTo(value: string): string {
-  if (!value.startsWith("/") || value.startsWith("//")) {
-    return "/me";
-  }
-
-  return value;
 }
 
 function isProvider(value: unknown): value is OAuthProviderId {
