@@ -34,7 +34,7 @@ lazy purge 경로가 처음으로 이 값을 채운다.
 
 ## 마이그레이션
 
-`migrations/0015_user_withdrawal.sql`:
+`migrations/0016_user_withdrawal.sql`:
 
 ```sql
 ALTER TABLE users ADD COLUMN withdraw_at TEXT;
@@ -226,7 +226,7 @@ export async function resolveOAuthLogin(
 
 신규:
 
-- `migrations/0015_user_withdrawal.sql`
+- `migrations/0016_user_withdrawal.sql`
 - `lib/auth/withdrawal.ts`
 - `lib/auth/recovery.ts`
 - `lib/auth/login-resolution.ts`
