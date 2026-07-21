@@ -104,6 +104,7 @@ export type User = {
   weightKg: number | null;
   topBoulderingGrade: string | null;
   topSportGrade: string | null;
+  privacyVisibility: string | null;
   onboardingCompletedAt: string | null;
   deletedAt: string | null;
   createdAt: string;

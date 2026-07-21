@@ -31,6 +31,7 @@ type UserSqlRow = {
   weightKg: number | null;
   topBoulderingGrade: string | null;
   topSportGrade: string | null;
+  privacyVisibility: string | null;
   onboardingCompletedAt: string | null;
   deletedAt: string | null;
   createdAt: string;
@@ -66,6 +67,7 @@ export async function findActiveUserById(id: string): Promise<User | null> {
        weight_kg AS weightKg,
        top_bouldering_grade AS topBoulderingGrade,
        top_sport_grade AS topSportGrade,
+       privacy_visibility AS privacyVisibility,
        onboarding_completed_at AS onboardingCompletedAt,
        deleted_at AS deletedAt,
        created_at AS createdAt,
@@ -150,6 +152,7 @@ export async function ensureUserForOAuthProfile(profile: OAuthProfile): Promise<
     weightKg: null,
     topBoulderingGrade: null,
     topSportGrade: null,
+    privacyVisibility: null,
     onboardingCompletedAt: now,
     deletedAt: null,
     createdAt: now,
@@ -202,6 +205,7 @@ export async function createUserForCompletedSignup(input: CompletedSignupInput):
     weightKg: input.weightKg,
     topBoulderingGrade: input.topBoulderingGrade,
     topSportGrade: input.topSportGrade,
+    privacyVisibility: null,
     onboardingCompletedAt: now,
     deletedAt: null,
     createdAt: now,
@@ -247,4 +251,17 @@ export async function createUserForCompletedSignup(input: CompletedSignupInput):
   }
 
   return user;
+}
+
+/**
+ * "공개여부" 토글 전체를 JSON 문자열로 단일 컬럼에 저장한다.
+ * 병합/기본값 처리는 호출 측(Server Action)에서 수행하고, 여기서는 저장만 담당.
+ */
+export async function updateUserPrivacyVisibility(userId: string, privacyVisibilityJson: string): Promise<void> {
+  await executeD1(
+    `UPDATE users
+       SET privacy_visibility = ?, updated_at = CURRENT_TIMESTAMP
+     WHERE id = ? AND deleted_at IS NULL`,
+    [privacyVisibilityJson, userId]
+  );
 }
