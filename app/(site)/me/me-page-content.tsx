@@ -36,9 +36,9 @@ export function MyPageContent({ model, logoutSlot }: MyPageContentProps) {
         </div>
       </Section>
 
-      <Section title="사용 방식">
+      {/* <Section title="사용 방식">
         <PrivacyToggleRow row={{ label: "알림 설정", enabled: false, disabled: true }} />
-      </Section>
+      </Section> */}
 
       <Section title="서비스">
         <div className="space-y-[17px]">
