@@ -5,8 +5,8 @@ export const PENDING_RECOVERY_COOKIE_NAME = "granite_pending_recovery";
 
 /**
  * 세션 토큰과 같은 시크릿·같은 user_id 클레임을 쓰기 때문에, 이 값으로 토큰
- * 종류를 구분하지 않으면 복구 토큰을 세션 쿠키 자리에 넣어 복구 확인을
- * 건너뛸 수 있다. 세션 토큰에는 typ 가 없으므로 반대 방향도 막힌다.
+ * 종류를 구분하지 않으면 두 토큰을 서로 바꿔치기할 수 있다. 반대 방향은
+ * `verifyUserSessionToken` 이 typ 가 붙은 토큰을 거부해서 막는다.
  */
 const RECOVERY_TOKEN_TYPE = "recovery";
 
