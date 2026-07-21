@@ -45,8 +45,10 @@ describe("getWithdrawalStatus", () => {
     );
   });
 
-  it("파싱할 수 없는 값은 expired 로 처리한다", () => {
-    expect(getWithdrawalStatus("not-a-date", new Date("2026-07-22T00:00:00.000Z"))).toBe("expired");
+  it("파싱할 수 없는 값이면 던진다", () => {
+    expect(() => getWithdrawalStatus("not-a-date", new Date("2026-07-22T00:00:00.000Z"))).toThrow(
+      /Unparseable withdraw_at/
+    );
   });
 });
 
@@ -58,6 +60,17 @@ describe("getScheduledDeletionAt", () => {
   it("SQLite 형식도 같은 결과를 낸다", () => {
     expect(getScheduledDeletionAt("2026-01-22 00:00:00").toISOString()).toBe(
       "2026-07-22T00:00:00.000Z"
+    );
+  });
+
+  it("파싱할 수 없는 값이면 던진다", () => {
+    expect(() => getScheduledDeletionAt("not-a-date")).toThrow(/Unparseable withdraw_at/);
+  });
+
+  it("월말 오버플로는 뒤로 밀린다 (8/31 + 6개월 → 3/3)", () => {
+    // 항상 늦어지는 방향이라 데이터가 예정보다 일찍 삭제되지는 않는다.
+    expect(getScheduledDeletionAt("2026-08-31T00:00:00.000Z").toISOString()).toBe(
+      "2027-03-03T00:00:00.000Z"
     );
   });
 });
