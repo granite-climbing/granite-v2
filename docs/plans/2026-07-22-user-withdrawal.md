@@ -17,7 +17,9 @@
 구현 중 확정한 두 가지. 설계 문서의 의도는 그대로다.
 
 1. **`markUserWithdrawn` / `restoreWithdrawnUser` / `purgeExpiredWithdrawnUser`는 `now` 인자를 받지 않는다.** 기존 `updateUserPrivacyVisibility`와 동일하게 SQL의 `CURRENT_TIMESTAMP`를 쓴다. 앱 서버와 DB 사이 시계 차이가 끼어들 여지가 없고 기존 코드와 일관된다.
-2. **복구 토큰에 `typ: "recovery"` 클레임을 넣고 검증한다.** 세션 토큰과 복구 토큰이 같은 시크릿·같은 `user_id` 클레임을 쓰기 때문에, 이게 없으면 복구 토큰을 세션 쿠키 자리에 넣어 복구 확인을 건너뛰고 탈퇴 상태 그대로 앱을 쓸 수 있다. 세션 토큰에는 `typ`가 없으므로 반대 방향도 막힌다.
+2. **복구 토큰에 `typ: "recovery"` 클레임을 넣고, 양쪽에서 검증한다.** 세션 토큰과 복구 토큰이 같은 시크릿·같은 `user_id` 클레임을 쓰기 때문에, 구분자가 없으면 복구 토큰을 세션 쿠키 자리에 넣어 복구 확인을 건너뛰고 탈퇴 상태 그대로 앱을 쓸 수 있다. `verifyPendingRecoveryToken`은 `typ === "recovery"`를 요구하고, `verifyUserSessionToken`은 `typ`가 붙은 토큰을 거부한다. 기존 세션 토큰에는 `typ`가 없으므로 후자는 하위 호환된다.
+
+   초안에서는 recovery 쪽 검사만으로 양방향이 막힌다고 적었는데 사실이 아니었다. `verifyUserSessionToken`은 `user_id`가 문자열인지만 보므로 복구 토큰을 그대로 세션으로 인정했다. Task 3에서 session 쪽 검사를 추가해 닫았다.
 
 ---
 
@@ -385,8 +387,8 @@ export const PENDING_RECOVERY_COOKIE_NAME = "granite_pending_recovery";
 
 /**
  * 세션 토큰과 같은 시크릿·같은 user_id 클레임을 쓰기 때문에, 이 값으로 토큰
- * 종류를 구분하지 않으면 복구 토큰을 세션 쿠키 자리에 넣어 복구 확인을
- * 건너뛸 수 있다. 세션 토큰에는 typ 가 없으므로 반대 방향도 막힌다.
+ * 종류를 구분하지 않으면 두 토큰을 서로 바꿔치기할 수 있다. 반대 방향은
+ * `verifyUserSessionToken` 이 typ 가 붙은 토큰을 거부해서 막는다.
  */
 const RECOVERY_TOKEN_TYPE = "recovery";
 
