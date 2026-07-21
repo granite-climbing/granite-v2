@@ -33,6 +33,7 @@ type UserSqlRow = {
   topSportGrade: string | null;
   privacyVisibility: string | null;
   onboardingCompletedAt: string | null;
+  withdrawAt: string | null;
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -154,6 +155,7 @@ export async function ensureUserForOAuthProfile(profile: OAuthProfile): Promise<
     topSportGrade: null,
     privacyVisibility: null,
     onboardingCompletedAt: now,
+    withdrawAt: null,
     deletedAt: null,
     createdAt: now,
     updatedAt: now
@@ -207,6 +209,7 @@ export async function createUserForCompletedSignup(input: CompletedSignupInput):
     topSportGrade: input.topSportGrade,
     privacyVisibility: null,
     onboardingCompletedAt: now,
+    withdrawAt: null,
     deletedAt: null,
     createdAt: now,
     updatedAt: now
