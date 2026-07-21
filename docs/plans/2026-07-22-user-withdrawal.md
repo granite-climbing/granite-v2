@@ -185,8 +185,10 @@ describe("getWithdrawalStatus", () => {
     );
   });
 
-  it("파싱할 수 없는 값은 expired 로 처리한다", () => {
-    expect(getWithdrawalStatus("not-a-date", new Date("2026-07-22T00:00:00.000Z"))).toBe("expired");
+  it("파싱할 수 없는 값이면 던진다", () => {
+    expect(() => getWithdrawalStatus("not-a-date", new Date("2026-07-22T00:00:00.000Z"))).toThrow(
+      /Unparseable withdraw_at/
+    );
   });
 });
 
@@ -199,6 +201,17 @@ describe("getScheduledDeletionAt", () => {
     expect(getScheduledDeletionAt("2026-01-22 00:00:00").toISOString()).toBe(
       "2026-07-22T00:00:00.000Z"
     );
+  });
+
+  it("월말 오버플로는 뒤로 밀린다 (8/31 + 6개월 → 3/3)", () => {
+    // 항상 늦어지는 방향이라 데이터가 예정보다 일찍 삭제되지는 않는다.
+    expect(getScheduledDeletionAt("2026-08-31T00:00:00.000Z").toISOString()).toBe(
+      "2027-03-03T00:00:00.000Z"
+    );
+  });
+
+  it("파싱할 수 없는 값이면 던진다", () => {
+    expect(() => getScheduledDeletionAt("not-a-date")).toThrow(/Unparseable withdraw_at/);
   });
 });
 ```
@@ -225,23 +238,29 @@ const HAS_TIMEZONE = /([zZ]|[+-]\d{2}:?\d{2})$/;
  *   - 애플리케이션 INSERT: "2026-07-22T03:04:05.000Z"
  * 존 표시가 없는 쪽을 그대로 `new Date()` 에 넘기면 로컬 시간으로 해석되므로
  * UTC 임을 명시해서 파싱한다.
+ *
+ * 파싱에 실패하면 던진다. "expired" 로 떨어뜨리면 읽지도 못한 값 때문에
+ * lazy purge 가 OAuth identity 를 지운다.
  */
 function parseTimestamp(value: string): Date {
   const isoish = value.replace(" ", "T");
-  return new Date(HAS_TIMEZONE.test(isoish) ? isoish : `${isoish}Z`);
+  const parsed = new Date(HAS_TIMEZONE.test(isoish) ? isoish : `${isoish}Z`);
+
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`Unparseable withdraw_at timestamp: ${value}`);
+  }
+
+  return parsed;
 }
 
 /**
  * 탈퇴 신청 시각으로부터 데이터가 삭제될 시각.
  * 월말 보정은 JS Date 의 기본 동작을 따른다 (8/31 + 6개월 → 3/3).
- * 경계에서 며칠 차이는 정책상 문제되지 않아 별도 처리하지 않는다.
+ * 항상 늦어지는 방향이라 예정보다 일찍 삭제되지 않으므로 별도 처리하지 않는다.
+ * `withdrawAt` 을 파싱할 수 없으면 던진다.
  */
 export function getScheduledDeletionAt(withdrawAt: string): Date {
   const deletionAt = parseTimestamp(withdrawAt);
-  if (Number.isNaN(deletionAt.getTime())) {
-    return deletionAt;
-  }
-
   deletionAt.setUTCMonth(deletionAt.getUTCMonth() + WITHDRAWAL_RETENTION_MONTHS);
   return deletionAt;
 }
@@ -252,11 +271,6 @@ export function getWithdrawalStatus(withdrawAt: string | null, now: Date): Withd
   }
 
   const deletionAt = getScheduledDeletionAt(withdrawAt);
-  if (Number.isNaN(deletionAt.getTime())) {
-    // 값이 깨졌으면 복구를 제안하지 않는 쪽이 안전하다.
-    return "expired";
-  }
-
   return now.getTime() < deletionAt.getTime() ? "recoverable" : "expired";
 }
 ```
@@ -264,7 +278,7 @@ export function getWithdrawalStatus(withdrawAt: string | null, now: Date): Withd
 - [ ] **Step 4: 통과 확인**
 
 Run: `pnpm test lib/auth/withdrawal.test.ts`
-Expected: PASS — 9 passed
+Expected: PASS — 11 passed
 
 - [ ] **Step 5: 커밋**
 
