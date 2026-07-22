@@ -1,18 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { PENDING_RECOVERY_COOKIE_NAME, verifyPendingRecoveryToken } from "@/lib/auth/recovery";
 import { PENDING_SIGNUP_COOKIE_NAME, verifyPendingSignupToken } from "@/lib/auth/signup";
 import { USER_SESSION_COOKIE_NAME, verifyUserSessionToken } from "@/lib/auth/session";
 import { POST } from "./route";
 
 const fetchOAuthProfileMock = vi.hoisted(() => vi.fn());
-const findUserByOAuthIdentityMock = vi.hoisted(() => vi.fn());
+const resolveOAuthLoginMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/oauth/client", () => ({
   fetchOAuthProfile: fetchOAuthProfileMock
 }));
 
-vi.mock("@/lib/db/user-auth-queries", () => ({
-  findUserByOAuthIdentity: findUserByOAuthIdentityMock
+vi.mock("@/lib/auth/login-resolution", () => ({
+  resolveOAuthLogin: resolveOAuthLoginMock
 }));
 
 const originalJwtSecret = process.env.JWT_SECRET;
@@ -21,7 +22,7 @@ describe("native auth session route", () => {
   afterEach(() => {
     process.env.JWT_SECRET = originalJwtSecret;
     fetchOAuthProfileMock.mockReset();
-    findUserByOAuthIdentityMock.mockReset();
+    resolveOAuthLoginMock.mockReset();
   });
 
   it("sets a Granite session cookie from a native Apple id token", async () => {
@@ -33,8 +34,9 @@ describe("native auth session route", () => {
       displayName: "Apple Climber",
       avatarUrl: null
     });
-    findUserByOAuthIdentityMock.mockResolvedValueOnce({
-      id: "user_apple"
+    resolveOAuthLoginMock.mockResolvedValueOnce({
+      kind: "session",
+      user: { id: "user_apple" }
     });
 
     const response = await POST(formRequest({
@@ -52,9 +54,42 @@ describe("native auth session route", () => {
       accessToken: "",
       idToken: "apple-id-token"
     });
-    expect(findUserByOAuthIdentityMock).toHaveBeenCalledWith("apple", "apple-user");
+    expect(resolveOAuthLoginMock).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: "apple", providerUserId: "apple-user" }),
+      expect.any(Date)
+    );
     await expect(verifyUserSessionToken(sessionToken ?? "")).resolves.toEqual({
       userId: "user_apple"
+    });
+  });
+
+  it("탈퇴 유예 계정은 복구 쿠키를 심고 /recover 로 이동시킨다", async () => {
+    process.env.JWT_SECRET = "native-session-test-secret";
+    fetchOAuthProfileMock.mockResolvedValueOnce({
+      provider: "apple",
+      providerUserId: "apple-user",
+      email: null,
+      displayName: "Apple Climber",
+      avatarUrl: null
+    });
+    resolveOAuthLoginMock.mockResolvedValueOnce({
+      kind: "recover",
+      user: { id: "user_apple" }
+    });
+
+    const response = await POST(
+      formRequest({ provider: "apple", idToken: "apple-id-token", returnTo: "/me" })
+    );
+    const setCookie = response.headers.get("set-cookie") ?? "";
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain("location.replace(\"/recover\")");
+    expect(readCookieValue(setCookie, USER_SESSION_COOKIE_NAME)).toBeNull();
+
+    const recoveryToken = readCookieValue(setCookie, PENDING_RECOVERY_COOKIE_NAME);
+    await expect(verifyPendingRecoveryToken(recoveryToken ?? "")).resolves.toEqual({
+      userId: "user_apple",
+      returnTo: "/me"
     });
   });
 
@@ -67,7 +102,7 @@ describe("native auth session route", () => {
       displayName: "Kakao Climber",
       avatarUrl: null
     });
-    findUserByOAuthIdentityMock.mockResolvedValueOnce(null);
+    resolveOAuthLoginMock.mockResolvedValueOnce({ kind: "signup" });
 
     const response = await POST(formRequest({
       provider: "kakao",
