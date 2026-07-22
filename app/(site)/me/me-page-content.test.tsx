@@ -31,7 +31,11 @@ const model: MePageModel = {
 describe("MyPageContent", () => {
   it("renders the my page shell without invented email or password values", () => {
     const html = renderToStaticMarkup(
-      <MyPageContent model={model} logoutSlot={<button type="button">로그아웃</button>} />
+      <MyPageContent
+        model={model}
+        logoutSlot={<button type="button">로그아웃</button>}
+        withdrawSlot={<button type="button">회원탈퇴</button>}
+      />
     );
 
     expect(html).toContain("마이");
@@ -49,5 +53,18 @@ describe("MyPageContent", () => {
     expect(html).not.toContain("h-[96px]");
     expect(html).not.toContain("granite@gmail.com");
     expect(html).not.toContain("******");
+  });
+
+  it("계정 섹션에 탈퇴 슬롯을 렌더한다", () => {
+    const html = renderToStaticMarkup(
+      <MyPageContent
+        model={model}
+        logoutSlot={<button type="button">로그아웃</button>}
+        withdrawSlot={<button type="button">회원탈퇴</button>}
+      />
+    );
+
+    expect(html).toContain("로그아웃");
+    expect(html).toContain("회원탈퇴");
   });
 });

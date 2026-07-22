@@ -5,6 +5,7 @@ import { findActiveUserById, findOAuthIdentitiesByUserId } from "@/lib/db/user-a
 import { buildMePageModel } from "./me-page-model";
 import { MyPageContent } from "./me-page-content";
 import { LogoutButton } from "./logout-button";
+import { WithdrawButton } from "./withdraw-button";
 
 export default async function MePage() {
   const cookieStore = await cookies();
@@ -19,5 +20,5 @@ export default async function MePage() {
   const identities = await findOAuthIdentitiesByUserId(user.id);
   const model = buildMePageModel(user, identities);
 
-  return <MyPageContent model={model} logoutSlot={<LogoutButton />} />;
+  return <MyPageContent model={model} logoutSlot={<LogoutButton />} withdrawSlot={<WithdrawButton />} />;
 }
