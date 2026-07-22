@@ -16,6 +16,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = (await searchParams) ?? {};
   const returnTo = sanitizeReturnTo(getParam(params.returnTo));
   const error = getParam(params.error);
+  const withdrawn = getParam(params.withdrawn) === "1";
   const oauthDiagnostic = {
     provider: getParam(params.oauth_provider),
     stage: getParam(params.oauth_stage),
@@ -62,8 +63,16 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           ))}
         </div>
 
+        {withdrawn ? (
+          <p className="mt-4 text-center text-[12px] font-semibold text-[#B9B9B9]">
+            탈퇴가 완료되었습니다. 6개월 안에 다시 로그인하면 계정을 복구할 수 있습니다.
+          </p>
+        ) : null}
+
         {error ? (
-          <p className="mt-4 text-center text-[12px] font-semibold text-[#FF6868]">로그인에 실패했습니다: {error}</p>
+          <p className="mt-4 text-center text-[12px] font-semibold text-[#FF6868]">
+            {getErrorMessage(error)}
+          </p>
         ) : null}
       </section>
     </main>
@@ -89,6 +98,18 @@ function getProviderDisplayLabel(provider: OAuthProviderId): string {
     return "네이버";
   }
   return getOAuthProvider(provider).label;
+}
+
+function getErrorMessage(error: string): string {
+  if (error === "recovery_expired") {
+    return "복구 가능 기간이 지났습니다. 새로 가입해 주세요.";
+  }
+
+  if (error === "recovery_unavailable") {
+    return "복구할 수 있는 계정을 찾지 못했습니다.";
+  }
+
+  return `로그인에 실패했습니다: ${error}`;
 }
 
 function getParam(value: string | string[] | undefined): string | null {
