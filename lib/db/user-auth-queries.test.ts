@@ -14,13 +14,15 @@ const queryD1Mock = vi.hoisted(() => vi.fn());
 const queryD1FirstMock = vi.hoisted(() => vi.fn());
 const executeD1Mock = vi.hoisted(() => vi.fn());
 const executeD1MetaMock = vi.hoisted(() => vi.fn());
+const batchD1Mock = vi.hoisted(() => vi.fn());
 const randomUUIDMock = vi.hoisted(() => vi.fn());
 
 vi.mock("./d1-http", () => ({
   queryD1: queryD1Mock,
   queryD1First: queryD1FirstMock,
   executeD1: executeD1Mock,
-  executeD1Meta: executeD1MetaMock
+  executeD1Meta: executeD1MetaMock,
+  batchD1: batchD1Mock
 }));
 
 vi.mock("node:crypto", () => ({
@@ -33,6 +35,7 @@ describe("user auth queries", () => {
     queryD1FirstMock.mockReset();
     executeD1Mock.mockReset();
     executeD1MetaMock.mockReset();
+    batchD1Mock.mockReset();
     randomUUIDMock.mockReset();
     randomUUIDMock.mockReturnValue("uuid-1");
   });
@@ -285,24 +288,33 @@ describe("user auth queries", () => {
   });
 
   it("만료 계정은 deleted_at 을 찍고 OAuth identity 를 끊는다", async () => {
-    executeD1MetaMock.mockResolvedValueOnce({ changes: 1 });
+    batchD1Mock.mockResolvedValueOnce([undefined, undefined]);
 
     await purgeExpiredWithdrawnUser("user_1");
 
-    const [updateSql, updateParams] = executeD1MetaMock.mock.calls[0];
-    expect(updateSql).toContain("SET deleted_at = CURRENT_TIMESTAMP");
-    expect(updateParams).toEqual(["user_1"]);
-    expect(executeD1Mock).toHaveBeenCalledWith(
-      expect.stringContaining("DELETE FROM user_oauth_identities WHERE user_id = ?"),
-      ["user_1"]
-    );
+    // 두 문장이 한 요청으로 나가야 UPDATE 만 남고 DELETE 가 실패하는 상태가 안 생긴다.
+    expect(batchD1Mock).toHaveBeenCalledTimes(1);
+    const [queries] = batchD1Mock.mock.calls[0];
+    expect(queries).toHaveLength(2);
+
+    expect(queries[0].sql).toContain("SET deleted_at = CURRENT_TIMESTAMP");
+    expect(queries[0].sql).toContain("WHERE id = ? AND withdraw_at IS NOT NULL AND deleted_at IS NULL");
+    expect(queries[0].params).toEqual(["user_1"]);
+
+    expect(queries[1].sql).toContain("DELETE FROM user_oauth_identities");
+    expect(queries[1].params).toEqual(["user_1", "user_1"]);
   });
 
-  it("이미 삭제된 계정이면 identity 삭제를 건너뛴다", async () => {
-    executeD1MetaMock.mockResolvedValueOnce({ changes: 0 });
+  it("identity 삭제는 실제로 삭제 표시된 계정일 때만 걸린다", async () => {
+    // 정상 계정에 잘못 호출되면 앞선 UPDATE 가 걸리지 않고, 이 EXISTS 가드 때문에
+    // DELETE 도 함께 아무것도 지우지 않는다.
+    batchD1Mock.mockResolvedValueOnce([undefined, undefined]);
 
     await purgeExpiredWithdrawnUser("user_1");
 
-    expect(executeD1Mock).not.toHaveBeenCalled();
+    const [queries] = batchD1Mock.mock.calls[0];
+    expect(queries[1].sql).toContain(
+      "EXISTS (SELECT 1 FROM users WHERE id = ? AND deleted_at IS NOT NULL)"
+    );
   });
 });

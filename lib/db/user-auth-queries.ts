@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { executeD1, executeD1Meta, queryD1, queryD1First } from "./d1-http";
+import { batchD1, executeD1, executeD1Meta, queryD1, queryD1First } from "./d1-http";
 import type { User, UserOAuthIdentity } from "./schema";
 import type { OAuthProfile, OAuthProviderId } from "@/lib/auth/oauth/types";
 
@@ -318,19 +318,29 @@ export async function restoreWithdrawnUser(userId: string): Promise<boolean> {
  * 보관 기간이 지난 계정을 로그인 시점에 정리한다.
  * 개인정보 익명화는 하지 않는다. OAuth identity 를 끊어서 같은 소셜 계정으로
  * 새로 가입할 수 있게 하는 것이 목적이다.
+ *
+ * 두 문장을 한 배치로 보낸다. 나눠 보내면 UPDATE 만 성공하고 DELETE 가 실패했을 때
+ * deleted_at 은 찍혔는데 identity 가 남아, 이후 로그인이 조회에서 걸러지고
+ * 재가입은 UNIQUE(provider, provider_uid) 로 막히는 영구 잠금 상태가 된다.
  */
 export async function purgeExpiredWithdrawnUser(userId: string): Promise<void> {
-  const { changes } = await executeD1Meta(
-    `UPDATE users
-        SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND deleted_at IS NULL`,
-    [userId]
-  );
-
-  if (changes === 0) {
-    // 다른 요청이 먼저 정리했다. identity 도 이미 지워졌다.
-    return;
-  }
-
-  await executeD1(`DELETE FROM user_oauth_identities WHERE user_id = ?`, [userId]);
+  await batchD1([
+    {
+      sql: `UPDATE users
+               SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+             WHERE id = ? AND withdraw_at IS NOT NULL AND deleted_at IS NULL`,
+      params: [userId],
+      map: () => undefined
+    },
+    {
+      // 같은 배치라 위 UPDATE 의 결과를 본다. 실제로 삭제 표시된 계정일 때만
+      // identity 를 끊으므로, 정상 계정에 잘못 호출돼도 로그인 수단이 날아가지 않는다.
+      // 앞선 시도가 UPDATE 만 남기고 죽었더라도 다시 호출하면 여기서 정리된다.
+      sql: `DELETE FROM user_oauth_identities
+             WHERE user_id = ?
+               AND EXISTS (SELECT 1 FROM users WHERE id = ? AND deleted_at IS NOT NULL)`,
+      params: [userId, userId],
+      map: () => undefined
+    }
+  ]);
 }
