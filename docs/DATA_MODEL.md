@@ -222,7 +222,9 @@ Phase 6 user identity and social login provider mapping.
 | `top_bouldering_grade` | `TEXT` | no | Signup onboarding redpoint bouldering grade |
 | `top_sport_grade` | `TEXT` | no | Signup onboarding Yosemite sport grade |
 | `onboarding_completed_at` | `TEXT` | no | Timestamp set after first-time OAuth signup profile completion |
-| `deleted_at` | `TEXT` | no | Soft delete marker for account withdrawal |
+| `privacy_visibility` | `TEXT` | no | JSON string of per-field visibility toggles (`migrations/0015_user_privacy_visibility.sql`) |
+| `withdraw_at` | `TEXT` | no | Account withdrawal request time; NULL means the account is active (`migrations/0016_user_withdrawal.sql`) |
+| `deleted_at` | `TEXT` | no | Hard-expiry marker written once the retention window has passed |
 | `created_at` | `TEXT` | yes | DB timestamp |
 | `updated_at` | `TEXT` | yes | DB timestamp |
 
@@ -230,7 +232,26 @@ Indexes:
 
 - `idx_users_email` for future same-email merge discovery.
 - `idx_users_deleted_at` for filtering active/deleted accounts.
-- `idx_users_instagram_id` is unique for active, non-null Instagram handles only.
+- `idx_users_instagram_id` covers non-null Instagram handles on active rows. Not unique —
+  the UNIQUE constraint was dropped in `migrations/0013_users_instagram_id_allow_duplicates.sql`.
+- `idx_users_withdraw_at` for finding accounts pending deletion.
+
+#### 탈퇴 상태
+
+`users.withdraw_at`(탈퇴 신청)과 `users.deleted_at`(실제 삭제)의 조합으로 표현한다.
+
+| withdraw_at | deleted_at | 상태 | 로그인 |
+|---|---|---|---|
+| NULL | NULL | 정상 | 세션 발급 |
+| 값 있음 | NULL | 탈퇴 유예 | 6개월 이내면 `/recover`, 지났으면 lazy purge 후 신규 가입 |
+| — | 값 있음 | 삭제 완료 | 신규 가입 |
+
+- 보관 기간 판정은 `lib/auth/withdrawal.ts`, 로그인 분기는 `lib/auth/login-resolution.ts`.
+- 보관 기간이 지난 계정은 재로그인 시점에 정리한다(lazy purge). `deleted_at`을 찍고
+  `user_oauth_identities` 행을 지워 같은 소셜 계정으로 새로 가입할 수 있게 한다.
+  개인정보 익명화를 포함한 일괄 purge 배치는 아직 없다.
+- `findActiveUserById`는 `withdraw_at IS NULL`을 요구하므로, 탈퇴 유예 중인 사용자는
+  세션 쿠키가 남아 있어도 로그인 전용 화면에 접근하지 못한다.
 
 #### `user_oauth_identities`
 
