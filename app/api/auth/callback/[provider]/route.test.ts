@@ -1,21 +1,22 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { createOAuthState, OAUTH_STATE_COOKIE_NAME } from "@/lib/auth/oauth/state";
+import { PENDING_RECOVERY_COOKIE_NAME, verifyPendingRecoveryToken } from "@/lib/auth/recovery";
 import { PENDING_SIGNUP_COOKIE_NAME, verifyPendingSignupToken } from "@/lib/auth/signup";
 import { USER_SESSION_COOKIE_NAME, verifyUserSessionToken } from "@/lib/auth/session";
 import { GET, POST } from "./route";
 
 const exchangeOAuthCodeMock = vi.hoisted(() => vi.fn());
 const fetchOAuthProfileMock = vi.hoisted(() => vi.fn());
-const findUserByOAuthIdentityMock = vi.hoisted(() => vi.fn());
+const resolveOAuthLoginMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/oauth/client", () => ({
   exchangeOAuthCode: exchangeOAuthCodeMock,
   fetchOAuthProfile: fetchOAuthProfileMock
 }));
 
-vi.mock("@/lib/db/user-auth-queries", () => ({
-  findUserByOAuthIdentity: findUserByOAuthIdentityMock
+vi.mock("@/lib/auth/login-resolution", () => ({
+  resolveOAuthLogin: resolveOAuthLoginMock
 }));
 
 const originalJwtSecret = process.env.JWT_SECRET;
@@ -29,7 +30,7 @@ describe("OAuth callback route", () => {
     process.env.ANDROID_PACKAGE_NAME = originalAndroidPackageName;
     exchangeOAuthCodeMock.mockReset();
     fetchOAuthProfileMock.mockReset();
-    findUserByOAuthIdentityMock.mockReset();
+    resolveOAuthLoginMock.mockReset();
   });
 
   it("sets the Granite session cookie when the provider identity already exists", async () => {
@@ -54,11 +55,9 @@ describe("OAuth callback route", () => {
       displayName: "Google Climber",
       avatarUrl: null
     });
-    findUserByOAuthIdentityMock.mockResolvedValueOnce({
-      id: "user_google",
-      email: "google@example.com",
-      displayName: "Google Climber",
-      avatarUrl: null
+    resolveOAuthLoginMock.mockResolvedValueOnce({
+      kind: "session",
+      user: { id: "user_google" }
     });
 
     const request = new NextRequest(`https://granite.kr/api/auth/callback/google?code=abc&state=${state.state}`, {
@@ -77,7 +76,10 @@ describe("OAuth callback route", () => {
       redirectUri: "https://granite.kr/api/auth/callback/google",
       state: state.state
     });
-    expect(findUserByOAuthIdentityMock).toHaveBeenCalledWith("google", "google-user");
+    expect(resolveOAuthLoginMock).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: "google", providerUserId: "google-user" }),
+      expect.any(Date)
+    );
     await expect(verifyUserSessionToken(sessionToken ?? "")).resolves.toEqual({
       userId: "user_google"
     });
@@ -105,11 +107,9 @@ describe("OAuth callback route", () => {
       displayName: "Google Climber",
       avatarUrl: null
     });
-    findUserByOAuthIdentityMock.mockResolvedValueOnce({
-      id: "user_google",
-      email: "google@example.com",
-      displayName: "Google Climber",
-      avatarUrl: null
+    resolveOAuthLoginMock.mockResolvedValueOnce({
+      kind: "session",
+      user: { id: "user_google" }
     });
 
     const request = new NextRequest(`https://v2-preview.granite.kr/api/auth/callback/google?code=abc&state=${state.state}`, {
@@ -149,7 +149,7 @@ describe("OAuth callback route", () => {
       displayName: "Kakao Climber",
       avatarUrl: "https://img.example/kakao.jpg"
     });
-    findUserByOAuthIdentityMock.mockResolvedValueOnce(null);
+    resolveOAuthLoginMock.mockResolvedValueOnce({ kind: "signup" });
 
     const request = new NextRequest(`https://granite.kr/api/auth/callback/kakao?code=abc&state=${state.state}`, {
       headers: {
@@ -279,11 +279,9 @@ describe("OAuth callback route", () => {
       displayName: "Naver Climber",
       avatarUrl: null
     });
-    findUserByOAuthIdentityMock.mockResolvedValueOnce({
-      id: "user_naver",
-      email: null,
-      displayName: "Naver Climber",
-      avatarUrl: null
+    resolveOAuthLoginMock.mockResolvedValueOnce({
+      kind: "session",
+      user: { id: "user_naver" }
     });
     const request = new NextRequest(`https://granite.kr/api/auth/callback/naver?code=abc&state=${state.state}`, {
       headers: {
@@ -325,7 +323,53 @@ describe("OAuth callback route", () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("https://granite.kr/login?error=profile_fetch_failed");
-    expect(findUserByOAuthIdentityMock).not.toHaveBeenCalled();
+    expect(resolveOAuthLoginMock).not.toHaveBeenCalled();
+  });
+
+  it("탈퇴 유예 계정은 세션 대신 복구 쿠키를 심고 /recover 로 보낸다", async () => {
+    process.env.JWT_SECRET = "callback-test-secret";
+    process.env.APP_BASE_URL = "https://granite.kr";
+    const state = createOAuthState({ provider: "google", returnTo: "/me" });
+    exchangeOAuthCodeMock.mockResolvedValueOnce({
+      accessToken: "access-token",
+      tokenType: "Bearer",
+      expiresIn: 3600,
+      refreshToken: null,
+      idToken: "id-token",
+      scope: "openid email profile"
+    });
+    fetchOAuthProfileMock.mockResolvedValueOnce({
+      provider: "google",
+      providerUserId: "google-user",
+      email: "google@example.com",
+      displayName: "Google Climber",
+      avatarUrl: null
+    });
+    resolveOAuthLoginMock.mockResolvedValueOnce({
+      kind: "recover",
+      user: { id: "user_google" }
+    });
+
+    const request = new NextRequest(
+      `https://granite.kr/api/auth/callback/google?code=abc&state=${state.state}`,
+      {
+        headers: {
+          cookie: `${OAUTH_STATE_COOKIE_NAME}=${encodeURIComponent(state.cookieValue)}`
+        }
+      }
+    );
+    const response = await GET(request, { params: Promise.resolve({ provider: "google" }) });
+    const setCookie = response.headers.get("set-cookie") ?? "";
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://granite.kr/recover");
+    expect(readCookieValue(setCookie, USER_SESSION_COOKIE_NAME)).toBeNull();
+
+    const recoveryToken = readCookieValue(setCookie, PENDING_RECOVERY_COOKIE_NAME);
+    await expect(verifyPendingRecoveryToken(recoveryToken ?? "")).resolves.toEqual({
+      userId: "user_google",
+      returnTo: "/me"
+    });
   });
 });
 
