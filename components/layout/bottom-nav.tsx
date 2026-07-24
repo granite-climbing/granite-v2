@@ -3,6 +3,8 @@ import Link from "next/link";
 
 export type BottomNavItemId = "home" | "projects" | "records" | "me";
 
+const STORE_URL = "https://m.smartstore.naver.com/granite_kr";
+
 const navItems: Array<{ id: BottomNavItemId; href: string; iconName: string; label: string }> = [
   { id: "home", href: "/", iconName: "home", label: "홈" },
   { id: "projects", href: "/me/projects", iconName: "project", label: "프로젝트" },
@@ -12,7 +14,7 @@ const navItems: Array<{ id: BottomNavItemId; href: string; iconName: string; lab
 
 export function BottomNav({ activeItem = "home" }: { activeItem?: BottomNavItemId }) {
   return (
-    <nav className="fixed bottom-0 left-1/2 z-30 grid h-[74px] w-full max-w-[430px] -translate-x-1/2 grid-cols-4 border-t border-[#E8E8E8] bg-white px-2 pb-2 pt-1">
+    <nav className="fixed bottom-0 left-1/2 z-30 grid h-[74px] w-full max-w-[430px] -translate-x-1/2 grid-cols-5 border-t border-[#E8E8E8] bg-white px-2 pb-2 pt-1">
       {navItems.map((item) => {
         const active = item.id === activeItem;
 
@@ -30,6 +32,15 @@ export function BottomNav({ activeItem = "home" }: { activeItem?: BottomNavItemI
           </Link>
         );
       })}
+      <a
+        href={STORE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex flex-col items-center justify-center gap-[5px] px-2 py-1 text-[11px] font-medium text-[#A8A8A8]"
+      >
+        <NavIcon iconName="store" active={false} />
+        <span>STORE</span>
+      </a>
     </nav>
   );
 }
