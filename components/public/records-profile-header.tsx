@@ -40,11 +40,6 @@ export function RecordsProfileHeader({ profile, totalSends, highestGrade }: Reco
     <header className="bg-[#121212] pb-6 text-white">
       <div className="flex h-14 items-center justify-between px-4">
         <h1 className="text-[18px] font-medium leading-6 text-white">기록</h1>
-        <button type="button" className="flex size-6 flex-col justify-center gap-[4px]" aria-label="메뉴 열기">
-          <span className="h-[2px] w-6 rounded-full bg-white" />
-          <span className="h-[2px] w-6 rounded-full bg-white" />
-          <span className="h-[2px] w-6 rounded-full bg-white" />
-        </button>
       </div>
       <div className="flex items-center gap-3 px-4 pt-2">
         <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full bg-[#2A2A2A]">

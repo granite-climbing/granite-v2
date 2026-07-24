@@ -36,11 +36,6 @@ export function ProjectRoutesView({ routes, removeAction }: ProjectRoutesViewPro
       <header className="bg-[#121212] px-4 pb-4 pt-4 text-white">
         <div className="flex h-8 items-center justify-between">
           <h1 className="text-[20px] font-bold leading-7">프로젝트</h1>
-          <button type="button" aria-label="메뉴 열기" className="flex size-6 flex-col justify-center gap-[4px]">
-            <span className="h-[2px] w-6 rounded-full bg-white" />
-            <span className="h-[2px] w-6 rounded-full bg-white" />
-            <span className="h-[2px] w-6 rounded-full bg-white" />
-          </button>
         </div>
         <div className="relative mt-4">
           <label>
