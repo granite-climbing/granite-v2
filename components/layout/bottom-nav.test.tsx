@@ -21,6 +21,15 @@ describe("BottomNav", () => {
     expect(html).toContain('src="/images/figma/icons/icon_record_line.svg"');
   });
 
+  it("links the STORE tab to the Naver smartstore in a new tab", () => {
+    const html = renderToStaticMarkup(<BottomNav activeItem="home" />);
+
+    expect(html).toContain("STORE");
+    expect(html).toContain('href="https://m.smartstore.naver.com/granite_kr"');
+    expect(html).toContain('target="_blank"');
+    expect(html).toContain('src="/images/figma/icons/icon_store_line.svg"');
+  });
+
   it("maps site paths to the active bottom tab", () => {
     expect(getBottomNavActiveItem("/")).toBe("home");
     expect(getBottomNavActiveItem("/c/anyang")).toBe("home");
