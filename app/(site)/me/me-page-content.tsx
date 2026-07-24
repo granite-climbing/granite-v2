@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 import type { AccountConnectionRow, MePageModel, PrivacyRow, ProfileRow } from "./me-page-model";
 import { PrivacyToggles } from "./privacy-toggles";
+import { ContactButton } from "./contact-button";
 
 type MyPageContentProps = {
   model: MePageModel;
@@ -42,7 +43,7 @@ export function MyPageContent({ model, logoutSlot }: MyPageContentProps) {
 
       <Section title="서비스">
         <div className="space-y-[17px]">
-          <PlainServiceRow label="문의" />
+          <ContactButton />
           <Link href="/terms" className="flex items-center gap-1 text-[14px] font-medium">
             약관/개인정보처리방침
             <ChevronRight />
@@ -155,15 +156,6 @@ function AccountConnection({ row }: { row: AccountConnectionRow }) {
       <span>{row.label}</span>
       <span className={row.linked ? "text-[#0057FF]" : "text-[#B0B0B0]"}>{row.status}</span>
     </div>
-  );
-}
-
-function PlainServiceRow({ label }: { label: string }) {
-  return (
-    <p className="flex items-center gap-1 text-[14px] font-medium">
-      {label}
-      <ChevronRight />
-    </p>
   );
 }
 
