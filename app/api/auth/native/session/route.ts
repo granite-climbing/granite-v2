@@ -11,7 +11,12 @@ import {
   getPendingSignupCookieOptions,
   PENDING_SIGNUP_COOKIE_NAME
 } from "@/lib/auth/signup";
-import { findUserByOAuthIdentity } from "@/lib/db/user-auth-queries";
+import { resolveOAuthLogin } from "@/lib/auth/login-resolution";
+import {
+  createPendingRecoveryToken,
+  getPendingRecoveryCookieOptions,
+  PENDING_RECOVERY_COOKIE_NAME
+} from "@/lib/auth/recovery";
 
 export const runtime = "nodejs";
 
@@ -49,8 +54,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const user = await findUserByOAuthIdentity(profile.provider, profile.providerUserId);
-    if (!user) {
+    const resolution = await resolveOAuthLogin(profile, new Date());
+
+    if (resolution.kind === "signup") {
       const pendingSignupToken = await createPendingSignupToken({
         provider: profile.provider,
         providerUserId: profile.providerUserId,
@@ -64,8 +70,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return response;
     }
 
+    if (resolution.kind === "recover") {
+      const pendingRecoveryToken = await createPendingRecoveryToken({
+        userId: resolution.user.id,
+        returnTo
+      });
+      const response = createNativeSessionNavigationResponse("/recover");
+      response.cookies.set(
+        PENDING_RECOVERY_COOKIE_NAME,
+        pendingRecoveryToken,
+        getPendingRecoveryCookieOptions()
+      );
+      return response;
+    }
+
     const sessionToken = await createUserSessionToken({
-      userId: user.id
+      userId: resolution.user.id
     });
     const response = createNativeSessionNavigationResponse(returnTo);
     response.cookies.set(USER_SESSION_COOKIE_NAME, sessionToken, getUserSessionCookieOptions());

@@ -17,6 +17,7 @@ const baseUser: User = {
   topSportGrade: null,
   privacyVisibility: null,
   onboardingCompletedAt: "2026-06-04 00:00:00",
+  withdrawAt: null,
   deletedAt: null,
   createdAt: "2026-06-04 00:00:00",
   updatedAt: "2026-06-04 00:00:00"

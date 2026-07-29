@@ -15,5 +15,10 @@ export default defineConfig({
     environment: "node",
     include: ["**/*.test.ts", "**/*.test.tsx"],
     globals: true,
+    // Pin to the app's real timezone. D1 hands back timestamps without a zone
+    // marker ("2026-07-22 03:04:05"), and code that forgets to force UTC still
+    // looks correct under TZ=UTC — so a UTC CI runner would silently pass tests
+    // that fail for real users. See lib/auth/withdrawal.ts.
+    env: { TZ: "Asia/Seoul" },
   },
 });

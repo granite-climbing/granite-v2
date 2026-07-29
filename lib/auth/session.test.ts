@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { decodeJwt } from "jose";
 import { createUserSessionToken, USER_SESSION_COOKIE_NAME, verifyUserSessionToken } from "./session";
+import { createPendingRecoveryToken } from "./recovery";
 
 const originalJwtSecret = process.env.JWT_SECRET;
 
@@ -31,5 +32,14 @@ describe("user session tokens", () => {
     expect(session).toEqual({
       userId: "user_google"
     });
+  });
+
+  it("typ 가 붙은 토큰은 세션으로 인정하지 않는다", async () => {
+    process.env.JWT_SECRET = "test-user-session-secret";
+
+    // 복구 토큰은 같은 시크릿으로 서명되고 user_id 도 갖고 있다.
+    const recoveryToken = await createPendingRecoveryToken({ userId: "user_1", returnTo: "/me" });
+
+    expect(await verifyUserSessionToken(recoveryToken)).toBeNull();
   });
 });

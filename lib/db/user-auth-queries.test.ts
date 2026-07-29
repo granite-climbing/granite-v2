@@ -2,19 +2,27 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ensureUserForOAuthProfile,
   findActiveUserById,
+  findLoginCandidateByOAuthIdentity,
   findOAuthIdentitiesByUserId,
-  findUserByOAuthIdentity
+  findWithdrawnUserById,
+  markUserWithdrawn,
+  purgeExpiredWithdrawnUser,
+  restoreWithdrawnUser
 } from "./user-auth-queries";
 
 const queryD1Mock = vi.hoisted(() => vi.fn());
 const queryD1FirstMock = vi.hoisted(() => vi.fn());
 const executeD1Mock = vi.hoisted(() => vi.fn());
+const executeD1MetaMock = vi.hoisted(() => vi.fn());
+const batchD1Mock = vi.hoisted(() => vi.fn());
 const randomUUIDMock = vi.hoisted(() => vi.fn());
 
 vi.mock("./d1-http", () => ({
   queryD1: queryD1Mock,
   queryD1First: queryD1FirstMock,
-  executeD1: executeD1Mock
+  executeD1: executeD1Mock,
+  executeD1Meta: executeD1MetaMock,
+  batchD1: batchD1Mock
 }));
 
 vi.mock("node:crypto", () => ({
@@ -26,6 +34,8 @@ describe("user auth queries", () => {
     queryD1Mock.mockReset();
     queryD1FirstMock.mockReset();
     executeD1Mock.mockReset();
+    executeD1MetaMock.mockReset();
+    batchD1Mock.mockReset();
     randomUUIDMock.mockReset();
     randomUUIDMock.mockReturnValue("uuid-1");
   });
@@ -71,7 +81,7 @@ describe("user auth queries", () => {
       updatedAt: "2026-06-04 00:00:00"
     });
 
-    const user = await findUserByOAuthIdentity("google", "google-user");
+    const user = await findLoginCandidateByOAuthIdentity("google", "google-user");
 
     expect(queryD1FirstMock).toHaveBeenCalledWith(expect.stringContaining("JOIN user_oauth_identities"), [
       "google",
@@ -202,5 +212,109 @@ describe("user auth queries", () => {
       id: "user_existing",
       displayName: "Existing Kakao Climber"
     });
+  });
+
+  it("활성 사용자 조회는 탈퇴 유예 계정을 제외한다", async () => {
+    queryD1FirstMock.mockResolvedValueOnce(null);
+
+    await findActiveUserById("user_1");
+
+    expect(queryD1FirstMock).toHaveBeenCalledWith(
+      expect.stringContaining("WHERE id = ? AND deleted_at IS NULL AND withdraw_at IS NULL"),
+      ["user_1"]
+    );
+  });
+
+  it("로그인 후보 조회는 탈퇴 계정도 찾아낸다", async () => {
+    queryD1FirstMock.mockResolvedValueOnce({
+      id: "user_1",
+      displayName: "granite",
+      withdrawAt: "2026-07-01 00:00:00",
+      deletedAt: null
+    });
+
+    const user = await findLoginCandidateByOAuthIdentity("google", "google-user");
+
+    const [sql] = queryD1FirstMock.mock.calls[0];
+    expect(sql).toContain("u.deleted_at IS NULL");
+    expect(sql).not.toContain("withdraw_at IS NULL");
+    expect(sql).toContain("u.withdraw_at AS withdrawAt");
+    expect(user?.withdrawAt).toBe("2026-07-01 00:00:00");
+  });
+
+  it("복구 대상 조회는 탈퇴 신청된 계정만 찾는다", async () => {
+    queryD1FirstMock.mockResolvedValueOnce(null);
+
+    await findWithdrawnUserById("user_1");
+
+    expect(queryD1FirstMock).toHaveBeenCalledWith(
+      expect.stringContaining("WHERE id = ? AND deleted_at IS NULL AND withdraw_at IS NOT NULL"),
+      ["user_1"]
+    );
+  });
+
+  it("탈퇴 처리는 정상 계정만 대상으로 하고 변경 여부를 돌려준다", async () => {
+    executeD1MetaMock.mockResolvedValueOnce({ changes: 1 });
+
+    await expect(markUserWithdrawn("user_1")).resolves.toBe(true);
+
+    const [sql, params] = executeD1MetaMock.mock.calls[0];
+    expect(sql).toContain("SET withdraw_at = CURRENT_TIMESTAMP");
+    expect(sql).toContain("WHERE id = ? AND withdraw_at IS NULL AND deleted_at IS NULL");
+    expect(params).toEqual(["user_1"]);
+  });
+
+  it("이미 탈퇴한 계정을 다시 탈퇴 처리하면 false", async () => {
+    executeD1MetaMock.mockResolvedValueOnce({ changes: 0 });
+
+    await expect(markUserWithdrawn("user_1")).resolves.toBe(false);
+  });
+
+  it("복구는 탈퇴 유예 계정만 대상으로 한다", async () => {
+    executeD1MetaMock.mockResolvedValueOnce({ changes: 1 });
+
+    await expect(restoreWithdrawnUser("user_1")).resolves.toBe(true);
+
+    const [sql, params] = executeD1MetaMock.mock.calls[0];
+    expect(sql).toContain("SET withdraw_at = NULL");
+    expect(sql).toContain("WHERE id = ? AND withdraw_at IS NOT NULL AND deleted_at IS NULL");
+    expect(params).toEqual(["user_1"]);
+  });
+
+  it("경합으로 복구 대상이 사라지면 false", async () => {
+    executeD1MetaMock.mockResolvedValueOnce({ changes: 0 });
+
+    await expect(restoreWithdrawnUser("user_1")).resolves.toBe(false);
+  });
+
+  it("만료 계정은 deleted_at 을 찍고 OAuth identity 를 끊는다", async () => {
+    batchD1Mock.mockResolvedValueOnce([undefined, undefined]);
+
+    await purgeExpiredWithdrawnUser("user_1");
+
+    // 두 문장이 한 요청으로 나가야 UPDATE 만 남고 DELETE 가 실패하는 상태가 안 생긴다.
+    expect(batchD1Mock).toHaveBeenCalledTimes(1);
+    const [queries] = batchD1Mock.mock.calls[0];
+    expect(queries).toHaveLength(2);
+
+    expect(queries[0].sql).toContain("SET deleted_at = CURRENT_TIMESTAMP");
+    expect(queries[0].sql).toContain("WHERE id = ? AND withdraw_at IS NOT NULL AND deleted_at IS NULL");
+    expect(queries[0].params).toEqual(["user_1"]);
+
+    expect(queries[1].sql).toContain("DELETE FROM user_oauth_identities");
+    expect(queries[1].params).toEqual(["user_1", "user_1"]);
+  });
+
+  it("identity 삭제는 실제로 삭제 표시된 계정일 때만 걸린다", async () => {
+    // 정상 계정에 잘못 호출되면 앞선 UPDATE 가 걸리지 않고, 이 EXISTS 가드 때문에
+    // DELETE 도 함께 아무것도 지우지 않는다.
+    batchD1Mock.mockResolvedValueOnce([undefined, undefined]);
+
+    await purgeExpiredWithdrawnUser("user_1");
+
+    const [queries] = batchD1Mock.mock.calls[0];
+    expect(queries[1].sql).toContain(
+      "EXISTS (SELECT 1 FROM users WHERE id = ? AND deleted_at IS NOT NULL)"
+    );
   });
 });

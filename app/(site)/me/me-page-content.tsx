@@ -7,9 +7,10 @@ import { ContactButton } from "./contact-button";
 type MyPageContentProps = {
   model: MePageModel;
   logoutSlot: React.ReactNode;
+  withdrawSlot: React.ReactNode;
 };
 
-export function MyPageContent({ model, logoutSlot }: MyPageContentProps) {
+export function MyPageContent({ model, logoutSlot, withdrawSlot }: MyPageContentProps) {
   return (
     <main data-hide-site-footer className="min-h-screen bg-[#F7F7F7] pb-[90px] text-[#050505]">
       <MyPageHeader />
@@ -54,7 +55,7 @@ export function MyPageContent({ model, logoutSlot }: MyPageContentProps) {
       <Section title="계정">
         <div className="space-y-[18px]">
           {logoutSlot}
-          <p className="text-[14px] font-medium text-[#C8C8C8]">회원탈퇴</p>
+          {withdrawSlot}
         </div>
       </Section>
 

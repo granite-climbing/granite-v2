@@ -106,6 +106,7 @@ export type User = {
   topSportGrade: string | null;
   privacyVisibility: string | null;
   onboardingCompletedAt: string | null;
+  withdrawAt: string | null;
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;

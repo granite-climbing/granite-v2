@@ -13,7 +13,12 @@ import {
   getUserSessionCookieOptions,
   USER_SESSION_COOKIE_NAME
 } from "@/lib/auth/session";
-import { findUserByOAuthIdentity } from "@/lib/db/user-auth-queries";
+import { resolveOAuthLogin } from "@/lib/auth/login-resolution";
+import {
+  createPendingRecoveryToken,
+  getPendingRecoveryCookieOptions,
+  PENDING_RECOVERY_COOKIE_NAME
+} from "@/lib/auth/recovery";
 
 const DEFAULT_ANDROID_PACKAGE_NAME = "com.granite.climbing";
 const NATIVE_APPLE_WEB_CALLBACK_STATE_PREFIX = "granite-native-apple-v1.";
@@ -137,8 +142,9 @@ async function handleOAuthCallback(
   }
 
   try {
-    const user = await findUserByOAuthIdentity(profile.provider, profile.providerUserId);
-    if (!user) {
+    const resolution = await resolveOAuthLogin(profile, new Date());
+
+    if (resolution.kind === "signup") {
       const pendingSignupToken = await createPendingSignupToken({
         provider: profile.provider,
         providerUserId: profile.providerUserId,
@@ -153,8 +159,23 @@ async function handleOAuthCallback(
       return response;
     }
 
+    if (resolution.kind === "recover") {
+      const pendingRecoveryToken = await createPendingRecoveryToken({
+        userId: resolution.user.id,
+        returnTo: state.returnTo
+      });
+      const response = NextResponse.redirect(new URL("/recover", request.url));
+      response.cookies.set(
+        PENDING_RECOVERY_COOKIE_NAME,
+        pendingRecoveryToken,
+        getPendingRecoveryCookieOptions()
+      );
+      response.cookies.delete(OAUTH_STATE_COOKIE_NAME);
+      return response;
+    }
+
     const sessionToken = await createUserSessionToken({
-      userId: user.id
+      userId: resolution.user.id
     });
     const response = NextResponse.redirect(new URL(state.returnTo, request.url));
     setSessionCookies(response, sessionToken);
