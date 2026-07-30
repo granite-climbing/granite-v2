@@ -62,8 +62,8 @@ export function buildMePageModel(user: User, identities: UserOAuthIdentity[]): M
     accountConnections: [
       {
         label: "Instagram",
-        status: "연결안됨",
-        linked: false
+        status: user.instagramId ? "연결됨" : "연결안됨",
+        linked: Boolean(user.instagramId)
       },
       {
         label: "Youtube",

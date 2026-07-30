@@ -44,7 +44,7 @@ describe("buildMePageModel", () => {
       { label: "비밀번호 관리", value: "소셜 로그인" }
     ]);
     expect(model.accountConnections).toEqual([
-      { label: "Instagram", status: "연결안됨", linked: false },
+      { label: "Instagram", status: "연결됨", linked: true },
       { label: "Youtube", status: "연결안됨", linked: false }
     ]);
     // 공개여부 토글은 이제 상호작용 가능 (disabled=false), 저장값이 없으면 전부 비공개.
