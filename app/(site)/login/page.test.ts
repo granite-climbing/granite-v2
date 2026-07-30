@@ -15,6 +15,12 @@ describe("LoginPage", () => {
     expect(screen.queryByRole("button", { name: "이메일로 시작하기" })).toBeNull();
   });
 
+  it("does not offer Naver sign-in until its review is approved", async () => {
+    render(await LoginPage({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.queryByRole("button", { name: /네이버/ })).toBeNull();
+  });
+
   it("offers a close control that safely leaves the login screen", async () => {
     render(await LoginPage({ searchParams: Promise.resolve({}) }));
 

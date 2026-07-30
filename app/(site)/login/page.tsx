@@ -22,7 +22,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     stage: getParam(params.oauth_stage),
     message: getParam(params.oauth_message)
   };
-  const providers = (["apple", "google", "kakao", "naver"] as OAuthProviderId[]).map((id) => {
+  const providers = (["apple", "google", "kakao"] as OAuthProviderId[]).map((id) => {
     const provider = getOAuthProvider(id);
     return {
       ...provider,
