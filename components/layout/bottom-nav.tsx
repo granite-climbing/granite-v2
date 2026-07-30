@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import { ExternalLink } from "@/components/bridge/external-link";
 
 export type BottomNavItemId = "home" | "projects" | "records" | "me";
 
@@ -32,15 +33,10 @@ export function BottomNav({ activeItem = "home" }: { activeItem?: BottomNavItemI
           </Link>
         );
       })}
-      <a
-        href={STORE_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex flex-col items-center justify-center gap-[5px] px-2 py-1 text-[11px] font-medium text-[#A8A8A8]"
-      >
+      <ExternalLink href={STORE_URL} className="flex flex-col items-center justify-center gap-[5px] px-2 py-1 text-[11px] font-medium text-[#A8A8A8]">
         <NavIcon iconName="store" active={false} />
         <span>STORE</span>
-      </a>
+      </ExternalLink>
     </nav>
   );
 }
