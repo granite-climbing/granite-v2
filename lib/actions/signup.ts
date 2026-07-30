@@ -2,8 +2,6 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { z } from "zod";
-import { normalizeHandle } from "@/lib/beta/normalize";
 import {
   PENDING_SIGNUP_COOKIE_NAME,
   verifyPendingSignupToken
@@ -14,28 +12,7 @@ import {
   USER_SESSION_COOKIE_NAME
 } from "@/lib/auth/session";
 import { createUserForCompletedSignup } from "@/lib/db/user-auth-queries";
-
-const optionalNumberSchema = z.preprocess((value) => {
-  if (typeof value !== "string" || value.trim() === "") return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : value;
-}, z.number().int().min(1).max(300).nullable());
-
-const optionalTextSchema = z.preprocess((value) => {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed === "" ? null : trimmed;
-}, z.string().max(32).nullable());
-
-const signupSchema = z.object({
-  nickname: z.string().trim().min(1).max(32),
-  gender: z.enum(["male", "female"]),
-  heightCm: optionalNumberSchema,
-  apeIndexCm: optionalNumberSchema,
-  weightKg: optionalNumberSchema,
-  topBoulderingGrade: optionalTextSchema,
-  topSportGrade: optionalTextSchema
-});
+import { parseProfileInput } from "@/lib/profile/profile-input";
 
 export async function completeSignupAction(formData: FormData): Promise<void> {
   const cookieStore = await cookies();
@@ -45,13 +22,8 @@ export async function completeSignupAction(formData: FormData): Promise<void> {
     redirect("/login?error=signup_expired");
   }
 
-  const parsed = signupSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) {
-    redirect("/signup?error=invalid_profile");
-  }
-
-  const instagramId = normalizeHandle(parsed.data.nickname);
-  if (!instagramId) {
+  const profile = parseProfileInput(formData);
+  if (!profile) {
     redirect("/signup?error=invalid_profile");
   }
 
@@ -59,15 +31,9 @@ export async function completeSignupAction(formData: FormData): Promise<void> {
     provider: pendingSignup.provider,
     providerUserId: pendingSignup.providerUserId,
     email: pendingSignup.email,
-    displayName: instagramId,
+    displayName: profile.instagramId,
     avatarUrl: pendingSignup.avatarUrl,
-    instagramId,
-    gender: parsed.data.gender,
-    heightCm: parsed.data.heightCm,
-    apeIndexCm: parsed.data.apeIndexCm,
-    weightKg: parsed.data.weightKg,
-    topBoulderingGrade: parsed.data.topBoulderingGrade,
-    topSportGrade: parsed.data.topSportGrade
+    ...profile
   });
   const sessionToken = await createUserSessionToken({
     userId: user.id

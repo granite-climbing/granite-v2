@@ -59,6 +59,7 @@ describe("completeSignupAction", () => {
     formData.set("apeIndexCm", "168");
     formData.set("topBoulderingGrade", "V5");
     formData.set("topSportGrade", "5.12a");
+    formData.set("youtubeUrl", "https://youtube.com/@granite");
 
     await expect(completeSignupAction(formData)).rejects.toThrow("NEXT_REDIRECT:/r/route_1");
 
@@ -74,7 +75,8 @@ describe("completeSignupAction", () => {
       apeIndexCm: 168,
       weightKg: null,
       topBoulderingGrade: "V5",
-      topSportGrade: "5.12a"
+      topSportGrade: "5.12a",
+      youtubeUrl: "https://youtube.com/@granite"
     });
     const sessionCookie = cookieSetMock.mock.calls.find(([name]) => name === USER_SESSION_COOKIE_NAME);
     expect(sessionCookie?.[1]).toEqual(expect.any(String));

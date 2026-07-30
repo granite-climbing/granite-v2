@@ -10,6 +10,7 @@ export type CompletedSignupInput = {
   displayName: string;
   avatarUrl: string | null;
   instagramId: string;
+  youtubeUrl: string | null;
   gender: "male" | "female";
   heightCm: number | null;
   apeIndexCm: number | null;
@@ -216,7 +217,7 @@ export async function createUserForCompletedSignup(input: CompletedSignupInput):
     email: input.email,
     avatarUrl: input.avatarUrl,
     instagramId: input.instagramId,
-    youtubeId: null,
+    youtubeId: input.youtubeUrl,
     gender: input.gender,
     heightCm: input.heightCm,
     apeIndexCm: input.apeIndexCm,
@@ -234,15 +235,16 @@ export async function createUserForCompletedSignup(input: CompletedSignupInput):
 
   await executeD1(
     `INSERT INTO users
-       (id, display_name, email, avatar_url, instagram_id, gender, height_cm, ape_index_cm, weight_kg,
+       (id, display_name, email, avatar_url, instagram_id, youtube_id, gender, height_cm, ape_index_cm, weight_kg,
         top_bouldering_grade, top_sport_grade, onboarding_completed_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       user.id,
       user.displayName,
       user.email,
       user.avatarUrl,
       user.instagramId,
+      user.youtubeId,
       user.gender,
       user.heightCm,
       user.apeIndexCm,
