@@ -13,6 +13,11 @@ const optionalTextSchema = z.preprocess((value) => {
   return trimmed === "" ? null : trimmed;
 }, z.string().max(32).nullable());
 
+const optionalGenderSchema = z.preprocess((value) => {
+  if (typeof value !== "string" || value.trim() === "") return null;
+  return value;
+}, z.enum(["male", "female"]).nullable());
+
 const optionalYouTubeUrlSchema = z.preprocess((value) => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -31,7 +36,7 @@ const optionalYouTubeUrlSchema = z.preprocess((value) => {
 const profileInputSchema = z.object({
   nickname: z.string().trim().min(1).max(32),
   instagramId: optionalTextSchema,
-  gender: z.enum(["male", "female"]),
+  gender: optionalGenderSchema,
   heightCm: optionalNumberSchema,
   apeIndexCm: optionalNumberSchema,
   weightKg: optionalNumberSchema,
@@ -43,7 +48,7 @@ const profileInputSchema = z.object({
 export type ProfileInput = {
   displayName: string;
   instagramId: string | null;
-  gender: "male" | "female";
+  gender: "male" | "female" | null;
   heightCm: number | null;
   apeIndexCm: number | null;
   weightKg: number | null;

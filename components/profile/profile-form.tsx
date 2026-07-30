@@ -40,9 +40,10 @@ export function ProfileForm({ action, submitLabel, initialValues = {} }: Profile
 
       <fieldset>
         <legend className="text-[14px] font-medium text-white">성별 *</legend>
-        <div className="mt-2 grid grid-cols-2 gap-2">
+        <div className="mt-2 grid grid-cols-3 gap-2">
           <RadioOption value="male" label="남자" checked={initialValues.gender === "male"} />
           <RadioOption value="female" label="여자" checked={initialValues.gender === "female"} />
+          <RadioOption value="" label="선택하지 않음" checked={initialValues.gender === null} />
         </div>
       </fieldset>
 
@@ -75,8 +76,8 @@ export function ProfileForm({ action, submitLabel, initialValues = {} }: Profile
   );
 }
 
-function RadioOption({ value, label, checked }: { value: "male" | "female"; label: string; checked: boolean }) {
-  return <label><input className="peer sr-only" type="radio" name="gender" value={value} required defaultChecked={checked} /><span className="flex h-12 items-center justify-center rounded-[7px] border border-transparent bg-[#3D3D3D] text-[14px] font-medium text-[#8B8B8B] peer-checked:border-white peer-checked:text-white">{label}</span></label>;
+function RadioOption({ value, label, checked }: { value: "male" | "female" | ""; label: string; checked: boolean }) {
+  return <label><input className="peer sr-only" type="radio" name="gender" value={value} defaultChecked={checked} /><span className="flex h-12 items-center justify-center rounded-[7px] border border-transparent bg-[#3D3D3D] text-[14px] font-medium text-[#8B8B8B] peer-checked:border-white peer-checked:text-white">{label}</span></label>;
 }
 
 function UnitInput({ name, placeholder, unit = "cm", value }: { name: string; placeholder: string; unit?: string; value?: number | null }) {

@@ -12,7 +12,7 @@ export type CompletedSignupInput = {
   avatarUrl: string | null;
   instagramId: string | null;
   youtubeUrl: string | null;
-  gender: "male" | "female";
+  gender: "male" | "female" | null;
   heightCm: number | null;
   apeIndexCm: number | null;
   weightKg: number | null;

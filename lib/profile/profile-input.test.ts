@@ -47,6 +47,10 @@ describe("parseProfileInput", () => {
     expect(parseProfileInput(profileFormData({ instagramId: "" }))?.instagramId).toBeNull();
   });
 
+  it("stores an unselected gender as null", () => {
+    expect(parseProfileInput(profileFormData({ gender: "" }))?.gender).toBeNull();
+  });
+
   it("rejects a non-YouTube channel URL", () => {
     expect(
       parseProfileInput(profileFormData({ youtubeUrl: "https://example.com/granite" }))
