@@ -30,6 +30,7 @@ const optionalYouTubeUrlSchema = z.preprocess((value) => {
 
 const profileInputSchema = z.object({
   nickname: z.string().trim().min(1).max(32),
+  instagramId: optionalTextSchema,
   gender: z.enum(["male", "female"]),
   heightCm: optionalNumberSchema,
   apeIndexCm: optionalNumberSchema,
@@ -40,7 +41,8 @@ const profileInputSchema = z.object({
 });
 
 export type ProfileInput = {
-  instagramId: string;
+  displayName: string;
+  instagramId: string | null;
   gender: "male" | "female";
   heightCm: number | null;
   apeIndexCm: number | null;
@@ -54,10 +56,10 @@ export function parseProfileInput(formData: FormData): ProfileInput | null {
   const parsed = profileInputSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return null;
 
-  const instagramId = normalizeHandle(parsed.data.nickname);
-  if (!instagramId) return null;
+  const instagramId = parsed.data.instagramId ? normalizeHandle(parsed.data.instagramId) : null;
 
   return {
+    displayName: parsed.data.nickname,
     instagramId,
     gender: parsed.data.gender,
     heightCm: parsed.data.heightCm,

@@ -54,6 +54,7 @@ describe("completeSignupAction", () => {
     });
     const formData = new FormData();
     formData.set("nickname", "@granite_climber");
+    formData.set("instagramId", "@granite_climber");
     formData.set("gender", "female");
     formData.set("heightCm", "165");
     formData.set("apeIndexCm", "168");
@@ -67,7 +68,7 @@ describe("completeSignupAction", () => {
       provider: "kakao",
       providerUserId: "kakao-user",
       email: "kakao@example.com",
-      displayName: "granite_climber",
+      displayName: "@granite_climber",
       avatarUrl: "https://img.example/kakao.jpg",
       instagramId: "granite_climber",
       gender: "female",

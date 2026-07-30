@@ -5,6 +5,7 @@ function profileFormData(overrides: Record<string, string> = {}) {
   const formData = new FormData();
   const values = {
     nickname: "@granite_climber",
+    instagramId: "@granite.rocks",
     gender: "female",
     heightCm: "165",
     apeIndexCm: "168",
@@ -26,7 +27,8 @@ describe("parseProfileInput", () => {
         profileFormData({ youtubeUrl: "https://youtube.com/@granite" })
       )
     ).toEqual({
-      instagramId: "granite_climber",
+      displayName: "@granite_climber",
+      instagramId: "granite.rocks",
       gender: "female",
       heightCm: 165,
       apeIndexCm: 168,
@@ -39,6 +41,10 @@ describe("parseProfileInput", () => {
 
   it("allows an empty YouTube channel URL", () => {
     expect(parseProfileInput(profileFormData())?.youtubeUrl).toBeNull();
+  });
+
+  it("allows an empty Instagram ID", () => {
+    expect(parseProfileInput(profileFormData({ instagramId: "" }))?.instagramId).toBeNull();
   });
 
   it("rejects a non-YouTube channel URL", () => {

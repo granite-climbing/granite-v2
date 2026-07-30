@@ -9,6 +9,7 @@ const SPORT_GRADES = [
 
 export type ProfileFormValues = {
   nickname: string;
+  instagramId: string | null;
   gender: "male" | "female" | null;
   heightCm: number | null;
   apeIndexCm: number | null;
@@ -30,6 +31,11 @@ export function ProfileForm({ action, submitLabel, initialValues = {} }: Profile
       <label className="block">
         <span className="block text-[14px] font-medium text-white">닉네임 *</span>
         <input name="nickname" required autoComplete="nickname" defaultValue={initialValues.nickname} placeholder="Instagram ID 추천" className="mt-2 h-12 w-full rounded-[7px] border-0 bg-[#3D3D3D] px-4 text-[14px] font-medium text-white outline-none placeholder:text-[#8B8B8B] focus:ring-1 focus:ring-white" />
+      </label>
+
+      <label className="block">
+        <span className="block text-[14px] font-medium text-white">Instagram ID (선택)</span>
+        <input name="instagramId" autoComplete="username" defaultValue={initialValues.instagramId ?? ""} placeholder="@granite" className="mt-2 h-12 w-full rounded-[7px] border-0 bg-[#3D3D3D] px-4 text-[14px] font-medium text-white outline-none placeholder:text-[#8B8B8B] focus:ring-1 focus:ring-white" />
       </label>
 
       <fieldset>

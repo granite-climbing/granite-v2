@@ -10,7 +10,7 @@ export type CompletedSignupInput = {
   email: string | null;
   displayName: string;
   avatarUrl: string | null;
-  instagramId: string;
+  instagramId: string | null;
   youtubeUrl: string | null;
   gender: "male" | "female";
   heightCm: number | null;
@@ -291,7 +291,7 @@ export async function updateUserPrivacyVisibility(userId: string, privacyVisibil
 export async function updateUserProfile(userId: string, profile: ProfileInput): Promise<void> {
   await executeD1(
     `UPDATE users SET display_name = ?, instagram_id = ?, youtube_id = ?, gender = ?, height_cm = ?, ape_index_cm = ?, weight_kg = ?, top_bouldering_grade = ?, top_sport_grade = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted_at IS NULL AND withdraw_at IS NULL`,
-    [profile.instagramId, profile.instagramId, profile.youtubeUrl, profile.gender, profile.heightCm, profile.apeIndexCm, profile.weightKg, profile.topBoulderingGrade, profile.topSportGrade, userId]
+    [profile.displayName, profile.instagramId, profile.youtubeUrl, profile.gender, profile.heightCm, profile.apeIndexCm, profile.weightKg, profile.topBoulderingGrade, profile.topSportGrade, userId]
   );
 }
 

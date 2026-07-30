@@ -31,7 +31,6 @@ export async function completeSignupAction(formData: FormData): Promise<void> {
     provider: pendingSignup.provider,
     providerUserId: pendingSignup.providerUserId,
     email: pendingSignup.email,
-    displayName: profile.instagramId,
     avatarUrl: pendingSignup.avatarUrl,
     ...profile
   });
