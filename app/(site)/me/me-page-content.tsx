@@ -115,7 +115,7 @@ function ProfileInfoRow({ row }: { row: ProfileRow }) {
     <div className="grid grid-cols-[92px_1fr_auto] items-center gap-1 text-[14px] leading-none">
       <dt className="font-medium text-[#8A8A8A]">{row.label}</dt>
       <dd className="min-w-0 truncate font-medium text-black">{row.value}</dd>
-      {row.actionLabel ? <span className="text-[14px] font-medium text-[#0057FF]">{row.actionLabel}</span> : null}
+      {row.actionLabel ? <Link href="/me/edit" className="text-[14px] font-medium text-[#0057FF]">{row.actionLabel}</Link> : null}
     </div>
   );
 }

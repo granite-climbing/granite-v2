@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { batchD1, executeD1, executeD1Meta, queryD1, queryD1First } from "./d1-http";
 import type { User, UserOAuthIdentity } from "./schema";
 import type { OAuthProfile, OAuthProviderId } from "@/lib/auth/oauth/types";
+import type { ProfileInput } from "@/lib/profile/profile-input";
 
 export type CompletedSignupInput = {
   provider: OAuthProviderId;
@@ -284,6 +285,13 @@ export async function updateUserPrivacyVisibility(userId: string, privacyVisibil
        SET privacy_visibility = ?, updated_at = CURRENT_TIMESTAMP
      WHERE id = ? AND deleted_at IS NULL`,
     [privacyVisibilityJson, userId]
+  );
+}
+
+export async function updateUserProfile(userId: string, profile: ProfileInput): Promise<void> {
+  await executeD1(
+    `UPDATE users SET display_name = ?, instagram_id = ?, youtube_id = ?, gender = ?, height_cm = ?, ape_index_cm = ?, weight_kg = ?, top_bouldering_grade = ?, top_sport_grade = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted_at IS NULL AND withdraw_at IS NULL`,
+    [profile.instagramId, profile.instagramId, profile.youtubeUrl, profile.gender, profile.heightCm, profile.apeIndexCm, profile.weightKg, profile.topBoulderingGrade, profile.topSportGrade, userId]
   );
 }
 
