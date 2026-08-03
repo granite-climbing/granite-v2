@@ -113,10 +113,12 @@ export async function insertWebhookBeta(
 ): Promise<void> {
   await db
     .prepare(
+      // Instagram-sourced betas are auto-approved so they go live without a
+      // manual admin acceptance step.
       `INSERT INTO betas (
          id, route_id, user_id, instagram_id, display_name, source, platform,
          media_url, permalink_url, external_media_id, thumbnail_url, sent_at, status, claim_status
-       ) VALUES (?, ?, NULL, ?, ?, 'instagram_webhook', 'instagram', ?, ?, ?, ?, ?, 'pending', 'unclaimed')`
+       ) VALUES (?, ?, NULL, ?, ?, 'instagram_webhook', 'instagram', ?, ?, ?, ?, ?, 'approved', 'unclaimed')`
     )
     .bind(
       input.id,

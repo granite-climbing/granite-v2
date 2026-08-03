@@ -57,10 +57,12 @@ export type WebhookInboxAdminRow = {
 
 export async function createManualBeta(input: CreateManualBetaInput): Promise<void> {
   await queryD1(
+    // Manual betas are auto-approved so they go live immediately without a
+    // separate admin acceptance step.
     `INSERT INTO betas (
        id, route_id, user_id, instagram_id, display_name, source, platform,
        media_url, permalink_url, external_media_id, thumbnail_url, sent_at, status, claim_status
-     ) VALUES (?, ?, ?, ?, ?, 'manual', ?, ?, ?, ?, NULL, ?, 'pending', ?)`,
+     ) VALUES (?, ?, ?, ?, ?, 'manual', ?, ?, ?, ?, NULL, ?, 'approved', ?)`,
     [
       input.id,
       input.routeId,
@@ -577,10 +579,12 @@ export async function manualMatchWebhookToRoute(input: {
   const today = new Date().toISOString().slice(0, 10);
   try {
     await queryD1(
+      // Instagram-sourced betas are auto-approved so they go live immediately
+      // once matched, without a separate admin acceptance step.
       `INSERT INTO betas (
          id, route_id, user_id, instagram_id, display_name, source, platform,
          media_url, permalink_url, external_media_id, thumbnail_url, sent_at, status, claim_status
-       ) VALUES (?, ?, NULL, ?, ?, 'instagram_webhook', 'instagram', ?, NULL, ?, NULL, ?, 'pending', 'unclaimed')`,
+       ) VALUES (?, ?, NULL, ?, ?, 'instagram_webhook', 'instagram', ?, NULL, ?, NULL, ?, 'approved', 'unclaimed')`,
       [
         input.betaId,
         input.routeId,

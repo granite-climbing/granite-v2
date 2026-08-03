@@ -181,25 +181,46 @@ function CragTabPanel({
   }
 
   if (activeTab === "Map") {
-    return (
-      <section className="px-4 pt-2">
-        {crag.lat !== null && crag.lng !== null ? (
-          <KakaoMap
-            lat={crag.lat}
-            lng={crag.lng}
-            name={crag.name}
-            className="h-[240px] w-full overflow-hidden rounded-lg md:h-[400px]"
-          />
-        ) : (
-          <div className="flex h-[240px] items-center justify-center rounded-lg bg-[#F7F8F8] text-[14px] font-normal leading-5 text-[#7A7A7A] md:h-[400px]">
-            위치 정보가 등록되지 않았습니다.
-          </div>
-        )}
-      </section>
-    );
+    return <MapPanel crag={crag} boulderId={boulderId} />;
   }
 
   return <TravelPanel crag={crag} />;
+}
+
+// ---------------------------------------------------------------------------
+// Map tab
+// ---------------------------------------------------------------------------
+
+function MapPanel({ crag, boulderId }: { crag: CragDetail; boulderId: string }) {
+  // When arriving from a boulder's "Location" button we focus that boulder's
+  // marker; otherwise fall back to the crag's own coordinates.
+  const focusBoulder = boulderId
+    ? crag.boulders.find((boulder) => boulder.id === boulderId)
+    : undefined;
+  const point = focusBoulder
+    ? { lat: focusBoulder.lat, lng: focusBoulder.lng, name: focusBoulder.name }
+    : crag.lat !== null && crag.lng !== null
+      ? { lat: crag.lat, lng: crag.lng, name: crag.name }
+      : null;
+
+  return (
+    <section className="px-4 pt-2">
+      {point ? (
+        <KakaoMap
+          lat={point.lat}
+          lng={point.lng}
+          name={point.name}
+          zoom={focusBoulder ? 4 : 5}
+          locate
+          className="h-[240px] w-full overflow-hidden rounded-lg md:h-[400px]"
+        />
+      ) : (
+        <div className="flex h-[240px] items-center justify-center rounded-lg bg-[#F7F8F8] text-[14px] font-normal leading-5 text-[#7A7A7A] md:h-[400px]">
+          위치 정보가 등록되지 않았습니다.
+        </div>
+      )}
+    </section>
+  );
 }
 
 // ---------------------------------------------------------------------------

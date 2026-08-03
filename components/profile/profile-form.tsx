@@ -38,6 +38,11 @@ export function ProfileForm({ action, submitLabel, initialValues = {} }: Profile
         <input name="instagramId" autoComplete="username" defaultValue={initialValues.instagramId ?? ""} placeholder="@granite" className="mt-2 h-12 w-full rounded-[7px] border-0 bg-[#3D3D3D] px-4 text-[14px] font-medium text-white outline-none placeholder:text-[#8B8B8B] focus:ring-1 focus:ring-white" />
       </label>
 
+      <label className="block">
+        <span className="block text-[14px] font-medium text-white">YouTube 채널 URL (선택)</span>
+        <input name="youtubeUrl" type="url" inputMode="url" autoComplete="url" defaultValue={initialValues.youtubeUrl ?? ""} placeholder="https://youtube.com/@channel" className="mt-2 h-12 w-full rounded-[7px] border-0 bg-[#3D3D3D] px-4 text-[14px] font-medium text-white outline-none placeholder:text-[#8B8B8B] focus:ring-1 focus:ring-white" />
+      </label>
+
       <fieldset>
         <legend className="text-[14px] font-medium text-white">성별 *</legend>
         <div className="mt-2 grid grid-cols-3 gap-2">
@@ -63,11 +68,6 @@ export function ProfileForm({ action, submitLabel, initialValues = {} }: Profile
           <GradeSelect name="topSportGrade" label="Top Sports Grade" placeholder="Yosemite Grade 선택" options={SPORT_GRADES} value={initialValues.topSportGrade} />
         </div>
       </section>
-
-      <label className="block">
-        <span className="block text-[14px] font-medium text-white">YouTube 채널 URL (선택)</span>
-        <input name="youtubeUrl" type="url" inputMode="url" autoComplete="url" defaultValue={initialValues.youtubeUrl ?? ""} placeholder="https://youtube.com/@channel" className="mt-2 h-12 w-full rounded-[7px] border-0 bg-[#3D3D3D] px-4 text-[14px] font-medium text-white outline-none placeholder:text-[#8B8B8B] focus:ring-1 focus:ring-white" />
-      </label>
 
       <SubmitButton pendingText="저장 중" className="mt-10 h-[54px] w-full rounded-[27px] bg-white text-[15px] font-bold text-black transition active:scale-[0.99]">
         {submitLabel}
