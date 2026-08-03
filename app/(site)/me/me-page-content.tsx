@@ -65,18 +65,8 @@ export function MyPageContent({ model, logoutSlot, withdrawSlot }: MyPageContent
 
 export function MyPageHeader() {
   return (
-    <header className="sticky top-0 z-20 flex h-[56px] items-end justify-between bg-white px-4 pb-[17px]">
+    <header className="sticky top-0 z-20 flex h-[56px] items-end bg-white px-4 pb-[17px]">
       <h1 className="text-[17px] font-semibold leading-none">마이</h1>
-      <button
-        type="button"
-        aria-label="메뉴 열기"
-        className="flex size-7 flex-col items-center justify-center gap-[5px]"
-        disabled
-      >
-        <span className="h-[2px] w-[18px] bg-black" />
-        <span className="h-[2px] w-[18px] bg-black" />
-        <span className="h-[2px] w-[18px] bg-black" />
-      </button>
     </header>
   );
 }
