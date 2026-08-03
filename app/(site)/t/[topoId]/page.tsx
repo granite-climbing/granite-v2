@@ -64,7 +64,7 @@ export default async function TopoPage({ params, searchParams }: TopoPageProps) 
         style={{ backgroundImage: `url("${imageUrl}")` }}
       >
         <Link
-          href={`/c/${topo.crag.slug}?tab=route`}
+          href={`/c/${topo.crag.slug}?tab=map&boulderId=${topo.boulder.id}`}
           className="absolute bottom-3 right-4 flex h-6 w-[88px] items-center justify-center rounded-full bg-[#2A2A2A]"
         >
           <span className="flex items-center gap-1 text-[12px] font-medium leading-4 text-white">
