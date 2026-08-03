@@ -57,10 +57,12 @@ export type WebhookInboxAdminRow = {
 
 export async function createManualBeta(input: CreateManualBetaInput): Promise<void> {
   await queryD1(
+    // Manual betas are auto-approved so they go live immediately without a
+    // separate admin acceptance step.
     `INSERT INTO betas (
        id, route_id, user_id, instagram_id, display_name, source, platform,
        media_url, permalink_url, external_media_id, thumbnail_url, sent_at, status, claim_status
-     ) VALUES (?, ?, ?, ?, ?, 'manual', ?, ?, ?, ?, NULL, ?, 'pending', ?)`,
+     ) VALUES (?, ?, ?, ?, ?, 'manual', ?, ?, ?, ?, NULL, ?, 'approved', ?)`,
     [
       input.id,
       input.routeId,
