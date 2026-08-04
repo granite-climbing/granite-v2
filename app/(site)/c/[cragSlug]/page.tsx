@@ -6,6 +6,7 @@ import { KakaoMap } from "@/components/public/kakao-map";
 import { findCragBySlug } from "@/lib/db/repository";
 import type { CragDetail, TabName } from "@/lib/db/schema";
 import { bucketGradeNums, GRADE_LABELS } from "@/lib/grade-histogram";
+import { CragBackButton } from "./crag-back-button";
 import { CragSearchPanel } from "./crag-search-panel";
 
 export const dynamic = "force-dynamic";
@@ -60,6 +61,7 @@ function CragHero({ crag }: { crag: CragDetail }) {
       style={{ backgroundImage: `url("${crag.coverImageUrl}")` }}
     >
       <div className="absolute inset-0 bg-black/30" />
+      <CragBackButton />
       <div className="relative max-w-[328px]">
         <h1 className="text-[28px] font-extrabold leading-9">{crag.name}</h1>
       </div>

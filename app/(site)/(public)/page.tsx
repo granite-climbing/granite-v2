@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const model = await getHomeModel();
-  const updates = model.announcements;
+  // New Updates 영역에서 사용. 추후 복원 시 함께 활성화.
+  // const updates = model.announcements;
 
   return (
     <main className="min-h-screen bg-white">
@@ -71,6 +72,7 @@ export default async function HomePage() {
         <AdSlot />
       </div>
 
+      {/* New Updates 영역 - 추후 추가 예정이라 임시 비활성화
       <section className="mt-10">
         <div className="mb-5 px-4">
           <h2 className="text-[20px] font-bold leading-7 text-[#090909]">New Updates</h2>
@@ -113,6 +115,7 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+      */}
 
       <div className="mt-[66px]">
         <AdSlot />
