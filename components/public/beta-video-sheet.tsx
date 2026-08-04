@@ -96,7 +96,7 @@ export function BetaVideoSheet({
               onClick={() => setShowManualForm(true)}
               className="h-8 w-full rounded-full bg-[#1A1A1A] text-[14px] font-medium leading-5 text-white"
             >
-              베타 영상 올리기
+              Instagram URL 혹은 Youtube URL로 영상 올리기
             </button>
           </div>
         </div>
