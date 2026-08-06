@@ -9,6 +9,7 @@ import { getRouteRecordRowsByRouteIds } from "@/lib/db/record-queries";
 import { buildRouteRecordSummary, type RouteRecordSummary } from "@/lib/records/summary";
 import { getPublishedAreas, parseHashtags } from "@/lib/db/queries";
 import { RouteMoreActions } from "@/components/public/route-more-actions";
+import { TopoBackButton } from "./topo-back-button";
 import { removeRouteProjectAction, saveRouteProjectAction } from "@/lib/actions/project";
 import { USER_SESSION_COOKIE_NAME, verifyUserSessionToken } from "@/lib/auth/session";
 import { listFavoritedRouteIdsForUser } from "@/lib/db/project-queries";
@@ -100,13 +101,7 @@ function LocationIcon({ className }: { className?: string }) {
 function TopoHeader({ topo }: { topo: TopoDetail }) {
   return (
     <header className="relative flex h-14 items-center justify-center bg-white">
-      <Link
-        href={`/c/${topo.crag.slug}?tab=route`}
-        className="absolute left-4 grid size-6 place-items-center text-[24px] leading-6"
-        aria-label="뒤로 가기"
-      >
-        ‹
-      </Link>
+      <TopoBackButton fallbackHref={`/c/${topo.crag.slug}?tab=route`} />
       <h1 className="text-[18px] font-medium leading-6 text-[#090909]">{topo.crag.name}</h1>
     </header>
   );
@@ -160,6 +155,7 @@ function TopoRouteSheet({
             >
               <Link
                 href={selected ? `/t/${topo.id}` : `/t/${topo.id}?route=${route.id}`}
+                replace
                 className="contents"
               >
                 <span className="grid size-6 place-items-center rounded-full bg-[#2A2A2A] text-[14px] font-medium leading-5 text-white">
