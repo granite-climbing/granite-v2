@@ -1018,6 +1018,127 @@ describe("admin content actions", () => {
   });
 
   // -------------------------------------------------------------------------
+  // Aggregate count surfaces: home top totals + Area-tab stats must be flushed
+  // by EVERY sub-entity mutation (sector/boulder/topo/route), not only by
+  // area/crag edits — otherwise the counts lag behind content changes.
+  // -------------------------------------------------------------------------
+
+  it("saveSectorAction: flushes home + areas:list so aggregate counts stay live", async () => {
+    mockedGetCragSlugByCragId.mockResolvedValue("anyang");
+
+    const formData = new FormData();
+    formData.set("id", "sector_anyang_antique");
+    formData.set("cragId", "crag_anyang");
+    formData.set("name", "앤틱 구역");
+    formData.set("slug", "anyang_antique");
+    formData.set("coverImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+
+    await saveSectorAction(formData);
+
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("home");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("areas:list");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/");
+  });
+
+  it("saveBoulderAction: flushes home + areas:list so aggregate counts stay live", async () => {
+    mockedGetSectorAncestry.mockResolvedValue({ cragSlug: "anyang", sectorSlug: "anyang_antique" });
+
+    const formData = new FormData();
+    formData.set("id", "boulder_gomul_boulder");
+    formData.set("sectorId", "sector_anyang_antique");
+    formData.set("name", "고물 볼더");
+    formData.set("slug", "gomul_boulder");
+    formData.set("lat", "37.42");
+    formData.set("lng", "126.92");
+    formData.set("hashtags", "");
+    formData.set("coverImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+
+    await saveBoulderAction(formData);
+
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("home");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("areas:list");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/");
+  });
+
+  it("saveTopoAction: flushes home + areas:list so aggregate counts stay live", async () => {
+    mockedGetBoulderAncestry.mockResolvedValue({ cragSlug: "anyang", sectorSlug: "anyang_antique" });
+
+    const formData = new FormData();
+    formData.set("id", "topo_gomul_front");
+    formData.set("boulderId", "boulder_gomul_boulder");
+    formData.set("name", "고물 정면");
+    formData.set("baseImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "0");
+
+    await saveTopoAction(formData);
+
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("home");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("areas:list");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/");
+  });
+
+  it("saveRouteAction: flushes home + areas:list so aggregate counts stay live", async () => {
+    mockedGetTopoAncestry.mockResolvedValue({ cragSlug: "anyang", boulderId: "boulder_gomul_boulder" });
+
+    const formData = new FormData();
+    formData.set("id", "route_anaconda");
+    formData.set("topoId", "topo_gomul_front");
+    formData.set("name", "아나콘다");
+    formData.set("slug", "anaconda");
+    formData.set("grade", "V5");
+    formData.set("gradeNum", "5");
+    formData.set("fa", "");
+    formData.set("description", "");
+    formData.set("lineImageUrl", "");
+    formData.set("isPublished", "on");
+    formData.set("sortOrder", "1");
+
+    await saveRouteAction(formData);
+
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("home");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("areas:list");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/");
+  });
+
+  it("softDeleteRouteAction: flushes home + areas:list so aggregate counts stay live", async () => {
+    mockedGetRouteAncestry.mockResolvedValue({
+      cragSlug: "anyang",
+      boulderId: "boulder_gomul_boulder",
+      topoId: "topo_gomul_front",
+    });
+
+    const formData = new FormData();
+    formData.set("id", "route_anaconda");
+    formData.set("confirm", "DELETE");
+
+    await softDeleteRouteAction(formData);
+
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("home");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("areas:list");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/");
+  });
+
+  it("togglePublishAction (boulder): flushes home + areas:list so aggregate counts stay live", async () => {
+    mockedGetBoulderAncestry.mockResolvedValue({ cragSlug: "anyang", sectorSlug: "anyang_antique" });
+
+    const formData = new FormData();
+    formData.set("table", "boulders");
+    formData.set("id", "boulder_gomul_boulder");
+    formData.set("isPublished", "on");
+
+    await togglePublishAction(formData);
+
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("home");
+    expect(mockedRevalidateTag).toHaveBeenCalledWith("areas:list");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/");
+  });
+
+  // -------------------------------------------------------------------------
   // saveTopoAction: requireAdmin + upsertTopo + audit
   // -------------------------------------------------------------------------
 
