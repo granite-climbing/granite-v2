@@ -19,6 +19,7 @@ function TopoNavArrow({ topoId, direction }: TopoNavArrowProps) {
     return (
       <Link
         href={`/t/${topoId}`}
+        replace
         className={`${sizeClass} text-[#090909]`}
         aria-label={label}
       >
