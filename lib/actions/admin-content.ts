@@ -109,29 +109,43 @@ async function resolveSlugConflict(input: {
 // Revalidation helpers
 // ---------------------------------------------------------------------------
 
-function revalidateAreaSurface(slug?: string): void {
+/**
+ * Flushes the aggregate count surfaces: home top totals (Crag/Boulder/Route),
+ * the home Area/Crag card stats, and every Area-tab stat block.
+ *
+ * These caches (`getHomeModel` tag `home`, area/crag details tag `areas:list`)
+ * aggregate counts across the *whole* hierarchy, so ANY content mutation at any
+ * level — sector, boulder, topo, route — changes them. Every surface helper
+ * calls this so the numbers stay live instead of lagging until the next
+ * area/crag edit happens to flush them.
+ */
+function revalidateAggregateCounts(): void {
   revalidateTag("home");
   revalidateTag("areas:list");
   revalidatePath("/");
+}
+
+function revalidateAreaSurface(slug?: string): void {
+  revalidateAggregateCounts();
   if (slug) revalidateTag(`area:${slug}`);
   if (slug) revalidatePath(`/a/${slug}`);
 }
 
 function revalidateCragSurface(slug?: string): void {
-  revalidateTag("home");
-  revalidateTag("areas:list");
+  revalidateAggregateCounts();
   if (slug) revalidateTag(`crag:${slug}`);
-  revalidatePath("/");
   if (slug) revalidatePath(`/c/${slug}`);
 }
 
 function revalidateSectorSurface(cragSlug?: string, sectorSlug?: string): void {
+  revalidateAggregateCounts();
   if (cragSlug) revalidateTag(`crag:${cragSlug}`);
   if (sectorSlug) revalidateTag(`sector:${sectorSlug}`);
   if (cragSlug) revalidatePath(`/c/${cragSlug}`);
 }
 
 function revalidateBoulderSurface(boulderId?: string, cragSlug?: string, sectorSlug?: string): void {
+  revalidateAggregateCounts();
   if (boulderId) revalidateTag(`boulder:${boulderId}`);
   if (cragSlug) revalidateTag(`crag:${cragSlug}`);
   if (sectorSlug) revalidateTag(`sector:${sectorSlug}`);
@@ -139,12 +153,14 @@ function revalidateBoulderSurface(boulderId?: string, cragSlug?: string, sectorS
 }
 
 function revalidateTopoSurface(boulderId?: string, topoId?: string, cragSlug?: string): void {
+  revalidateAggregateCounts();
   if (boulderId) revalidateTag(`boulder:${boulderId}`);
   if (topoId) revalidatePath(`/t/${topoId}`);
   if (cragSlug) revalidatePath(`/c/${cragSlug}`);
 }
 
 function revalidateRouteSurface(routeId?: string, boulderId?: string, cragSlug?: string, topoId?: string): void {
+  revalidateAggregateCounts();
   if (routeId) revalidateTag(`route:${routeId}`);
   if (boulderId) revalidateTag(`boulder:${boulderId}`);
   if (cragSlug) revalidateTag(`crag:${cragSlug}`);
