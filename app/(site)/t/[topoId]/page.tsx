@@ -163,9 +163,11 @@ function TopoRouteSheet({
                 </span>
                 <span>
                   <span className="block text-[18px] font-medium leading-6 text-[#2A2A2A]">{route.name}</span>
-                  <span className="mt-1 block text-[10px] font-normal leading-[14px] text-[#7A7A7A]">
-                    {topo.boulder.name}
-                  </span>
+                  {route.description ? (
+                    <span className="mt-1 block whitespace-pre-line text-[10px] font-normal leading-[14px] text-[#7A7A7A]">
+                      {route.description}
+                    </span>
+                  ) : null}
                   <span className="block text-[10px] font-normal leading-[14px] text-[#7A7A7A]">FA {route.fa}</span>
                 </span>
               </Link>
