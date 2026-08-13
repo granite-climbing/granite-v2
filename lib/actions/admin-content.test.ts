@@ -48,6 +48,16 @@ vi.mock("next/cache", () => ({
   revalidateTag: vi.fn(),
 }));
 
+// Actions end by redirecting with a flash toast; keep these no-ops so the action
+// resolves normally under test (real `redirect` throws NEXT_REDIRECT).
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(),
+}));
+
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () => ({ get: () => null })),
+}));
+
 // ---------------------------------------------------------------------------
 // Lazy imports after mocks are hoisted
 // ---------------------------------------------------------------------------

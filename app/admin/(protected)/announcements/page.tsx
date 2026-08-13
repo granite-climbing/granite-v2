@@ -111,6 +111,7 @@ export default async function AdminAnnouncementsPage({ searchParams }: Props) {
                       <form action={togglePublishAction} className="flex items-center gap-1">
                         <input type="hidden" name="table" value="announcements" />
                         <input type="hidden" name="id" value={ann.id} />
+                        <input type="hidden" name="name" value={ann.title} />
                         <input type="hidden" name="isPublished" value={ann.isPublished ? "off" : "on"} />
                         <button type="submit" className={btnPrimaryCls}>
                           {ann.isPublished ? "Unpublish" : "Publish"}
@@ -121,12 +122,12 @@ export default async function AdminAnnouncementsPage({ searchParams }: Props) {
                     {ann.deletedAt === null ? (
                       <DeleteControls
                         action={softDeleteAnnouncementAction}
-                        hiddenInputs={{ id: ann.id }}
+                        hiddenInputs={{ id: ann.id, title: ann.title }}
                       />
                     ) : (
                       <RestoreControls
                         action={restoreAnnouncementAction}
-                        hiddenInputs={{ id: ann.id }}
+                        hiddenInputs={{ id: ann.id, title: ann.title }}
                       />
                     )}
                   </div>

@@ -33,6 +33,7 @@ import {
   parseTopoForm,
   parseRouteForm,
 } from "./admin-content-schema";
+import { redirectWithToast, contentToastMessage, type ContentKind } from "./toast-redirect";
 
 // ---------------------------------------------------------------------------
 // Table validation and singular name mapping for publish toggle
@@ -49,6 +50,16 @@ const SINGULAR_BY_TABLE: Record<ToggleTable, string> = {
   topos: "topo",
   routes: "route",
   announcements: "announcement",
+};
+
+const LABEL_BY_TABLE: Record<ToggleTable, ContentKind> = {
+  areas: "Area",
+  crags: "Crag",
+  sectors: "Sector",
+  boulders: "Boulder",
+  topos: "Topo",
+  routes: "Route",
+  announcements: "Announcement",
 };
 
 // ---------------------------------------------------------------------------
@@ -199,6 +210,8 @@ export async function saveAreaAction(formData: FormData): Promise<void> {
 
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "area", targetId: id, metadata: { slug: parsed.slug } });
   revalidateAreaSurface(parsed.slug);
+
+  await redirectWithToast(contentToastMessage(parsed.name, "Area", parsed.id ? "update" : "create"));
 }
 
 export async function saveCragAction(formData: FormData): Promise<void> {
@@ -224,6 +237,8 @@ export async function saveCragAction(formData: FormData): Promise<void> {
 
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "crag", targetId: id, metadata: { slug: parsed.slug } });
   revalidateCragSurface(parsed.slug);
+
+  await redirectWithToast(contentToastMessage(parsed.name, "Crag", parsed.id ? "update" : "create"));
 }
 
 export async function saveSectorAction(formData: FormData): Promise<void> {
@@ -279,6 +294,8 @@ export async function saveSectorAction(formData: FormData): Promise<void> {
       revalidatePath(`/r/${routeId}`);
     }
   }
+
+  await redirectWithToast(contentToastMessage(parsed.name, "Sector", parsed.id ? "update" : "create"));
 }
 
 export async function saveBoulderAction(formData: FormData): Promise<void> {
@@ -331,6 +348,8 @@ export async function saveBoulderAction(formData: FormData): Promise<void> {
       revalidatePath(`/r/${routeId}`);
     }
   }
+
+  await redirectWithToast(contentToastMessage(parsed.name, "Boulder", parsed.id ? "update" : "create"));
 }
 
 export async function saveTopoAction(formData: FormData): Promise<void> {
@@ -364,6 +383,8 @@ export async function saveTopoAction(formData: FormData): Promise<void> {
       revalidatePath(`/r/${routeId}`);
     }
   }
+
+  await redirectWithToast(contentToastMessage(parsed.name, "Topo", parsed.id ? "update" : "create"));
 }
 
 export async function saveRouteAction(formData: FormData): Promise<void> {
@@ -408,6 +429,8 @@ export async function saveRouteAction(formData: FormData): Promise<void> {
   ) {
     revalidateRouteSurface(id, oldAncestry.boulderId, oldAncestry.cragSlug, oldAncestry.topoId);
   }
+
+  await redirectWithToast(contentToastMessage(parsed.name, "Route", parsed.id ? "update" : "create"));
 }
 
 // ---------------------------------------------------------------------------
@@ -434,6 +457,8 @@ export async function softDeleteAreaAction(formData: FormData): Promise<void> {
   await softDeleteContent({ table: "areas", id });
   await auditLog({ adminId: admin.adminId, action: "content.soft_delete", targetType: "area", targetId: id });
   revalidateAreaSurface(slug ?? undefined);
+
+  await redirectWithToast(contentToastMessage(String(formData.get("name") ?? ""), "Area", "delete"));
 }
 
 export async function softDeleteCragAction(formData: FormData): Promise<void> {
@@ -445,6 +470,8 @@ export async function softDeleteCragAction(formData: FormData): Promise<void> {
   await softDeleteContent({ table: "crags", id });
   await auditLog({ adminId: admin.adminId, action: "content.soft_delete", targetType: "crag", targetId: id });
   revalidateCragSurface(slug);
+
+  await redirectWithToast(contentToastMessage(String(formData.get("name") ?? ""), "Crag", "delete"));
 }
 
 export async function softDeleteSectorAction(formData: FormData): Promise<void> {
@@ -458,6 +485,8 @@ export async function softDeleteSectorAction(formData: FormData): Promise<void> 
   const ancestry = await getSectorAncestry(id);
   await auditLog({ adminId: admin.adminId, action: "content.soft_delete", targetType: "sector", targetId: id });
   revalidateSectorSurface(ancestry?.cragSlug, ancestry?.sectorSlug);
+
+  await redirectWithToast(contentToastMessage(String(formData.get("name") ?? ""), "Sector", "delete"));
 }
 
 export async function softDeleteBoulderAction(formData: FormData): Promise<void> {
@@ -471,6 +500,8 @@ export async function softDeleteBoulderAction(formData: FormData): Promise<void>
   const ancestry = await getBoulderAncestry(id);
   await auditLog({ adminId: admin.adminId, action: "content.soft_delete", targetType: "boulder", targetId: id });
   revalidateBoulderSurface(id, ancestry?.cragSlug, ancestry?.sectorSlug);
+
+  await redirectWithToast(contentToastMessage(String(formData.get("name") ?? ""), "Boulder", "delete"));
 }
 
 export async function softDeleteTopoAction(formData: FormData): Promise<void> {
@@ -484,6 +515,8 @@ export async function softDeleteTopoAction(formData: FormData): Promise<void> {
   const ancestry = await getTopoAncestry(id);
   await auditLog({ adminId: admin.adminId, action: "content.soft_delete", targetType: "topo", targetId: id });
   revalidateTopoSurface(ancestry?.boulderId, id, ancestry?.cragSlug);
+
+  await redirectWithToast(contentToastMessage(String(formData.get("name") ?? ""), "Topo", "delete"));
 }
 
 export async function softDeleteRouteAction(formData: FormData): Promise<void> {
@@ -497,6 +530,8 @@ export async function softDeleteRouteAction(formData: FormData): Promise<void> {
   const ancestry = await getRouteAncestry(id);
   await auditLog({ adminId: admin.adminId, action: "content.soft_delete", targetType: "route", targetId: id });
   revalidateRouteSurface(id, ancestry?.boulderId, ancestry?.cragSlug, ancestry?.topoId);
+
+  await redirectWithToast(contentToastMessage(String(formData.get("name") ?? ""), "Route", "delete"));
 }
 
 // ---------------------------------------------------------------------------
@@ -512,6 +547,8 @@ export async function restoreAreaAction(formData: FormData): Promise<void> {
   await restoreContent({ table: "areas", id });
   await auditLog({ adminId: admin.adminId, action: "content.restore", targetType: "area", targetId: id });
   revalidateAreaSurface(slug ?? undefined);
+
+  await redirectWithToast(contentToastMessage(String(formData.get("name") ?? ""), "Area", "restore"));
 }
 
 export async function restoreCragAction(formData: FormData): Promise<void> {
@@ -522,6 +559,8 @@ export async function restoreCragAction(formData: FormData): Promise<void> {
   await restoreContent({ table: "crags", id });
   await auditLog({ adminId: admin.adminId, action: "content.restore", targetType: "crag", targetId: id });
   revalidateCragSurface(slug);
+
+  await redirectWithToast(contentToastMessage(String(formData.get("name") ?? ""), "Crag", "restore"));
 }
 
 export async function restoreSectorAction(formData: FormData): Promise<void> {
@@ -534,6 +573,8 @@ export async function restoreSectorAction(formData: FormData): Promise<void> {
   const ancestry = await getSectorAncestry(id);
   await auditLog({ adminId: admin.adminId, action: "content.restore", targetType: "sector", targetId: id });
   revalidateSectorSurface(ancestry?.cragSlug, ancestry?.sectorSlug);
+
+  await redirectWithToast(contentToastMessage(String(formData.get("name") ?? ""), "Sector", "restore"));
 }
 
 export async function restoreBoulderAction(formData: FormData): Promise<void> {
@@ -546,6 +587,8 @@ export async function restoreBoulderAction(formData: FormData): Promise<void> {
   const ancestry = await getBoulderAncestry(id);
   await auditLog({ adminId: admin.adminId, action: "content.restore", targetType: "boulder", targetId: id });
   revalidateBoulderSurface(id, ancestry?.cragSlug, ancestry?.sectorSlug);
+
+  await redirectWithToast(contentToastMessage(String(formData.get("name") ?? ""), "Boulder", "restore"));
 }
 
 export async function restoreTopoAction(formData: FormData): Promise<void> {
@@ -558,6 +601,8 @@ export async function restoreTopoAction(formData: FormData): Promise<void> {
   const ancestry = await getTopoAncestry(id);
   await auditLog({ adminId: admin.adminId, action: "content.restore", targetType: "topo", targetId: id });
   revalidateTopoSurface(ancestry?.boulderId, id, ancestry?.cragSlug);
+
+  await redirectWithToast(contentToastMessage(String(formData.get("name") ?? ""), "Topo", "restore"));
 }
 
 export async function restoreRouteAction(formData: FormData): Promise<void> {
@@ -570,6 +615,8 @@ export async function restoreRouteAction(formData: FormData): Promise<void> {
   const ancestry = await getRouteAncestry(id);
   await auditLog({ adminId: admin.adminId, action: "content.restore", targetType: "route", targetId: id });
   revalidateRouteSurface(id, ancestry?.boulderId, ancestry?.cragSlug, ancestry?.topoId);
+
+  await redirectWithToast(contentToastMessage(String(formData.get("name") ?? ""), "Route", "restore"));
 }
 
 // ---------------------------------------------------------------------------
@@ -638,4 +685,8 @@ export async function togglePublishAction(formData: FormData): Promise<void> {
       revalidateAreaSurface(); // home + areas:list + /
       break;
   }
+
+  await redirectWithToast(
+    contentToastMessage(String(formData.get("name") ?? ""), LABEL_BY_TABLE[validTable], isPublished ? "publish" : "unpublish"),
+  );
 }

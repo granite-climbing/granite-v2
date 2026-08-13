@@ -116,6 +116,7 @@ export default async function AdminToposPage({ searchParams }: Props) {
                       <form action={togglePublishAction} className="flex items-center gap-1">
                         <input type="hidden" name="table" value="topos" />
                         <input type="hidden" name="id" value={topo.id} />
+                        <input type="hidden" name="name" value={topo.name} />
                         <input type="hidden" name="isPublished" value={topo.isPublished ? "off" : "on"} />
                         <button type="submit" className={btnPrimaryCls}>
                           {topo.isPublished ? "Unpublish" : "Publish"}
@@ -130,6 +131,7 @@ export default async function AdminToposPage({ searchParams }: Props) {
                           id: topo.id,
                           boulderId: topo.boulderId,
                           cragSlug: topo.cragSlug,
+                          name: topo.name,
                         }}
                       />
                     ) : (
@@ -139,6 +141,7 @@ export default async function AdminToposPage({ searchParams }: Props) {
                           id: topo.id,
                           boulderId: topo.boulderId,
                           cragSlug: topo.cragSlug,
+                          name: topo.name,
                         }}
                       />
                     )}

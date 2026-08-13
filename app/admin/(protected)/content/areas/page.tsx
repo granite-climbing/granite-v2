@@ -58,6 +58,7 @@ export default async function AdminAreasPage({ searchParams }: Props) {
                     <form action={togglePublishAction} className="flex items-center gap-1">
                       <input type="hidden" name="table" value="areas" />
                       <input type="hidden" name="id" value={area.id} />
+                      <input type="hidden" name="name" value={area.name} />
                       <input type="hidden" name="isPublished" value={area.isPublished ? "off" : "on"} />
                       <button type="submit" className={btnPrimaryCls}>
                         {area.isPublished ? "Unpublish" : "Publish"}
@@ -68,12 +69,12 @@ export default async function AdminAreasPage({ searchParams }: Props) {
                   {area.deletedAt === null ? (
                     <DeleteControls
                       action={softDeleteAreaAction}
-                      hiddenInputs={{ id: area.id }}
+                      hiddenInputs={{ id: area.id, name: area.name }}
                     />
                   ) : (
                     <RestoreControls
                       action={restoreAreaAction}
-                      hiddenInputs={{ id: area.id }}
+                      hiddenInputs={{ id: area.id, name: area.name }}
                     />
                   )}
                 </div>

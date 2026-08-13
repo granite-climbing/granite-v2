@@ -10,6 +10,7 @@ import {
   restoreContent,
 } from "@/lib/db/admin-content-queries";
 import { parseAnnouncementForm } from "./admin-content-schema";
+import { redirectWithToast, contentToastMessage } from "./toast-redirect";
 
 // ---------------------------------------------------------------------------
 // Non-fatal audit helper (duplicated locally to avoid exporting internals from
@@ -72,6 +73,8 @@ export async function saveAnnouncementAction(formData: FormData): Promise<void> 
   });
 
   revalidateAnnouncementSurface();
+
+  await redirectWithToast(contentToastMessage(parsed.title, "Announcement", parsed.id ? "update" : "create"));
 }
 
 // ---------------------------------------------------------------------------
@@ -93,6 +96,8 @@ export async function softDeleteAnnouncementAction(formData: FormData): Promise<
   });
 
   revalidateAnnouncementSurface();
+
+  await redirectWithToast(contentToastMessage(String(formData.get("title") ?? ""), "Announcement", "delete"));
 }
 
 // ---------------------------------------------------------------------------
@@ -113,4 +118,6 @@ export async function restoreAnnouncementAction(formData: FormData): Promise<voi
   });
 
   revalidateAnnouncementSurface();
+
+  await redirectWithToast(contentToastMessage(String(formData.get("title") ?? ""), "Announcement", "restore"));
 }

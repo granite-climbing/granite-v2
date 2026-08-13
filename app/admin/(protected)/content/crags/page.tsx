@@ -90,6 +90,7 @@ export default async function AdminCragsPage({ searchParams }: Props) {
                       <form action={togglePublishAction} className="flex items-center gap-1">
                         <input type="hidden" name="table" value="crags" />
                         <input type="hidden" name="id" value={crag.id} />
+                        <input type="hidden" name="name" value={crag.name} />
                         <input type="hidden" name="isPublished" value={crag.isPublished ? "off" : "on"} />
                         <button type="submit" className={btnPrimaryCls}>
                           {crag.isPublished ? "Unpublish" : "Publish"}
@@ -100,12 +101,12 @@ export default async function AdminCragsPage({ searchParams }: Props) {
                     {crag.deletedAt === null ? (
                       <DeleteControls
                         action={softDeleteCragAction}
-                        hiddenInputs={{ id: crag.id, slug: crag.slug }}
+                        hiddenInputs={{ id: crag.id, slug: crag.slug, name: crag.name }}
                       />
                     ) : (
                       <RestoreControls
                         action={restoreCragAction}
-                        hiddenInputs={{ id: crag.id, slug: crag.slug }}
+                        hiddenInputs={{ id: crag.id, slug: crag.slug, name: crag.name }}
                       />
                     )}
                   </div>

@@ -127,6 +127,7 @@ export default async function AdminRoutesPage({ searchParams }: Props) {
                       <form action={togglePublishAction} className="flex items-center gap-1">
                         <input type="hidden" name="table" value="routes" />
                         <input type="hidden" name="id" value={route.id} />
+                        <input type="hidden" name="name" value={route.name} />
                         <input type="hidden" name="isPublished" value={route.isPublished ? "off" : "on"} />
                         <button type="submit" className={btnPrimaryCls}>
                           {route.isPublished ? "Unpublish" : "Publish"}
@@ -142,6 +143,7 @@ export default async function AdminRoutesPage({ searchParams }: Props) {
                           cragSlug: route.cragSlug,
                           boulderId: route.boulderId,
                           topoId: route.topoId,
+                          name: route.name,
                         }}
                       />
                     ) : (
@@ -152,6 +154,7 @@ export default async function AdminRoutesPage({ searchParams }: Props) {
                           cragSlug: route.cragSlug,
                           boulderId: route.boulderId,
                           topoId: route.topoId,
+                          name: route.name,
                         }}
                       />
                     )}

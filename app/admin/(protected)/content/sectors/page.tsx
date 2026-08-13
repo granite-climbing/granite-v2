@@ -104,6 +104,7 @@ export default async function AdminSectorsPage({ searchParams }: Props) {
                       <form action={togglePublishAction} className="flex items-center gap-1">
                         <input type="hidden" name="table" value="sectors" />
                         <input type="hidden" name="id" value={sector.id} />
+                        <input type="hidden" name="name" value={sector.name} />
                         <input type="hidden" name="isPublished" value={sector.isPublished ? "off" : "on"} />
                         <button type="submit" className={btnPrimaryCls}>
                           {sector.isPublished ? "Unpublish" : "Publish"}
@@ -118,6 +119,7 @@ export default async function AdminSectorsPage({ searchParams }: Props) {
                           id: sector.id,
                           slug: sector.slug,
                           cragSlug: sector.cragSlug,
+                          name: sector.name,
                         }}
                       />
                     ) : (
@@ -127,6 +129,7 @@ export default async function AdminSectorsPage({ searchParams }: Props) {
                           id: sector.id,
                           slug: sector.slug,
                           cragSlug: sector.cragSlug,
+                          name: sector.name,
                         }}
                       />
                     )}

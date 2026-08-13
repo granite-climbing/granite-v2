@@ -108,6 +108,7 @@ export default async function AdminBouldersPage({ searchParams }: Props) {
                       <form action={togglePublishAction} className="flex items-center gap-1">
                         <input type="hidden" name="table" value="boulders" />
                         <input type="hidden" name="id" value={boulder.id} />
+                        <input type="hidden" name="name" value={boulder.name} />
                         <input type="hidden" name="isPublished" value={boulder.isPublished ? "off" : "on"} />
                         <button type="submit" className={btnPrimaryCls}>
                           {boulder.isPublished ? "Unpublish" : "Publish"}
@@ -122,6 +123,7 @@ export default async function AdminBouldersPage({ searchParams }: Props) {
                           id: boulder.id,
                           cragSlug: boulder.cragSlug,
                           sectorSlug: boulder.sectorSlug,
+                          name: boulder.name,
                         }}
                       />
                     ) : (
@@ -131,6 +133,7 @@ export default async function AdminBouldersPage({ searchParams }: Props) {
                           id: boulder.id,
                           cragSlug: boulder.cragSlug,
                           sectorSlug: boulder.sectorSlug,
+                          name: boulder.name,
                         }}
                       />
                     )}
