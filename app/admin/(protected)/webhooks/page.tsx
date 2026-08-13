@@ -2,7 +2,8 @@ import Link from "next/link";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminCard } from "@/components/admin/admin-card";
 import { AdminTable, AdminTableRow, AdminTableCell } from "@/components/admin/admin-table";
-import { btnPrimaryCls, selectCls } from "@/components/admin/admin-field";
+import { btnPrimaryCls } from "@/components/admin/admin-field";
+import { ManualMatchForm } from "@/components/admin/manual-match-form";
 import { getAdminWebhookInbox, getRecentWebhookOperationalEvents, getOrphanedManualMatches, getOrphanedAutoMatches } from "@/lib/db/beta-queries";
 import { getPublishedAdminRoutes } from "@/lib/db/admin-read-queries";
 import { manualMatchWebhookAction, rejectWebhookAction } from "@/lib/actions/admin-beta";
@@ -84,6 +85,15 @@ export default async function AdminWebhooksPage({
     getOrphanedManualMatches(),
     getOrphanedAutoMatches(),
   ]);
+
+  // Slim the route rows down to just what the search combobox needs so the
+  // client payload stays small (rendered once per unmatched row).
+  const routeOptions = routes.map((r) => ({
+    id: r.id,
+    grade: r.grade,
+    name: r.name,
+    boulderName: r.boulderName,
+  }));
 
   return (
     <AdminShell>
@@ -271,20 +281,11 @@ export default async function AdminWebhooksPage({
                 <AdminTableCell>
                   {status === "unmatched" && (
                     <div className="flex flex-col gap-2">
-                      <form action={manualMatchWebhookAction} className="flex items-center gap-2">
-                        <input type="hidden" name="webhookId" value={row.id} />
-                        <select name="routeId" required className={selectCls}>
-                          <option value="">루트 선택</option>
-                          {routes.map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.grade} {r.name} — {r.boulderName}
-                            </option>
-                          ))}
-                        </select>
-                        <button className={btnPrimaryCls} type="submit">
-                          수동 매칭
-                        </button>
-                      </form>
+                      <ManualMatchForm
+                        webhookId={row.id}
+                        routes={routeOptions}
+                        action={manualMatchWebhookAction}
+                      />
                       <form action={rejectWebhookAction} className="mt-1">
                         <input type="hidden" name="id" value={row.id} />
                         <button className={btnPrimaryCls} type="submit">
