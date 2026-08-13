@@ -499,6 +499,7 @@ export async function manualMatchWebhookToRoute(input: {
     igUsername: string;
     caption: string;
     mediaUrl: string;
+    thumbnailUrl: string | null;
     externalId: string;
     externalMediaId: string | null;
     rawPayload: string;
@@ -507,6 +508,7 @@ export async function manualMatchWebhookToRoute(input: {
        ig_username AS igUsername,
        caption,
        media_url AS mediaUrl,
+       thumbnail_url AS thumbnailUrl,
        external_id AS externalId,
        external_media_id AS externalMediaId,
        raw_payload AS rawPayload
@@ -581,10 +583,12 @@ export async function manualMatchWebhookToRoute(input: {
     await queryD1(
       // Instagram-sourced betas are auto-approved so they go live immediately
       // once matched, without a separate admin acceptance step.
+      // thumbnail_url reuses the R2 copy the webhook worker already stored on the
+      // inbox row, so the beta grid serves our saved image instead of the original.
       `INSERT INTO betas (
          id, route_id, user_id, instagram_id, display_name, source, platform,
          media_url, permalink_url, external_media_id, thumbnail_url, sent_at, status, claim_status
-       ) VALUES (?, ?, NULL, ?, ?, 'instagram_webhook', 'instagram', ?, NULL, ?, NULL, ?, 'approved', 'unclaimed')`,
+       ) VALUES (?, ?, NULL, ?, ?, 'instagram_webhook', 'instagram', ?, NULL, ?, ?, ?, 'approved', 'unclaimed')`,
       [
         input.betaId,
         input.routeId,
@@ -592,6 +596,7 @@ export async function manualMatchWebhookToRoute(input: {
         row.igUsername,
         row.mediaUrl,
         canonicalMediaId,
+        row.thumbnailUrl ?? null,
         today,
       ]
     );

@@ -179,6 +179,43 @@ describe("manualMatchWebhookToRoute", () => {
     expect(insertCall?.[1]).not.toContain("comment_1");
   });
 
+  it("reuses the inbox's stored R2 thumbnail on the created beta", async () => {
+    vi.mocked(executeD1Meta).mockResolvedValue({ changes: 1 });
+    vi.mocked(queryD1)
+      .mockResolvedValueOnce([
+        {
+          igUsername: "climber",
+          caption: "@granite.kr #큰바위 #SkyHook",
+          mediaUrl: "https://www.instagram.com/p/abc/",
+          thumbnailUrl: "https://cdn.granite.kr/webhooks/webhook_1/thumb-xyz.jpg",
+          externalId: "comment_1",
+          externalMediaId: "media_1",
+          rawPayload: "{}",
+        },
+      ]) // SELECT row
+      .mockResolvedValueOnce([]) // INSERT betas
+      .mockResolvedValueOnce([]); // UPDATE finalize
+    vi.mocked(queryD1First).mockResolvedValueOnce({ id: "route_1" }); // findPublishedRouteIdForBeta
+    vi.mocked(queryD1First).mockResolvedValueOnce(null); // findExistingBetaByExternalMedia
+
+    const { manualMatchWebhookToRoute } = await import("./beta-queries");
+
+    const outcome = await manualMatchWebhookToRoute({
+      webhookId: "webhook_1",
+      routeId: "route_1",
+      betaId: "beta_new",
+    });
+
+    expect(outcome).toEqual({ ok: true, betaId: "beta_new" });
+    const insertCall = vi
+      .mocked(queryD1)
+      .mock.calls.find(
+        (c) => typeof c[0] === "string" && c[0].includes("INSERT INTO betas")
+      );
+    // The saved CDN thumbnail is carried into the beta, not dropped as NULL.
+    expect(insertCall?.[1]).toContain("https://cdn.granite.kr/webhooks/webhook_1/thumb-xyz.jpg");
+  });
+
   it("returns not_unmatched when the row is no longer claimable", async () => {
     vi.mocked(executeD1Meta).mockResolvedValue({ changes: 0 });
 
