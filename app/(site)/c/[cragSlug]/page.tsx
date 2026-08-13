@@ -287,7 +287,7 @@ function InfoPanel({ crag }: { crag: CragDetail }) {
         />
         <div className="grid grid-cols-2 gap-2 pt-2">
           <PillButton icon="P" label="Parking Spot" />
-          <PillButton icon="☕" label="Cafe" />
+          <PillButton icon="☕" label="Cafe" href={`/c/${crag.slug}?tab=travel`} />
         </div>
       </section>
     </>
@@ -417,14 +417,27 @@ function InfoRow({
   );
 }
 
-function PillButton({ icon, label }: { icon: string; label: string }) {
-  return (
-    <button
-      type="button"
-      className="flex h-[46px] items-center justify-center gap-2 rounded-full bg-[#E8E8E8] text-[14px] font-medium leading-5 text-[#3A3A3A]"
-    >
+function PillButton({ icon, label, href }: { icon: string; label: string; href?: string }) {
+  const className =
+    "flex h-[46px] items-center justify-center gap-2 rounded-full bg-[#E8E8E8] text-[14px] font-medium leading-5 text-[#3A3A3A]";
+  const content = (
+    <>
       <span className="text-[13px]">{icon}</span>
       {label}
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button type="button" className={className}>
+      {content}
     </button>
   );
 }
