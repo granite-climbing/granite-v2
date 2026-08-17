@@ -20,6 +20,23 @@ describe("OAuth state cookie", () => {
     });
   });
 
+  it("serializes the iOS system auth challenge", () => {
+    const challenge = "a".repeat(43);
+    const state = createOAuthState({
+      provider: "kakao",
+      returnTo: "/me",
+      surface: "ios-system-auth",
+      handoffChallenge: challenge
+    });
+
+    expect(parseOAuthStateCookie(state.cookieValue)).toMatchObject({
+      provider: "kakao",
+      returnTo: "/me",
+      surface: "ios-system-auth",
+      handoffChallenge: challenge
+    });
+  });
+
   it("rejects malformed cookie values", () => {
     expect(() => parseOAuthStateCookie("not-json")).toThrow("Invalid OAuth state cookie");
   });

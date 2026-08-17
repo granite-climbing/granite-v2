@@ -8,7 +8,8 @@ const oauthStateCookieSchema = z.object({
   nonce: z.string().min(16),
   returnTo: z.string().startsWith("/"),
   state: z.string().min(16),
-  surface: z.enum(["web", "flutter-webview"]),
+  surface: z.enum(["web", "flutter-webview", "ios-system-auth"]),
+  handoffChallenge: z.string().regex(/^[A-Za-z0-9_-]{43}$/).optional(),
   issuedAt: z.number().int().positive()
 });
 
@@ -18,6 +19,7 @@ export type CreateOAuthStateInput = {
   provider: OAuthProviderId;
   returnTo?: string | null;
   surface?: OAuthSurface | null;
+  handoffChallenge?: string | null;
 };
 
 export type CreatedOAuthState = OAuthStateCookie & {
@@ -30,7 +32,13 @@ export function createOAuthState(input: CreateOAuthStateInput): CreatedOAuthStat
     nonce: crypto.randomUUID(),
     returnTo: sanitizeReturnTo(input.returnTo),
     state: crypto.randomUUID(),
-    surface: input.surface === "flutter-webview" ? "flutter-webview" : "web",
+    surface:
+      input.surface === "flutter-webview" || input.surface === "ios-system-auth"
+        ? input.surface
+        : "web",
+    ...(input.surface === "ios-system-auth" && input.handoffChallenge
+      ? { handoffChallenge: input.handoffChallenge }
+      : {}),
     issuedAt: Date.now()
   };
 

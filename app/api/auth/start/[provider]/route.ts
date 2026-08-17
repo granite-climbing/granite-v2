@@ -26,16 +26,32 @@ export async function GET(request: NextRequest, context: OAuthStartContext): Pro
   }
 
   const url = new URL(request.url);
+  const nativeSystemAuth = url.searchParams.get("native_system_auth");
+  const handoffChallenge = url.searchParams.get("handoff_challenge");
+  const isIosSystemAuth = nativeSystemAuth === "ios";
+  if (
+    nativeSystemAuth !== null &&
+    (!isIosSystemAuth || providerValue !== "kakao" || !isValidHandoffChallenge(handoffChallenge))
+  ) {
+    return redirectToLogin(request, "invalid_native_auth_request");
+  }
+
   const state = createOAuthState({
     provider: providerValue,
     returnTo: sanitizeReturnTo(url.searchParams.get("returnTo")),
-    surface: url.searchParams.get("native_fallback") === "1" ? "flutter-webview" : "web"
+    surface: isIosSystemAuth
+      ? "ios-system-auth"
+      : url.searchParams.get("native_fallback") === "1"
+        ? "flutter-webview"
+        : "web",
+    handoffChallenge: isIosSystemAuth ? handoffChallenge : null
   });
   const response = NextResponse.redirect(
     buildAuthorizationUrl(providerValue, {
       redirectUri: getOAuthRedirectUri(providerValue),
       state: state.state,
-      nonce: state.nonce
+      nonce: state.nonce,
+      ...(isIosSystemAuth ? { prompt: "login" as const } : {})
     }).toString()
   );
 
@@ -47,6 +63,10 @@ export async function GET(request: NextRequest, context: OAuthStartContext): Pro
     secure: process.env.NODE_ENV === "production"
   });
   return response;
+}
+
+function isValidHandoffChallenge(value: string | null): value is string {
+  return value !== null && /^[A-Za-z0-9_-]{43}$/.test(value);
 }
 
 function redirectToLogin(request: NextRequest, error: string): NextResponse {

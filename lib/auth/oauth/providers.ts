@@ -18,6 +18,7 @@ export type BuildAuthorizationUrlInput = {
   redirectUri: string;
   state: string;
   nonce: string;
+  prompt?: "login";
 };
 
 const PROVIDERS: Record<OAuthProviderId, OAuthProviderConfig> = {
@@ -168,6 +169,10 @@ export function buildAuthorizationUrl(providerId: OAuthProviderId, input: BuildA
 
   if (provider.scopes.length > 0) {
     url.searchParams.set("scope", provider.scopes.join(" "));
+  }
+
+  if (provider.provider === "kakao" && input.prompt) {
+    url.searchParams.set("prompt", input.prompt);
   }
 
   if (provider.provider === "google" || provider.provider === "apple") {

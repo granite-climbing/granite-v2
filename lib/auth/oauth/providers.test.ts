@@ -56,6 +56,23 @@ describe("OAuth provider configuration", () => {
     expect(naverUrl.searchParams.get("scope")).toBeNull();
   });
 
+  it("forces the Kakao login page only when prompt login is requested", () => {
+    const promptedUrl = buildAuthorizationUrl("kakao", {
+      redirectUri: "https://granite.kr/api/auth/callback/kakao",
+      state: "kakao-state",
+      nonce: "kakao-nonce",
+      prompt: "login"
+    });
+    const ordinaryUrl = buildAuthorizationUrl("kakao", {
+      redirectUri: "https://granite.kr/api/auth/callback/kakao",
+      state: "kakao-state",
+      nonce: "kakao-nonce"
+    });
+
+    expect(promptedUrl.searchParams.get("prompt")).toBe("login");
+    expect(ordinaryUrl.searchParams.get("prompt")).toBeNull();
+  });
+
   it("recognizes only supported Phase 6 providers", () => {
     expect(isOAuthProvider("kakao")).toBe(true);
     expect(isOAuthProvider("naver")).toBe(true);
