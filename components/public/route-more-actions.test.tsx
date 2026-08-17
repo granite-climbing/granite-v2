@@ -336,7 +336,7 @@ describe("RouteMoreActions", () => {
 
     openDialog();
     openBetaSheet();
-    fireEvent.click(screen.getByRole("button", { name: "베타 영상 올리기" }));
+    fireEvent.click(screen.getByRole("button", { name: "Instagram URL 혹은 Youtube URL로 영상 올리기" }));
     expect(screen.getByText("영상 URL")).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: "Escape" });
