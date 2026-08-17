@@ -4,6 +4,7 @@ import { createOAuthState, OAUTH_STATE_COOKIE_NAME } from "@/lib/auth/oauth/stat
 import { PENDING_RECOVERY_COOKIE_NAME, verifyPendingRecoveryToken } from "@/lib/auth/recovery";
 import { PENDING_SIGNUP_COOKIE_NAME, verifyPendingSignupToken } from "@/lib/auth/signup";
 import { USER_SESSION_COOKIE_NAME, verifyUserSessionToken } from "@/lib/auth/session";
+import { verifyNativeBrowserHandoff } from "@/lib/auth/native-browser-handoff";
 import { GET, POST } from "./route";
 
 const exchangeOAuthCodeMock = vi.hoisted(() => vi.fn());
@@ -83,6 +84,100 @@ describe("OAuth callback route", () => {
     await expect(verifyUserSessionToken(sessionToken ?? "")).resolves.toEqual({
       userId: "user_google"
     });
+  });
+
+  it.each([
+    {
+      resolution: { kind: "session" as const, user: { id: "user_kakao" } },
+      expected: {
+        kind: "session",
+        userId: "user_kakao",
+        returnTo: "/me",
+        challenge: "a".repeat(43)
+      }
+    },
+    {
+      resolution: { kind: "signup" as const },
+      expected: {
+        kind: "signup",
+        provider: "kakao",
+        providerUserId: "kakao-user",
+        email: "kakao@example.com",
+        displayName: "Kakao Climber",
+        avatarUrl: null,
+        returnTo: "/me",
+        challenge: "a".repeat(43)
+      }
+    },
+    {
+      resolution: { kind: "recover" as const, user: { id: "user_kakao" } },
+      expected: {
+        kind: "recover",
+        userId: "user_kakao",
+        returnTo: "/me",
+        challenge: "a".repeat(43)
+      }
+    }
+  ])("returns an encrypted $resolution.kind handoff to the iOS app", async ({ resolution, expected }) => {
+    process.env.JWT_SECRET = "callback-test-secret";
+    process.env.APP_BASE_URL = "https://granite.kr";
+    const state = createOAuthState({
+      provider: "kakao",
+      returnTo: "/me",
+      surface: "ios-system-auth",
+      handoffChallenge: "a".repeat(43)
+    });
+    exchangeOAuthCodeMock.mockResolvedValueOnce({
+      accessToken: "access-token",
+      tokenType: "Bearer",
+      expiresIn: 3600,
+      refreshToken: null,
+      idToken: null,
+      scope: "account_email profile_nickname"
+    });
+    fetchOAuthProfileMock.mockResolvedValueOnce({
+      provider: "kakao",
+      providerUserId: "kakao-user",
+      email: "kakao@example.com",
+      displayName: "Kakao Climber",
+      avatarUrl: null
+    });
+    resolveOAuthLoginMock.mockResolvedValueOnce(resolution);
+
+    const request = new NextRequest(
+      `https://granite.kr/api/auth/callback/kakao?code=abc&state=${state.state}`,
+      { headers: { cookie: `${OAUTH_STATE_COOKIE_NAME}=${encodeURIComponent(state.cookieValue)}` } }
+    );
+    const response = await GET(request, { params: Promise.resolve({ provider: "kakao" }) });
+    const location = new URL(response.headers.get("location") ?? "");
+    const handoff = location.searchParams.get("handoff");
+
+    expect(response.status).toBe(307);
+    expect(`${location.protocol}//${location.host}${location.pathname}`).toBe(
+      "graniteclimbing://oauth/kakao"
+    );
+    expect(readCookieValue(response.headers.get("set-cookie") ?? "", USER_SESSION_COOKIE_NAME)).toBeNull();
+    await expect(verifyNativeBrowserHandoff(handoff ?? "")).resolves.toEqual(expected);
+  });
+
+  it("returns a Kakao authorization error to the iOS app", async () => {
+    const state = createOAuthState({
+      provider: "kakao",
+      returnTo: "/me",
+      surface: "ios-system-auth",
+      handoffChallenge: "a".repeat(43)
+    });
+    const request = new NextRequest(
+      `https://granite.kr/api/auth/callback/kakao?error=access_denied&state=${state.state}`,
+      { headers: { cookie: `${OAUTH_STATE_COOKIE_NAME}=${encodeURIComponent(state.cookieValue)}` } }
+    );
+
+    const response = await GET(request, { params: Promise.resolve({ provider: "kakao" }) });
+
+    expect(response.headers.get("location")).toBe(
+      "graniteclimbing://oauth/kakao?error=access_denied"
+    );
+    expect(exchangeOAuthCodeMock).not.toHaveBeenCalled();
   });
 
   it("uses APP_BASE_URL for the token exchange redirect URI", async () => {

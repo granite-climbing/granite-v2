@@ -19,6 +19,10 @@ import {
   getPendingRecoveryCookieOptions,
   PENDING_RECOVERY_COOKIE_NAME
 } from "@/lib/auth/recovery";
+import {
+  createNativeBrowserHandoff,
+  type NativeBrowserHandoff
+} from "@/lib/auth/native-browser-handoff";
 
 const DEFAULT_ANDROID_PACKAGE_NAME = "com.granite.climbing";
 const NATIVE_APPLE_WEB_CALLBACK_STATE_PREFIX = "granite-native-apple-v1.";
@@ -95,6 +99,11 @@ async function handleOAuthCallback(
   }
 
   if (values.error) {
+    const iosSystemAuthState = getIosSystemAuthState(request, values.state, providerValue);
+    if (iosSystemAuthState) {
+      return redirectToIosSystemAuth({ error: values.error });
+    }
+
     return redirectToLogin(request, values.error);
   }
 
@@ -123,6 +132,10 @@ async function handleOAuthCallback(
     });
   } catch (error) {
     logOAuthCallbackError(providerValue, "token_exchange_failed", error);
+    if (isIosSystemAuthState(state)) {
+      return redirectToIosSystemAuth({ error: "token_exchange_failed" });
+    }
+
     return redirectToLogin(request, "token_exchange_failed", {
       provider: providerValue,
       stage: "token_exchange_failed",
@@ -138,11 +151,49 @@ async function handleOAuthCallback(
     });
   } catch (error) {
     logOAuthCallbackError(providerValue, "profile_fetch_failed", error);
+    if (isIosSystemAuthState(state)) {
+      return redirectToIosSystemAuth({ error: "profile_fetch_failed" });
+    }
+
     return redirectToLogin(request, "profile_fetch_failed");
   }
 
   try {
     const resolution = await resolveOAuthLogin(profile, new Date());
+
+    if (isIosSystemAuthState(state)) {
+      let handoffPayload: NativeBrowserHandoff;
+
+      if (resolution.kind === "signup") {
+        handoffPayload = {
+          kind: "signup",
+          provider: profile.provider,
+          providerUserId: profile.providerUserId,
+          email: profile.email,
+          displayName: profile.displayName,
+          avatarUrl: profile.avatarUrl,
+          returnTo: state.returnTo,
+          challenge: state.handoffChallenge
+        };
+      } else if (resolution.kind === "recover") {
+        handoffPayload = {
+          kind: "recover",
+          userId: resolution.user.id,
+          returnTo: state.returnTo,
+          challenge: state.handoffChallenge
+        };
+      } else {
+        handoffPayload = {
+          kind: "session",
+          userId: resolution.user.id,
+          returnTo: state.returnTo,
+          challenge: state.handoffChallenge
+        };
+      }
+
+      const handoff = await createNativeBrowserHandoff(handoffPayload);
+      return redirectToIosSystemAuth({ handoff });
+    }
 
     if (resolution.kind === "signup") {
       const pendingSignupToken = await createPendingSignupToken({
@@ -182,8 +233,47 @@ async function handleOAuthCallback(
     return response;
   } catch (error) {
     logOAuthCallbackError(providerValue, "callback_failed", error);
+    if (isIosSystemAuthState(state)) {
+      return redirectToIosSystemAuth({ error: "callback_failed" });
+    }
+
     return redirectToLogin(request, "callback_failed");
   }
+}
+
+function getIosSystemAuthState(
+  request: NextRequest,
+  callbackState: string | null,
+  provider: string
+): ReturnType<typeof assertOAuthState> | null {
+  try {
+    const state = assertOAuthState(
+      callbackState,
+      request.cookies.get(OAUTH_STATE_COOKIE_NAME)?.value
+    );
+    return state.provider === provider && isIosSystemAuthState(state) ? state : null;
+  } catch {
+    return null;
+  }
+}
+
+function isIosSystemAuthState(
+  state: ReturnType<typeof assertOAuthState>
+): state is ReturnType<typeof assertOAuthState> & { handoffChallenge: string } {
+  return state.surface === "ios-system-auth" && typeof state.handoffChallenge === "string";
+}
+
+function redirectToIosSystemAuth(result: { handoff: string } | { error: string }): NextResponse {
+  const url = new URL("graniteclimbing://oauth/kakao");
+  if ("handoff" in result) {
+    url.searchParams.set("handoff", result.handoff);
+  } else {
+    url.searchParams.set("error", sanitizeDiagnosticValue(result.error));
+  }
+
+  const response = NextResponse.redirect(url);
+  response.cookies.delete(OAUTH_STATE_COOKIE_NAME);
+  return response;
 }
 
 function setSessionCookies(response: NextResponse, sessionToken: string): void {
