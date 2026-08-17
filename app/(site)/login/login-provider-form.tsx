@@ -119,7 +119,8 @@ export function LoginProviderForm({
             payload: {
               provider,
               returnTo,
-              surface: "flutter-webview"
+              surface: "flutter-webview",
+              ...(provider === "kakao" ? { loginMode: "account" } : {})
             }
           })
         );

@@ -32,7 +32,8 @@ describe("LoginProviderForm", () => {
       payload: {
         provider: "kakao",
         returnTo: "/me",
-        surface: "flutter-webview"
+        surface: "flutter-webview",
+        loginMode: "account"
       }
     });
   });
@@ -152,7 +153,9 @@ describe("LoginProviderForm", () => {
     fireEvent.click(screen.getByRole("button", { name: `${displayLabel}로 시작하기` }));
 
     expect(postMessage).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(postMessage.mock.calls[0][0])).toMatchObject({
+    const request = JSON.parse(postMessage.mock.calls[0][0]);
+
+    expect(request).toMatchObject({
       type: "auth.native.login.requested",
       direction: "web-to-native",
       payload: {
@@ -161,5 +164,6 @@ describe("LoginProviderForm", () => {
         surface: "flutter-webview"
       }
     });
+    expect(request.payload).not.toHaveProperty("loginMode");
   });
 });
