@@ -28,7 +28,7 @@ const nativeBrowserHandoffSchema = z.discriminatedUnion("kind", [
     provider: z.enum(OAUTH_PROVIDER_IDS),
     providerUserId: z.string().min(1),
     email: z.string().email().nullable(),
-    displayName: z.string().min(1),
+    displayName: z.string(),
     avatarUrl: z.string().url().nullable(),
     returnTo: returnPathSchema,
     challenge: challengeSchema

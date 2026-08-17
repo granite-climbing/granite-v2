@@ -55,6 +55,23 @@ describe("native browser OAuth handoff", () => {
     expect(createNativeBrowserChallenge(`${verifier}-different`)).not.toBe(challenge);
   });
 
+  it("preserves an empty provider display name for existing signup behavior", async () => {
+    const payload = {
+      kind: "signup" as const,
+      provider: "kakao" as const,
+      providerUserId: "kakao-1",
+      email: null,
+      displayName: "",
+      avatarUrl: null,
+      returnTo: "/me",
+      challenge
+    };
+
+    const token = await createNativeBrowserHandoff(payload, { now });
+
+    await expect(verifyNativeBrowserHandoff(token, { now })).resolves.toEqual(payload);
+  });
+
   it("rejects a tampered handoff", async () => {
     const token = await createNativeBrowserHandoff(
       { kind: "session", userId: "user-1", returnTo: "/me", challenge },
