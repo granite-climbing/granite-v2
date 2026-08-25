@@ -263,23 +263,8 @@ function InfoPanel({ crag }: { crag: CragDetail }) {
         )}
         <InfoRow
           icon={
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.5}
-              className="size-6"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M7.5 12.75h6M7.5 15.75h6M7.5 18.75h3"
-              />
+            <svg viewBox="0 0 24 24" fill="currentColor" className="size-6">
+              <path d="M19 20H5V21C5 21.5523 4.55228 22 4 22H3C2.44772 22 2 21.5523 2 21V12L4.51334 5.29775C4.80607 4.51715 5.55231 4 6.386 4H17.614C18.4477 4 19.1939 4.51715 19.4867 5.29775L22 12V21C22 21.5523 21.5523 22 21 22H20C19.4477 22 19 21.5523 19 21V20ZM4.136 12H19.864L17.614 6H6.386L4.136 12ZM6.5 17C7.32843 17 8 16.3284 8 15.5C8 14.6716 7.32843 14 6.5 14C5.67157 14 5 14.6716 5 15.5C5 16.3284 5.67157 17 6.5 17ZM17.5 17C18.3284 17 19 16.3284 19 15.5C19 14.6716 18.3284 14 17.5 14C16.6716 14 16 14.6716 16 15.5C16 16.3284 16.6716 17 17.5 17Z" />
             </svg>
           }
           title="Description"
@@ -405,14 +390,14 @@ function InfoRow({
   body: string;
 }) {
   return (
-    <div className="flex gap-2">
-      <span className="flex size-6 shrink-0 items-center justify-center text-[#090909]">
-        {icon}
-      </span>
-      <div>
+    <div>
+      <div className="flex items-center gap-2">
+        <span className="flex size-6 shrink-0 items-center justify-center text-[#090909]">
+          {icon}
+        </span>
         <h2 className="text-[14px] font-medium leading-5 text-[#090909]">{title}</h2>
-        <p className="mt-[2px] whitespace-pre-line text-[14px] font-normal leading-5 text-[#2A2A2A]">{body}</p>
       </div>
+      <p className="mt-[2px] whitespace-pre-line text-[14px] font-normal leading-5 text-[#2A2A2A]">{body}</p>
     </div>
   );
 }

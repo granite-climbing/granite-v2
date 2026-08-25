@@ -63,7 +63,8 @@ export default async function HomePage() {
       <section className="mt-10">
         <div className="mb-5 flex h-7 items-center justify-between px-4">
           <h2 className="text-[20px] font-bold leading-7 text-[#090909]">Crags</h2>
-          <span className="flex items-center text-[14px] font-medium leading-5 text-[#7A7A7A]">All ›</span>
+          {/* TODO: 동작하지 않아 임시 주석 처리 (전체 크랙 목록 페이지 연결 필요) */}
+          {/* <span className="flex items-center text-[14px] font-medium leading-5 text-[#7A7A7A]">All ›</span> */}
         </div>
         <CragCarousel crags={model.allCrags} />
       </section>
