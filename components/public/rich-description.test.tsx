@@ -22,6 +22,8 @@ describe("RichDescription", () => {
     expect(html).toContain('href="https://granite.kr/terms/"');
     expect(html).toContain('target="_blank"');
     expect(html).toContain('rel="noopener noreferrer"');
+    expect(html).toContain('type="checkbox"');
+    expect(html).toContain("disabled");
   });
 
   it("falls back to plain text for invalid stored JSON", () => {

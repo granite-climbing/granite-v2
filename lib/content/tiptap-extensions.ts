@@ -21,6 +21,7 @@ export function richDescriptionExtensions() {
       heading: { levels: [2, 3] },
       code: false,
       codeBlock: false,
+      strike: false,
       link: false,
       underline: false,
     }),
@@ -30,6 +31,13 @@ export function richDescriptionExtensions() {
       autolink: false,
       linkOnPaste: false,
       openOnClick: false,
+      isAllowedUri: (url) => {
+        try {
+          return new URL(url).protocol === "https:";
+        } catch {
+          return false;
+        }
+      },
       HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" },
     }),
     TaskList,
