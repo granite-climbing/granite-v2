@@ -10,10 +10,17 @@
 관리자가 Crag(크랙) 설명을 작성할 때 줄바꿈만 가능한 `textarea` 대신, 아래 서식을 안전하게 작성·저장·표시할 수 있게 한다.
 
 - 굵게
-- 제목
+- 기울임
+- 제목(H2/H3)
 - 밑줄
 - 이모지(Unicode)
 - 문단과 줄바꿈
+- 글머리 목록·번호 목록
+- 링크
+- 구분선
+- 인용문
+- 하이라이트
+- 체크리스트
 
 현재 Crag 설명은 관리자 화면의 `textarea`에서 평문으로 입력되고, 공개 상세 화면의 `InfoRow`가 `whitespace-pre-line`으로 출력한다. 따라서 굵게·제목·밑줄은 표현할 수 없다.
 
@@ -22,7 +29,7 @@
 ### 포함
 
 1. Crag 관리자 생성/수정 drawer의 리치 텍스트 편집기
-2. 정해진 최소 서식 toolbar 및 키보드 단축키
+2. 정해진 서식 toolbar, 링크 입력 UI 및 키보드 단축키
 3. JSON 기반 구조화 저장, 기존 평문 설명과의 하위 호환
 4. Crag Info 탭의 접근성 있는 리치 텍스트 렌더링
 5. 입력 유효성 검증, 길이 제한, 회귀/보안 테스트
@@ -30,7 +37,7 @@
 ### 제외
 
 - Sector, Route, Announcement 등 다른 `description` 필드의 리치 텍스트화
-- 이미지·동영상·파일 업로드, 링크, 표, 목록, 인용문, 코드 블록
+- 이미지·동영상·파일 업로드, 표, 코드 블록
 - Markdown 원문 입력/저장, HTML 직접 입력/저장
 - `:shortcode:` 이모지 자동완성, 커스텀 이모지, 협업 편집
 - Travel 탭 카드의 리치 텍스트 렌더링(기존 요약용 평문 출력 유지)
@@ -41,7 +48,7 @@
 
 **채택 라이브러리**
 
-- `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-underline`
+- `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-underline`, `@tiptap/extension-highlight`, `@tiptap/extension-list`
 - 공개 화면: `@tiptap/static-renderer`의 React 정적 렌더러
 
 Tiptap core는 MIT 라이선스인 headless 에디터 프레임워크이며 React 바인딩을 제공한다. 이 프로젝트는 Next.js/React이고 관리자 UI를 Tailwind로 직접 구성하고 있으므로, 미리 정해진 WYSIWYG UI보다 toolbar를 최소 기능으로 직접 제어하는 방식이 현재 디자인과 의존성 비용에 맞는다.
@@ -80,8 +87,9 @@ Unicode 이모지는 일반 텍스트로 저장·렌더링한다. 운영체제 �
 
 - HTML을 입력·저장·`dangerouslySetInnerHTML`로 출력하지 않는다.
 - Server Action에서 JSON 문자열을 파싱한 뒤 허용 노드·mark·속성만 재귀 Zod 스키마로 검증한다.
-- 허용 노드: `doc`, `paragraph`, `heading(level 2 또는 3)`, `text`, `hardBreak`.
-- 허용 mark: `bold`, `underline`.
+- 허용 노드: `doc`, `paragraph`, `heading(level 2 또는 3)`, `text`, `hardBreak`, `bulletList`, `orderedList`, `listItem`, `taskList`, `taskItem(checked: boolean)`, `blockquote`, `horizontalRule`.
+- 허용 mark: `bold`, `italic`, `underline`, `highlight`, `link`.
+- link의 속성은 `href`만 허용하며 값은 `https://` URL이어야 한다. 공개 렌더링은 항상 `target="_blank" rel="noopener noreferrer"`를 붙인다. 색상 하이라이트와 `mailto:`, 상대 URL, `javascript:`/`data:` URL은 허용하지 않는다.
 - `heading`은 설명 안에서 H2/H3만 허용한다. Crag 이름은 이미 페이지 H1이므로 H1을 금지한다.
 - 정적 React renderer가 검증된 JSON과 동일한 extension 목록으로 React element를 만든다. 원시 HTML 주입은 없다.
 - 저장/출력 경계 모두에서 JSON 검증을 수행한다. renderer 오류 또는 알 수 없는 노드/mark는 공개 화면에서 평문 fallback을 출력하고 서버 로그를 남긴다.
@@ -115,15 +123,24 @@ Toolbar는 다음 버튼만 제공한다.
 | 기능 | 버튼/동작 | 접근성 |
 |---|---|---|
 | 굵게 | **B**, `Ctrl/Cmd+B` | `aria-label="굵게"`, 활성 상태 `aria-pressed` |
+| 기울임 | *I*, `Ctrl/Cmd+I` | `aria-label="기울임"`, 활성 상태 `aria-pressed` |
 | 밑줄 | U, `Ctrl/Cmd+U` | `aria-label="밑줄"`, 활성 상태 `aria-pressed` |
+| 하이라이트 | 형광펜 아이콘 | `aria-label="하이라이트"`, 기본 단색만 사용 |
 | 제목 2 | `H2` | `aria-label="제목 2"` |
 | 제목 3 | `H3` | `aria-label="제목 3"` |
 | 본문 | `본문` | 현재 블록을 paragraph로 전환 |
 | 줄바꿈 | Enter=새 문단, Shift+Enter=같은 문단 hard break | 별도 버튼 없음 |
+| 글머리 목록 | 목록 아이콘 | `aria-label="글머리 목록"` |
+| 번호 목록 | 번호 목록 아이콘 | `aria-label="번호 목록"` |
+| 체크리스트 | 체크박스 아이콘 | `aria-label="체크리스트"`; 공개 화면은 읽기 전용 |
+| 인용문 | 인용 아이콘 | `aria-label="인용문"` |
+| 구분선 | 수평선 아이콘 | `aria-label="구분선 삽입"` |
+| 링크 | 링크 아이콘 | `aria-label="링크"`; URL 입력 dialog를 열고 HTTPS URL만 저장 |
 
 - placeholder: `크랙 접근, 주차, 주의사항 등을 작성하세요.`
-- 에디터 아래에 “굵게·제목·밑줄·이모지·줄바꿈을 사용할 수 있습니다.”를 표시한다.
-- 붙여넣기 시 허용 서식만 보존하고, 표·이미지·링크·목록 같은 비지원 구조는 plain text/paragraph로 평탄화한다.
+- 에디터 아래에 “제목, 목록, 링크, 인용문, 강조, 체크리스트를 사용할 수 있습니다.”를 표시한다.
+- 링크 dialog는 선택 영역이 있을 때 열리며, 유효한 HTTPS URL 저장·기존 링크 편집·링크 해제를 지원한다. URL 검증 오류는 dialog 안에 표시한다.
+- 붙여넣기 시 허용 서식(목록, 인용문, 링크 포함)만 보존하고, 표·이미지·동영상·코드 같은 비지원 구조는 plain text/paragraph로 평탄화한다.
 - 빈 문서는 저장 시 빈 리치 JSON 대신 `description_rich_json = NULL`, `description = ""`으로 저장한다.
 
 ### 5.2 제한과 오류
@@ -138,19 +155,24 @@ Crag 상세 Info 탭의 `InfoRow`는 `body: string` 대신 `descriptionRichJson:
 
 - paragraph: 기존 body와 비슷한 `14px / leading-5` 본문 스타일, 문단 사이 `8px`.
 - H2: `18px`, semibold. H3: `16px`, semibold. 제목 hierarchy는 semantic `h2`/`h3`로 렌더링한다.
-- bold: `<strong>`, underline: `<u>`.
+- bold: `<strong>`, italic: `<em>`, underline: `<u>`, highlight: `<mark>`.
 - hardBreak: `<br>`.
 - 이모지: 브라우저 기본 텍스트 렌더링.
+- bullet/ordered list: semantic `<ul>`/`<ol>`/`<li>`; 중첩 목록은 지원하지 않는다.
+- checklist: 체크 상태를 표시하는 읽기 전용 `<ul>`/checkbox이며, 공개 화면에서 사용자가 상태를 바꿀 수 없다.
+- blockquote: semantic `<blockquote>`와 좌측 border 스타일을 사용한다.
+- horizontalRule: `<hr>`로 렌더링한다.
+- link: 새 탭으로 열리고 `rel="noopener noreferrer"`를 갖는다.
 - legacy fallback: 기존 `whitespace-pre-line`을 유지한다.
 
 ## 7. 수용 조건
 
-1. 관리자가 새 Crag 또는 기존 Crag에서 굵게·H2/H3·밑줄·Unicode 이모지·문단/Shift+Enter를 입력하고 저장할 수 있다.
+1. 관리자가 새 Crag 또는 기존 Crag에서 굵게·기울임·H2/H3·밑줄·하이라이트·Unicode 이모지·문단/Shift+Enter·글머리/번호 목록·체크리스트·인용문·구분선·HTTPS 링크를 입력하고 저장할 수 있다.
 2. 새 JSON 컬럼에는 지원 구조만 저장되고 `description`에는 동등한 평문이 저장된다.
 3. 새로고침 후 편집 drawer는 동일한 서식을 복원한다.
-4. 공개 `/c/[cragSlug]` Info 탭은 각 허용 서식과 이모지를 의미론적 HTML로 표시한다.
+4. 공개 `/c/[cragSlug]` Info 탭은 각 허용 서식과 이모지를 의미론적 HTML로 표시하고, 링크는 새 탭과 안전한 `rel` 속성으로 연다. 체크리스트는 읽기 전용이다.
 5. 기존 `description_rich_json IS NULL` Crag은 이전과 동일하게 평문과 개행을 표시한다.
-6. 악성/알 수 없는 node, mark, attribute가 포함된 JSON은 저장되지 않으며 공개 출력에도 원시 HTML이 주입되지 않는다.
+6. 악성/알 수 없는 node, mark, attribute, HTTPS 이외 URL이 포함된 JSON은 저장되지 않으며 공개 출력에도 원시 HTML이 주입되지 않는다.
 7. `pnpm test`, `pnpm typecheck`, `pnpm build`가 통과한다.
 
 ## 8. 검토한 대안
@@ -170,4 +192,8 @@ Crag 상세 Info 탭의 `InfoRow`는 `body: string` 대신 `descriptionRichJson:
 - [Tiptap Markdown export — underline의 비표준 `++text++`](https://tiptap.dev/docs/conversion/export/markdown/editor-extension)
 - [Tiptap Static Renderer — JSON에서 React/HTML 렌더](https://tiptap.dev/docs/editor/api/utilities/static-renderer)
 - [Tiptap Emoji extension — inline node 및 plain text copy 동작](https://tiptap.dev/docs/editor/extensions/nodes/emoji)
+- [Tiptap StarterKit — 기본 목록, 인용문, 구분선, 기울임, 링크](https://tiptap.dev/docs/editor/extensions/functionality/starterkit)
+- [Tiptap TaskList extension — 체크리스트](https://tiptap.dev/docs/editor/extensions/nodes/task-list)
+- [Tiptap Highlight extension — 하이라이트](https://tiptap.dev/docs/editor/extensions/marks/highlight)
+- [Tiptap Link extension — link mark](https://tiptap.dev/docs/editor/extensions/marks/link)
 - [OWASP XSS Prevention Cheat Sheet — HTML sanitization 권고](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html)

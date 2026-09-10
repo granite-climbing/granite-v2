@@ -2,11 +2,11 @@
 
 > **For implementer:** Use TDD throughout. Write failing test first. Watch it fail. Then implement.
 
-**Goal:** 관리자 Crag 설명에서 굵게, H2/H3, 밑줄, Unicode 이모지, 문단/줄바꿈을 안전하게 작성·저장·표시한다.
+**Goal:** 관리자 Crag 설명에서 굵게/기울임/밑줄/하이라이트, H2/H3, Unicode 이모지, 문단/줄바꿈, 목록, HTTPS 링크, 구분선, 인용문, 체크리스트를 안전하게 작성·저장·표시한다.
 
 **Architecture:** Tiptap editor는 관리자 client component에서 제한된 JSON 문서를 만들고, Server Action은 재귀 Zod schema로 허용 구조만 검증한다. JSON은 `crags.description_rich_json`에 정본으로 저장하고, 도출한 평문을 기존 `description`에 함께 저장한다. 공개 Crag Info 탭은 동일한 extension 목록을 쓰는 Tiptap Static React Renderer로 검증된 JSON을 렌더링하며, 레거시 평문은 기존 출력으로 fallback한다.
 
-**Tech Stack:** Next.js 15 App Router, React 19, TypeScript strict, Zod, D1/SQLite, Vitest, Testing Library, Tiptap (`@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-underline`, `@tiptap/static-renderer`).
+**Tech Stack:** Next.js 15 App Router, React 19, TypeScript strict, Zod, D1/SQLite, Vitest, Testing Library, Tiptap (`@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-underline`, `@tiptap/extension-highlight`, `@tiptap/extension-list`, `@tiptap/static-renderer`).
 
 **Spec:** `docs/specs/2026-09-10-rich-text-crag-description.md`
 
@@ -45,7 +45,7 @@ Expected: FAIL — upsert input/SQL에 `descriptionRichJson`이 아직 없다.
 
 **Step 3: migration과 의존성 추가**
 
-1. `pnpm add @tiptap/react @tiptap/starter-kit @tiptap/extension-underline @tiptap/static-renderer`
+1. `pnpm add @tiptap/react @tiptap/starter-kit @tiptap/extension-underline @tiptap/extension-highlight @tiptap/extension-list @tiptap/static-renderer`
 2. migration에 아래 한 문장만 작성한다.
 
 ```sql
@@ -83,7 +83,7 @@ const richJson = JSON.stringify({
   content: [
     { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "접근 🪨" }] },
     { type: "paragraph", content: [
-      { type: "text", marks: [{ type: "bold" }], text: "주차 후" },
+      { type: "text", marks: [{ type: "bold" }, { type: "highlight" }], text: "주차 후" },
       { type: "hardBreak" },
       { type: "text", marks: [{ type: "underline" }], text: "10분 이동" },
     ] },
@@ -96,7 +96,7 @@ expect(() => parseRichDescription('{"type":"doc","content":[{"type":"image"}]}')
 expect(() => parseRichDescription('{"type":"doc","content":[{"type":"heading","attrs":{"level":1}}]}')).toThrow();
 ```
 
-추가로 빈 document가 `null` 저장값으로 정규화되는지, 20,001자 text 및 201개 block이 거절되는지 테스트한다.
+추가로 다음 fixture를 각각 검증한다: 기울임/밑줄/하이라이트 mark, bullet/ordered list, `checked` true/false task item, blockquote, horizontalRule, HTTPS link. 빈 document가 `null` 저장값으로 정규화되는지, 20,001자 text 및 201개 block이 거절되는지도 테스트한다.
 
 **Step 2: 테스트 실행 — 실패 확인**
 
@@ -115,11 +115,12 @@ Expected: FAIL — module not found.
 
 구현 규칙:
 
-- node allowlist는 `doc`, `paragraph`, `heading`, `text`, `hardBreak`만이다.
-- mark allowlist는 `bold`, `underline`만이다. mark에는 속성을 허용하지 않는다.
+- node allowlist는 `doc`, `paragraph`, `heading`, `text`, `hardBreak`, `bulletList`, `orderedList`, `listItem`, `taskList`, `taskItem`, `blockquote`, `horizontalRule`만이다. 목록은 한 단계만 허용한다.
+- mark allowlist는 `bold`, `italic`, `underline`, `highlight`, `link`다. `bold`/`italic`/`underline`/`highlight`에는 속성을 허용하지 않는다.
 - heading attrs는 정확히 `level: 2 | 3`만 허용한다.
+- `taskItem` attrs는 정확히 `checked: boolean`만 허용한다. `link` attrs는 정확히 `href`만 허용하고 `new URL(href).protocol === "https:"`를 만족해야 한다.
 - 예기치 않은 key/attrs는 Zod `.strict()`로 거절한다.
-- plain text는 paragraph 사이 `\n\n`, hardBreak는 `\n`으로 만든다.
+- plain text는 paragraph 사이 `\n\n`, hardBreak는 `\n`, bullet은 `- `, ordered는 `1. `, task item은 `- [ ] `/`- [x] `, quote는 `> `로 만든다. horizontalRule는 `\n---\n`으로 만든다.
 - JSON은 `JSON.stringify(parsedDoc)`로 canonicalize한다.
 - 20,000 text code units/200 block 제한은 JSON 크기가 아니라 tree를 순회해 적용한다.
 
@@ -203,12 +204,16 @@ Tiptap editor는 browser API에 의존하므로 `@tiptap/react`의 `useEditor`, 
 ```tsx
 render(<CragDescriptionEditor initialRichJson={null} initialText="첫 줄\n둘째 줄" />);
 expect(screen.getByRole("button", { name: "굵게" })).toBeInTheDocument();
+expect(screen.getByRole("button", { name: "기울임" })).toBeInTheDocument();
 expect(screen.getByRole("button", { name: "제목 2" })).toBeInTheDocument();
 expect(screen.getByRole("button", { name: "밑줄" })).toBeInTheDocument();
+expect(screen.getByRole("button", { name: "글머리 목록" })).toBeInTheDocument();
+expect(screen.getByRole("button", { name: "체크리스트" })).toBeInTheDocument();
+expect(screen.getByRole("button", { name: "링크" })).toBeInTheDocument();
 expect(screen.getByDisplayValue(expect.stringContaining('"type":"doc"'))).toHaveAttribute("name", "descriptionRichJson");
 ```
 
-mock editor의 `isActive`/`chain().focus().toggleBold().run()` spy로 굵게 버튼이 올바른 command를 실행하고, `onUpdate`가 hidden input 값 갱신으로 이어지는 것을 테스트한다.
+mock editor의 `isActive`/`chain().focus().toggleBold().run()` spy로 굵게·기울임·목록·체크리스트·인용문·하이라이트·구분선 버튼이 올바른 command를 실행하고, `onUpdate`가 hidden input 값 갱신으로 이어지는 것을 테스트한다. 링크 dialog는 비HTTPS URL을 거절하고 `https://granite.kr/terms/`를 선택 텍스트에 적용하는지도 테스트한다.
 
 **Step 2: 테스트 실행 — 실패 확인**
 
@@ -219,11 +224,12 @@ Expected: FAIL — component not found.
 **Step 3: 최소 구현**
 
 - 파일 첫 줄에 `"use client"`를 둔다.
-- `StarterKit.configure({ heading: { levels: [2, 3] } })`, `Underline`만 extension으로 등록한다. support하지 않는 StarterKit nodes/marks(링크, 목록, code, blockquote 등)는 extension 구성에서 제거하거나 paste transform에서 허용 tree로 정규화한다.
+- `StarterKit.configure({ heading: { levels: [2, 3] }, code: false, codeBlock: false })`, `Underline`, 단색 `Highlight`, `TaskList`, `TaskItem`을 등록한다. StarterKit이 제공하는 italic/link/bulletList/orderedList/blockquote/horizontalRule은 유지한다. 색상 하이라이트, image/table/video/code node, 중첩 목록은 등록하거나 허용하지 않는다.
 - prop: `initialRichJson: string | null`, `initialText: string`.
 - initial rich JSON은 Task 2 parser로 안전하게 파싱하고 실패하면 legacy text conversion으로 fallback한다.
 - hidden input은 `name="descriptionRichJson"`, textarea는 사용하지 않는다.
 - toolbar button은 `type="button"`, `aria-label`, `aria-pressed`를 모두 갖는다.
+- 링크 버튼은 선택 텍스트에 적용할 modal/dialog를 열며, `https://` URL만 허용한다. `target`, `rel`, class 등의 link attribute는 client JSON에 저장하지 않는다.
 - 에디터 update마다 JSON을 hidden input에 반영한다. client 제한 초과 시 저장 버튼을 직접 제어하지 말고 경고를 표시하며 서버가 최종 거절한다.
 - `crags/page.tsx`의 create/edit textarea를 component로 교체하고 `editRow.descriptionRichJson`과 `editRow.description`을 전달한다.
 
@@ -252,13 +258,16 @@ git commit -m "feat: add crag rich description editor"
 
 **Step 1: 실패하는 renderer/read model 테스트 작성**
 
-`rich-description.test.tsx`에서 검증된 fixture의 heading, strong, u, hard break, emoji를 확인한다.
+`rich-description.test.tsx`에서 검증된 fixture의 heading, strong, em, u, mark, hard break, emoji, 목록, 인용문, 구분선, 읽기 전용 checklist, 안전한 외부 링크를 확인한다.
 
 ```tsx
 render(<RichDescription richJson={richJson} fallbackText="legacy" />);
 expect(screen.getByRole("heading", { level: 2, name: "접근 🪨" })).toBeInTheDocument();
 expect(screen.getByText("주차 후").tagName).toBe("STRONG");
 expect(screen.getByText("10분 이동").tagName).toBe("U");
+expect(screen.getByRole("list")).toBeInTheDocument();
+expect(screen.getByRole("checkbox", { name: "쓰레기 되가져가기" })).toBeDisabled();
+expect(screen.getByRole("link", { name: "이용약관" })).toHaveAttribute("rel", "noopener noreferrer");
 
 render(<RichDescription richJson={null} fallbackText={"첫 줄\n둘째 줄"} />);
 expect(screen.getByText("첫 줄\n둘째 줄")).toHaveClass("whitespace-pre-line");
@@ -276,7 +285,7 @@ Expected: FAIL — renderer/read model field가 없다.
 
 1. `components/public/rich-description.tsx`에서 Task 2 `parseRichDescription`로 JSON을 검증한다.
 2. 검증 성공 시 `@tiptap/static-renderer/pm/react`의 renderer와 editor와 동일한 최소 extension 목록을 사용한다. `dangerouslySetInnerHTML`을 쓰지 않는다.
-3. renderer node/mark mapping은 semantic `h2`, `h3`, `p`, `br`, `strong`, `u`와 spec의 Tailwind class를 반환한다.
+3. renderer node/mark mapping은 semantic `h2`, `h3`, `p`, `br`, `strong`, `em`, `u`, `mark`, `ul`, `ol`, `li`, 읽기 전용 checkbox, `blockquote`, `hr`, `a`와 spec의 Tailwind class를 반환한다. `a`에는 renderer가 `target="_blank" rel="noopener noreferrer"`를 강제한다.
 4. `richJson`이 null 또는 검증/renderer 오류면 `fallbackText`를 `<p className="... whitespace-pre-line">`로 출력한다. 오류는 서버에 `console.error`로 context 없이 기록한다.
 5. Crag DB schema/query/read type에 `descriptionRichJson`을 추가한다.
 6. `InfoRow`에 원시 `body` 대신 `RichDescription`을 연결한다. Travel 카드에는 `crag.description` 평문을 그대로 유지한다.
@@ -306,12 +315,13 @@ git commit -m "feat: render rich crag descriptions"
 
 아래 cases를 명시적으로 추가한다.
 
-1. `script`, `image`, `link`, `bulletList` node 거절
-2. `text` node의 임의 attribute 거절
-3. bold mark의 `onclick` attribute 거절
-4. HTML 문자열(`<img src=x onerror=...>`)은 JSON parse 실패
-5. legacy multiline 텍스트 → JSON → plain text의 개행 보존
-6. JSON → 저장 → renderer로 heading/bold/underline/emoji/hardBreak가 모두 유지
+1. `script`, `image`, `table`, `codeBlock`, 중첩 `bulletList` node 거절
+2. `text` node의 임의 attribute와 `taskItem.checked` 이외 task item attribute 거절
+3. bold/highlight mark의 `onclick`/color attribute 거절
+4. `javascript:`, `data:`, `mailto:`, 상대 URL link mark 거절; HTTPS link만 허용
+5. HTML 문자열(`<img src=x onerror=...>`)은 JSON parse 실패
+6. legacy multiline 텍스트 → JSON → plain text의 개행 보존
+7. JSON → 저장 → renderer로 heading/bold/italic/underline/highlight/emoji/hardBreak/list/taskList/blockquote/hr/link가 모두 유지하고, renderer의 link `rel`/target과 checkbox disabled를 검증
 
 **Step 2: 테스트 실행 — 실패 확인**
 
@@ -321,7 +331,7 @@ Expected: FAIL — 새 regression case 중 하나 이상을 보호하지 못한�
 
 **Step 3: 최소 구현/문서 갱신**
 
-- 실패한 case를 통과하도록 allowlist/normalizer/renderer를 최소 수정한다. HTML sanitization library나 허용 범위를 넓히지 않는다.
+- 실패한 case를 통과하도록 allowlist/normalizer/renderer를 최소 수정한다. HTML sanitization library나 spec을 벗어난 허용 범위를 넓히지 않는다.
 - `docs/DATA_MODEL.md` Crag 표에 `description_rich_json` (`TEXT`, nullable, 제한된 Tiptap JSON 정본) row를 추가한다. 기존 `description` row는 “legacy/fallback 및 파생 평문”으로 수정한다.
 
 **Step 4: 개별 테스트 실행 — 통과 확인**
