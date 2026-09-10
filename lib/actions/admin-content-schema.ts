@@ -88,6 +88,7 @@ export const cragFormSchema = z.object({
   lat: optionalNumber,
   lng: optionalNumber,
   description: optionalText,
+  descriptionRichJson: z.string().optional(),
   season: optionalText,
   coverImageUrl: cdnUrl,
   isPublished: checkbox,

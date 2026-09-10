@@ -34,6 +34,7 @@ import {
   parseRouteForm,
 } from "./admin-content-schema";
 import { redirectWithToast, contentToastMessage, type ContentKind } from "./toast-redirect";
+import { normalizeRichDescriptionForStorage } from "@/lib/content/rich-description";
 
 // ---------------------------------------------------------------------------
 // Table validation and singular name mapping for publish toggle
@@ -217,13 +218,21 @@ export async function saveAreaAction(formData: FormData): Promise<void> {
 export async function saveCragAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const parsed = parseCragForm(Object.fromEntries(formData));
+  const richDescription = parsed.descriptionRichJson
+    ? normalizeRichDescriptionForStorage(parsed.descriptionRichJson)
+    : { richJson: null, plainText: parsed.description };
+  const cragInput = {
+    ...parsed,
+    description: richDescription.plainText,
+    descriptionRichJson: richDescription.richJson,
+  };
   let id = parsed.id ?? `crag_${parsed.slug}`;
 
   if (!parsed.id) {
     const resolved = await resolveSlugConflict({ generatedId: id, table: "crags", slug: parsed.slug });
     id = resolved.id;
 
-    await upsertCrag({ ...parsed, id });
+    await upsertCrag({ ...cragInput, id });
 
     // Non-atomic: D1 HTTP has no transaction support, so upsert and restore are separate calls.
     // This is acceptable for the admin path because the upsert is the source of truth; a crash
@@ -232,7 +241,7 @@ export async function saveCragAction(formData: FormData): Promise<void> {
       await restoreContent({ table: "crags", id });
     }
   } else {
-    await upsertCrag({ ...parsed, id });
+    await upsertCrag({ ...cragInput, id });
   }
 
   await auditLog({ adminId: admin.adminId, action: "content.upsert", targetType: "crag", targetId: id, metadata: { slug: parsed.slug } });

@@ -182,8 +182,8 @@ export async function upsertArea(input: {
   );
 }
 
-// crags: id, area_id, name, name_en, slug, lat, lng, description, season,
-//        cover_image_url, is_published, sort_order
+// crags: id, area_id, name, name_en, slug, lat, lng, description, description_rich_json,
+//        season, cover_image_url, is_published, sort_order
 export async function upsertCrag(input: {
   id: string;
   areaId: string;
@@ -193,6 +193,7 @@ export async function upsertCrag(input: {
   lat: number | null;
   lng: number | null;
   description: string;
+  descriptionRichJson: string | null;
   season: string;
   coverImageUrl: string;
   isPublished: boolean;
@@ -200,21 +201,22 @@ export async function upsertCrag(input: {
 }): Promise<void> {
   await executeD1(
     `INSERT INTO crags
-       (id, area_id, name, name_en, slug, lat, lng, description, season, cover_image_url, is_published, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       (id, area_id, name, name_en, slug, lat, lng, description, description_rich_json, season, cover_image_url, is_published, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
-       area_id         = excluded.area_id,
-       name            = excluded.name,
-       name_en         = excluded.name_en,
-       slug            = excluded.slug,
-       lat             = excluded.lat,
-       lng             = excluded.lng,
-       description     = excluded.description,
-       season          = excluded.season,
-       cover_image_url = excluded.cover_image_url,
-       is_published    = excluded.is_published,
-       sort_order      = excluded.sort_order,
-       updated_at      = datetime('now')`,
+       area_id               = excluded.area_id,
+       name                  = excluded.name,
+       name_en               = excluded.name_en,
+       slug                  = excluded.slug,
+       lat                   = excluded.lat,
+       lng                   = excluded.lng,
+       description           = excluded.description,
+       description_rich_json = excluded.description_rich_json,
+       season                = excluded.season,
+       cover_image_url       = excluded.cover_image_url,
+       is_published          = excluded.is_published,
+       sort_order            = excluded.sort_order,
+       updated_at            = datetime('now')`,
     [
       input.id,
       input.areaId,
@@ -224,6 +226,7 @@ export async function upsertCrag(input: {
       input.lat,
       input.lng,
       input.description,
+      input.descriptionRichJson,
       input.season,
       input.coverImageUrl,
       input.isPublished ? 1 : 0,

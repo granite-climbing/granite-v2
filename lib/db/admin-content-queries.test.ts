@@ -49,6 +49,7 @@ describe("admin content queries", () => {
       lat: 37.4194,
       lng: 126.9323,
       description: "desc",
+      descriptionRichJson: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"desc"}]}]}',
       season: "spring",
       coverImageUrl: "https://cdn.granite.kr/crags/anyang/cover.webp",
       isPublished: true,
@@ -56,8 +57,17 @@ describe("admin content queries", () => {
     });
 
     expect(mockedExecute).toHaveBeenCalledWith(
-      expect.stringContaining("INSERT INTO crags"),
-      expect.arrayContaining(["crag_anyang", "area_greater_seoul", "안양", "Anyang", "anyang", 1, 1]),
+      expect.stringContaining("description_rich_json"),
+      expect.arrayContaining([
+        "crag_anyang",
+        "area_greater_seoul",
+        "안양",
+        "Anyang",
+        "anyang",
+        1,
+        1,
+        '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"desc"}]}]}',
+      ]),
     );
   });
 
