@@ -16,6 +16,7 @@ import { EditDrawer } from "@/components/admin/edit-drawer";
 import { FormSection, FullWidth } from "@/components/admin/form-section";
 import { ParentFilter } from "@/components/admin/parent-filter";
 import { LocationCoordinateField } from "@/components/admin/location-coordinate-field";
+import { CragDescriptionEditor } from "@/components/admin/crag-description-editor";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -151,7 +152,7 @@ export default async function AdminCragsPage({ searchParams }: Props) {
             <FormSection title="Content" cols={1}>
               <FullWidth>
                 <label className="mb-1 block text-xs font-semibold text-[#374151]">Description</label>
-                <textarea name="description" className={textareaCls} rows={2} placeholder="설명..." />
+                <CragDescriptionEditor initialRichJson={null} initialText="" />
               </FullWidth>
               <div>
                 <label className="mb-1 block text-xs font-semibold text-[#374151]">Season</label>
@@ -220,7 +221,7 @@ export default async function AdminCragsPage({ searchParams }: Props) {
             <FormSection title="Content" cols={1}>
               <FullWidth>
                 <label className="mb-1 block text-xs font-semibold text-[#374151]">Description</label>
-                <textarea name="description" defaultValue={editRow.description} className={textareaCls} rows={3} />
+                <CragDescriptionEditor initialRichJson={editRow.descriptionRichJson} initialText={editRow.description} />
               </FullWidth>
               <div>
                 <label className="mb-1 block text-xs font-semibold text-[#374151]">Season</label>

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/layout/app-header";
 import { KakaoMap } from "@/components/public/kakao-map";
+import { RichDescription } from "@/components/public/rich-description";
 import { findCragBySlug } from "@/lib/db/repository";
 import type { CragDetail, TabName } from "@/lib/db/schema";
 import { bucketGradeNums, GRADE_LABELS } from "@/lib/grade-histogram";
@@ -268,7 +269,8 @@ function InfoPanel({ crag }: { crag: CragDetail }) {
             </svg>
           }
           title="Description"
-          body={crag.description}
+          richJson={crag.descriptionRichJson}
+          fallbackText={crag.description}
         />
         <div className="grid grid-cols-2 gap-2 pt-2">
           <PillButton icon="P" label="Parking Spot" />
@@ -383,11 +385,13 @@ function buildTravelItems(crag: CragDetail) {
 function InfoRow({
   icon,
   title,
-  body,
+  richJson,
+  fallbackText,
 }: {
   icon: React.ReactNode;
   title: string;
-  body: string;
+  richJson?: string | null;
+  fallbackText: string;
 }) {
   return (
     <div>
@@ -397,7 +401,7 @@ function InfoRow({
         </span>
         <h2 className="text-[14px] font-medium leading-5 text-[#090909]">{title}</h2>
       </div>
-      <p className="mt-[2px] whitespace-pre-line text-[14px] font-normal leading-5 text-[#2A2A2A]">{body}</p>
+      <RichDescription richJson={richJson} fallbackText={fallbackText} />
     </div>
   );
 }
