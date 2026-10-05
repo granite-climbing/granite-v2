@@ -1,6 +1,7 @@
 import Highlight from "@tiptap/extension-highlight";
 import Link from "@tiptap/extension-link";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
+import { Table, TableCell, TableHeader, TableRow } from "@tiptap/extension-table";
 import Underline from "@tiptap/extension-underline";
 import StarterKit from "@tiptap/starter-kit";
 
@@ -18,10 +19,7 @@ const GraniteLink = Link.extend({
 export function richDescriptionExtensions() {
   return [
     StarterKit.configure({
-      heading: { levels: [2, 3] },
-      code: false,
-      codeBlock: false,
-      strike: false,
+      heading: { levels: [1, 2, 3, 4, 5, 6] },
       link: false,
       underline: false,
     }),
@@ -42,5 +40,9 @@ export function richDescriptionExtensions() {
     }),
     TaskList,
     TaskItem.configure({ nested: false }),
+    Table.configure({ resizable: false }),
+    TableRow,
+    TableHeader,
+    TableCell,
   ];
 }

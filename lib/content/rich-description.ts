@@ -5,6 +5,8 @@ export type RichDescriptionMark =
   | { type: "italic" }
   | { type: "underline" }
   | { type: "highlight" }
+  | { type: "strike" }
+  | { type: "code" }
   | { type: "link"; attrs: { href: string } };
 
 export type RichDescriptionInlineNode =
@@ -18,7 +20,8 @@ export type RichDescriptionParagraph = {
 
 export type RichDescriptionBlockNode =
   | RichDescriptionParagraph
-  | { type: "heading"; attrs: { level: 2 | 3 }; content?: RichDescriptionInlineNode[] }
+  | { type: "heading"; attrs: { level: 1 | 2 | 3 | 4 | 5 | 6 }; content?: RichDescriptionInlineNode[] }
+  | { type: "codeBlock"; attrs?: { language?: string | null }; content?: Array<{ type: "text"; text: string }> }
   | { type: "bulletList"; content: Array<{ type: "listItem"; content: [RichDescriptionParagraph] }> }
   | { type: "orderedList"; content: Array<{ type: "listItem"; content: [RichDescriptionParagraph] }> }
   | {
@@ -49,6 +52,8 @@ const markSchema = z.union([
   z.object({ type: z.literal("italic") }).strict(),
   z.object({ type: z.literal("underline") }).strict(),
   z.object({ type: z.literal("highlight") }).strict(),
+  z.object({ type: z.literal("strike") }).strict(),
+  z.object({ type: z.literal("code") }).strict(),
   linkMarkSchema,
 ]);
 
@@ -90,10 +95,26 @@ const blockNodeSchema = z.union([
   z
     .object({
       type: z.literal("heading"),
-      attrs: z.object({ level: z.union([z.literal(2), z.literal(3)]) }).strict(),
+      attrs: z.object({ level: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6)]) }).strict(),
       content: z.array(inlineNodeSchema).optional(),
     })
     .strict(),
+  z.object({
+    type: z.literal("codeBlock"),
+    attrs: z.object({ language: z.string().nullable().optional() }).strict().optional(),
+    content: z.array(z.object({ type: z.literal("text"), text: z.string() }).strict()).optional(),
+  }).strict(),
+  z.object({
+    type: z.literal("table"),
+    content: z.array(z.object({
+      type: z.literal("tableRow"),
+      content: z.array(z.object({
+        type: z.union([z.literal("tableCell"), z.literal("tableHeader")]),
+        attrs: z.object({ colspan: z.number(), rowspan: z.number(), colwidth: z.array(z.number()).nullable() }).strict(),
+        content: z.array(paragraphSchema).min(1),
+      }).strict()).min(1),
+    }).strict()).min(1),
+  }).strict(),
   z.object({ type: z.literal("bulletList"), content: z.array(listItemSchema).min(1) }).strict(),
   z.object({ type: z.literal("orderedList"), content: z.array(listItemSchema).min(1) }).strict(),
   z.object({ type: z.literal("taskList"), content: z.array(taskItemSchema).min(1) }).strict(),
@@ -111,6 +132,7 @@ const richDescriptionDocSchema = z
 function countTextChars(node: RichDescriptionDoc | RichDescriptionBlockNode | RichDescriptionParagraph | RichDescriptionInlineNode): number {
   if (node.type === "text") return node.text.length;
   if (node.type === "hardBreak" || node.type === "horizontalRule") return 0;
+  if (node.type === "codeBlock") return (node.content ?? []).reduce((sum, child) => sum + child.text.length, 0);
   if (node.type === "doc" || node.type === "paragraph" || node.type === "heading" || node.type === "blockquote") {
     return (node.content ?? []).reduce((sum, child) => sum + countTextChars(child), 0);
   }
@@ -144,6 +166,8 @@ function blockText(node: RichDescriptionBlockNode): string {
     case "paragraph":
     case "heading":
       return inlineText(node.content);
+    case "codeBlock":
+      return (node.content ?? []).map((child) => child.text).join("");
     case "bulletList":
       return node.content.map((item) => `- ${blockText(item.content[0])}`).join("\n");
     case "orderedList":
