@@ -58,6 +58,7 @@ export type AdminCragRow = {
   lat: number | null;
   lng: number | null;
   description: string;
+  descriptionRichJson: string | null;
   season: string;
   coverImageUrl: string;
   isPublished: boolean;
@@ -207,6 +208,7 @@ interface AdminCragSqlRow {
   lat: number | null;
   lng: number | null;
   description: string;
+  descriptionRichJson: string | null;
   season: string;
   coverImageUrl: string;
   isPublished: 0 | 1;
@@ -444,6 +446,7 @@ export async function getAdminCrags(filters?: CragFilters): Promise<AdminCragRow
        c.lat,
        c.lng,
        c.description,
+       c.description_rich_json AS descriptionRichJson,
        c.season,
        c.cover_image_url AS coverImageUrl,
        c.is_published    AS isPublished,

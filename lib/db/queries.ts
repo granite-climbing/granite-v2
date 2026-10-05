@@ -65,6 +65,7 @@ interface CragRow {
   lat: number | null;
   lng: number | null;
   description: string;
+  descriptionRichJson?: string | null;
   season: string;
   coverImageUrl: string;
   isPublished: 0 | 1;
@@ -565,6 +566,7 @@ export function cragBySlugQuery(slug: string): D1Query<Crag | null> {
        c.lat,
        c.lng,
        c.description,
+       c.description_rich_json AS descriptionRichJson,
        c.season,
        c.cover_image_url AS coverImageUrl,
        c.is_published    AS isPublished,

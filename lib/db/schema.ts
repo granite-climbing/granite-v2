@@ -19,6 +19,7 @@ export type Crag = {
   lat: number | null;
   lng: number | null;
   description: string;
+  descriptionRichJson?: string | null;
   season: string;
   coverImageUrl: string;
   isPublished: boolean;

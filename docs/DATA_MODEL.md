@@ -68,7 +68,8 @@ Natural bouldering crag.
 | `slug` | `TEXT` | yes | Unique lowercase snake_case |
 | `lat` | `REAL` | no | Optional crag center |
 | `lng` | `REAL` | no | Optional crag center |
-| `description` | `TEXT` | yes | Hero/detail description, can be empty |
+| `description` | `TEXT` | yes | Legacy/fallback and derived plain text, can be empty |
+| `description_rich_json` | `TEXT` | no | Canonical restricted Tiptap JSON for Crag detail |
 | `season` | `TEXT` | yes | Display season, can be empty |
 | `cover_image_url` | `TEXT` | yes | CDN URL/path, can be empty during draft |
 | `is_published` | `INTEGER` | yes | `0` or `1` |

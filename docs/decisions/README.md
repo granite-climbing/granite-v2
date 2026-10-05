@@ -54,3 +54,4 @@ date: YYYY-MM-DD
 | [0018](0018-no-coord-precision-column.md) | 민감 좌표는 관리자 큐레이션으로 통제, coord_precision 컬럼 제거 | Accepted |
 | [0019](0019-insert-phase-4-ui-admin-refinement.md) | Phase 4에 Public/Admin UX 보정 단계 삽입 | Accepted |
 | [0020](0020-apple-web-oauth-callback-mode.md) | Apple web OAuth callback mode | Proposed |
+| [0021](0021-tiptap-for-crag-rich-text.md) | Crag 설명 리치 텍스트에 Tiptap과 제한된 JSON 문서 사용 | Accepted |
