@@ -61,7 +61,7 @@ describe("rich description", () => {
 
   it.each([
     '{"type":"doc","content":[{"type":"image"}]}',
-    '{"type":"doc","content":[{"type":"heading","attrs":{"level":1}}]}',
+    '{"type":"doc","content":[{"type":"heading","attrs":{"level":7}}]}',
     '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"link","attrs":{"href":"javascript:alert(1)"}}],"text":"x"}]}]}',
     '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","marks":[{"type":"highlight","attrs":{"color":"#fff"}}],"text":"x"}]}]}',
     '{"type":"doc","content":[{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"bulletList","content":[]}]}]}]}',

@@ -4,6 +4,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import { useMemo, useState } from "react";
 import { legacyTextToRichDescription, parseRichDescription } from "@/lib/content/rich-description";
 import { richDescriptionExtensions } from "@/lib/content/tiptap-extensions";
+import { htmlClipboardToSafeHtml, markdownToSafeHtml } from "@/lib/rich-text/crag-description";
 
 export function CragDescriptionEditor({ initialRichJson, initialText }: { initialRichJson: string | null; initialText: string }) {
   const initialContent = useMemo(() => {
@@ -19,7 +20,7 @@ export function CragDescriptionEditor({ initialRichJson, initialText }: { initia
     content: initialContent,
     immediatelyRender: false,
     onUpdate: ({ editor: current }) => setJson(JSON.stringify(current.getJSON())),
-    editorProps: { attributes: { class: "min-h-32 rounded-b border border-[#D0D7DE] p-3 text-sm outline-none" } },
+    editorProps: { attributes: { class: "min-h-32 rounded-b border border-[#D0D7DE] p-3 text-sm outline-none", role: "textbox", "aria-label": "Description rich text editor", "aria-multiline": "true" } },
   });
   if (!editor) return null;
   const button = (label: string, run: () => void, active = false) => (
@@ -32,7 +33,16 @@ export function CragDescriptionEditor({ initialRichJson, initialText }: { initia
       setJson(JSON.stringify(editor.getJSON())); setLinkOpen(false); setError("");
     } catch { setError("HTTPS URL만 사용할 수 있습니다."); }
   };
-  return <div>
+  const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
+    const clipboard = event.clipboardData;
+    const html = clipboard.getData("text/html");
+    const text = clipboard.getData("text/plain");
+    if (!html && !text) return;
+    event.preventDefault();
+    editor.commands.insertContent(html ? htmlClipboardToSafeHtml(html) : markdownToSafeHtml(text));
+    setJson(JSON.stringify(editor.getJSON()));
+  };
+  return <div onPasteCapture={handlePaste}>
     <input type="hidden" name="descriptionRichJson" value={json} />
     <div className="flex flex-wrap gap-1 rounded-t border border-b-0 border-[#D0D7DE] bg-[#F6F8FA] p-2">
       {button("굵게", () => editor.chain().focus().toggleBold().run(), editor.isActive("bold"))}
